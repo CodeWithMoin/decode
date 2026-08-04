@@ -1,0 +1,1688 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;padding:0;background:#EFEFED;color:#141414;}
+*{box-sizing:border-box;}
+a{color:#141414;text-decoration:none;}a:hover{color:#0F766E;}
+textarea,select,input,button{font-family:inherit;color:inherit;}
+textarea:focus,input:focus,select:focus{outline:none;}
+button{cursor:pointer;}
+::-webkit-scrollbar{width:8px;height:8px;}::-webkit-scrollbar-thumb{background:#DEDEDA;border-radius:4px;}::-webkit-scrollbar-track{background:transparent;}
+@keyframes spin{to{transform:rotate(360deg);}}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+}
+@keyframes blinkbar{0%,100%{opacity:.9;}50%{opacity:.4;}}
+@keyframes mq{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+@keyframes wavepulse{0%,100%{transform:scaleY(1);}50%{transform:scaleY(0.4);}}
+@keyframes glowpulse{0%,100%{opacity:1;}50%{opacity:.5;}}
+}
+@keyframes floaty{0%,100%{transform:translateY(0) rotate(var(--rot,0deg));}50%{transform:translateY(-8px) rotate(var(--rot,0deg));}}
+</style>
+</helmet>
+<div style="font-family:'Geist',system-ui,sans-serif;min-height:100vh;background:linear-gradient(180deg,#F3F3F1,#EBEBE9);color:#141414;-webkit-font-smoothing:antialiased;">
+
+<sc-if value="{{ isLanding }}" hint-placeholder-val="{{ true }}">
+<div style="max-width:1120px;margin:0 auto;padding:0 32px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:22px 0;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="width:22px;height:22px;border-radius:6px;background:#141414;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Bricolage Grotesque';font-weight:700;font-size:13px;">D</div>
+      <div style="font-family:'Bricolage Grotesque';font-weight:600;font-size:16px;letter-spacing:-0.01em;">Decode</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:26px;font-size:13.5px;color:#6B6B68;">
+      <a href="#" style="color:#6B6B68;">Product</a><a href="#" style="color:#6B6B68;">Workflow</a><a href="#" style="color:#6B6B68;">Examples</a><a href="#" style="color:#6B6B68;">Pricing</a>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button onClick="{{ goDashboard }}" style="background:transparent;color:#6B6B68;border:none;font-size:13.5px;font-weight:500;padding:8px 10px;" style-hover="color:#141414;">Sign in</button>
+      <button onClick="{{ goDashboard }}" style="background:linear-gradient(180deg,#2C2C29,#141414);border:1px solid rgba(255,255,255,0.13);box-shadow:inset 0 1px 0 rgba(255,255,255,0.17),0 6px 18px rgba(20,20,20,0.20);color:#fff;border-radius:999px;padding:8px 18px;font-size:13.5px;font-weight:500;transition:filter .15s,transform .15s;" style-hover="filter:brightness(1.18);transform:translateY(-1px);">Open Studio</button>
+    </div>
+  </div>
+
+  <div style="position:relative;padding:clamp(48px,7vw,88px) 0 40px;min-height:clamp(430px,44vw,560px);">
+    <div style="position:absolute;z-index:0;left:50%;top:30px;transform:translateX(-50%);width:760px;height:440px;background:radial-gradient(closest-side, rgba(15,118,110,0.10), transparent);pointer-events:none;"></div>
+    <div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;text-align:center;max-width:min(660px,54vw);margin:0 auto;">
+      <div style="width:52px;height:52px;border-radius:15px;background:#141414;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Bricolage Grotesque';font-weight:700;font-size:26px;box-shadow:0 14px 30px rgba(30,30,28,0.18);margin-bottom:34px;">D</div>
+      <h1 style="font-family:'Bricolage Grotesque';font-size:clamp(30px,4.3vw,54px);line-height:1.1;letter-spacing:-0.03em;font-weight:600;margin:0 0 20px;text-wrap:balance;">Decode any technical content<br><span style="color:#A3A39E;">into <span style="font-family:'Caveat';font-weight:700;color:{{ accent }};font-size:1.22em;letter-spacing:0;">stories</span> people understand.</span></h1>
+      <p style="font-size:16px;line-height:1.6;color:#6B6B68;max-width:440px;margin:0 0 30px;text-wrap:pretty;">Papers, books, documentation, lecture slides, whitepapers — turned into editable educational videos. The AI produces, you direct.</p>
+      <button onClick="{{ goDashboard }}" style="background:linear-gradient(180deg,#15897F,#0F766E);border:1px solid rgba(255,255,255,0.22);box-shadow:inset 0 1px 0 rgba(255,255,255,0.34),0 10px 26px rgba(15,118,110,0.34);color:#fff;border-radius:999px;padding:13px 28px;font-size:15px;font-weight:500;transition:transform .2s ease,filter .2s ease;" style-hover="filter:brightness(1.08);transform:translateY(-2px);">Start decoding — it's free</button>
+      <div style="font-size:12px;color:#B0B0AC;margin-top:14px;">Papers · Books · Docs · Slides · Whitepapers</div>
+    </div>
+
+    <div style="position:absolute;z-index:1;left:0;top:clamp(30px,5vw,56px);--rot:-6deg;transform:rotate(-6deg);animation:floaty 7s ease-in-out infinite;width:clamp(150px,19vw,218px);border:1px solid rgba(255,255,255,0.9);border-radius:18px;background:rgba(255,255,255,0.85);backdrop-filter:blur(16px);box-shadow:0 18px 44px rgba(30,30,28,0.10);padding:16px 18px;display:flex;flex-direction:column;gap:9px;">
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500;"><div style="width:14px;height:14px;border-radius:50%;background:#141414;color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;">✓</div>Reading document</div>
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500;"><div style="width:14px;height:14px;border-radius:50%;background:#141414;color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;">✓</div>Extracting concepts</div>
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500;"><div style="width:14px;height:14px;border-radius:50%;background:#141414;color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;">✓</div>Planning lesson</div>
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6B6B68;"><div style="width:12px;height:12px;border-radius:50%;border:2px solid #E0E0DC;border-top-color:{{ accent }};animation:spin .8s linear infinite;margin:1px;"></div>Generating storyboard…</div>
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#B0B0AC;"><div style="width:5px;height:5px;border-radius:50%;background:#D8D8D2;margin:4.5px;"></div>Building timeline</div>
+    </div>
+
+    <div style="position:absolute;z-index:1;left:clamp(0px,2vw,18px);bottom:12px;--rot:4deg;transform:rotate(4deg);animation:floaty 8.5s ease-in-out 1s infinite;width:clamp(158px,20vw,236px);border:1px solid rgba(255,255,255,0.9);border-radius:18px;background:rgba(255,255,255,0.85);backdrop-filter:blur(16px);box-shadow:0 18px 44px rgba(30,30,28,0.10);padding:14px;">
+      <div style="font-family:'Geist Mono';font-size:9.5px;letter-spacing:.1em;color:#9A9A96;margin-bottom:10px;">STORYBOARD</div>
+      <div style="display:flex;gap:7px;">
+        <div style="flex:1;height:52px;border-radius:9px;background:linear-gradient(135deg,#D6E8E1,#E9E7F1);"></div>
+        <div style="flex:1;height:52px;border-radius:9px;background:#0E0E10;display:flex;align-items:center;justify-content:center;color:#E8E8EC;font-family:'Geist Mono';font-size:9px;">QK<span style="font-size:7px;">T</span></div>
+        <div style="flex:1;height:52px;border-radius:9px;background:linear-gradient(135deg,#E9E7F1,#F3ECE1);"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:9px;font-family:'Geist Mono';font-size:9px;color:#B0B0AC;"><div>02</div><div style="color:{{ accent }};">03 · selected</div><div>04</div></div>
+    </div>
+
+    <div style="position:absolute;z-index:1;right:0;top:clamp(26px,4.5vw,48px);--rot:5deg;transform:rotate(5deg);animation:floaty 7.8s ease-in-out .5s infinite;width:clamp(152px,19vw,222px);border:1px solid rgba(255,255,255,0.9);border-radius:18px;background:rgba(255,255,255,0.85);backdrop-filter:blur(16px);box-shadow:0 18px 44px rgba(30,30,28,0.10);padding:16px;">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px;">
+        <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#2A2A28,#5A5A56);"></div>
+        <div><div style="font-size:12px;font-weight:500;">Nova</div><div style="font-size:10px;color:#9A9A96;">{{ toneLabel }} · en-US</div></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:2px;height:26px;">
+        <div style="flex:1;height:10px;background:{{ accent }};border-radius:1px;"></div><div style="flex:1;height:18px;background:{{ accent }};border-radius:1px;"></div><div style="flex:1;height:24px;background:{{ accent }};border-radius:1px;"></div><div style="flex:1;height:14px;background:{{ accent }};border-radius:1px;"></div><div style="flex:1;height:20px;background:#DBDBD6;border-radius:1px;"></div><div style="flex:1;height:26px;background:#DBDBD6;border-radius:1px;"></div><div style="flex:1;height:12px;background:#DBDBD6;border-radius:1px;"></div><div style="flex:1;height:22px;background:#DBDBD6;border-radius:1px;"></div><div style="flex:1;height:8px;background:#DBDBD6;border-radius:1px;"></div><div style="flex:1;height:16px;background:#DBDBD6;border-radius:1px;"></div><div style="flex:1;height:24px;background:#DBDBD6;border-radius:1px;"></div><div style="flex:1;height:10px;background:#DBDBD6;border-radius:1px;"></div>
+      </div>
+      <div style="font-size:10.5px;color:#9A9A96;margin-top:10px;line-height:1.5;">“…every word asks a question, and every word offers an answer.”</div>
+    </div>
+
+    <div style="position:absolute;z-index:1;right:clamp(0px,1vw,6px);bottom:6px;--rot:-4deg;transform:rotate(-4deg);animation:floaty 9s ease-in-out 1.6s infinite;width:clamp(146px,18vw,210px);border-radius:18px;background:#0E0E10;box-shadow:0 18px 44px rgba(30,30,28,0.16);padding:16px;">
+      <div style="font-family:'Geist Mono';font-size:8.5px;letter-spacing:.14em;color:#6E6E76;margin-bottom:10px;">SCENE 04 · MULTI-HEAD</div>
+      <div style="display:flex;gap:5px;margin-bottom:10px;">
+        <div style="width:22px;height:22px;border-radius:6px;background:#1D1D22;border:1px solid #2E2E35;"></div><div style="width:22px;height:22px;border-radius:6px;background:#1D1D22;border:1px solid #2E2E35;"></div><div style="width:22px;height:22px;border-radius:6px;background:{{ accent }};"></div><div style="width:22px;height:22px;border-radius:6px;background:#1D1D22;border:1px solid #2E2E35;"></div><div style="width:22px;height:22px;border-radius:6px;background:#1D1D22;border:1px solid #2E2E35;"></div>
+      </div>
+      <div style="color:#E8E8EC;font-family:'Bricolage Grotesque';font-size:13px;font-weight:500;">Eight heads, eight relationships</div>
+      <div style="display:flex;align-items:center;gap:7px;margin-top:12px;"><div style="width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;color:#fff;font-size:8px;">▶</div><div style="font-family:'Geist Mono';font-size:9px;color:#8A8A92;">1:49 / 5:27</div></div>
+    </div>
+  </div>
+
+  <div style="margin:56px -32px 0;border-top:1px solid #E3E3DF;border-bottom:1px solid #E3E3DF;overflow:hidden;padding:14px 0;">
+    <div style="display:flex;gap:0;width:max-content;animation:mq 26s linear infinite;">
+      <sc-for list="{{ marquee }}" as="m" hint-placeholder-count="9">
+        <div style="display:flex;align-items:center;gap:28px;padding-right:28px;font-family:'Bricolage Grotesque';font-size:13px;letter-spacing:.22em;font-weight:500;color:#8A8A86;white-space:nowrap;"><div>{{ m }}</div><div style="color:{{ accent }};font-size:11px;">✦</div></div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="text-align:center;padding:96px 0 44px;max-width:620px;margin:0 auto;">
+    <div style="font-family:'Caveat';font-size:22px;color:{{ accent }};margin-bottom:10px;">the studio</div>
+    <h2 style="font-family:'Bricolage Grotesque';font-size:clamp(26px,3.2vw,38px);line-height:1.12;letter-spacing:-0.025em;font-weight:600;margin:0 0 14px;text-wrap:balance;">One canvas, from paper to premiere.</h2>
+    <p style="font-size:15px;line-height:1.6;color:#6B6B68;margin:0;text-wrap:pretty;">Lesson plan, script, storyboard, timeline — the whole production in one place, and every stage stays editable.</p>
+  </div>
+
+  <div style="border:1px solid rgba(255,255,255,0.9);border-radius:22px;overflow:hidden;box-shadow:0 24px 60px rgba(30,30,28,0.09);background:#fff;">
+    <div style="display:flex;align-items:center;gap:6px;padding:10px 14px;border-bottom:1px solid #EFEFEC;">
+      <div style="width:9px;height:9px;border-radius:50%;background:#E4E4E0;"></div><div style="width:9px;height:9px;border-radius:50%;background:#E4E4E0;"></div><div style="width:9px;height:9px;border-radius:50%;background:#E4E4E0;"></div>
+      <div style="margin-left:12px;font-size:11.5px;color:#9A9A96;font-family:'Geist Mono';">decode.studio / attention-is-all-you-need</div>
+    </div>
+    <div style="display:flex;height:380px;">
+      <div style="width:170px;border-right:1px solid #EFEFEC;padding:16px 12px;display:flex;flex-direction:column;gap:2px;background:#FBFBFA;">
+        <div style="font-size:11px;color:#B0B0AC;padding:4px 10px 8px;letter-spacing:.08em;text-transform:uppercase;">Project</div>
+        <div style="font-size:12.5px;padding:6px 10px;border-radius:7px;color:#6B6B68;">Overview</div>
+        <div style="font-size:12.5px;padding:6px 10px;border-radius:7px;color:#6B6B68;">Lesson Plan</div>
+        <div style="font-size:12.5px;padding:6px 10px;border-radius:7px;color:#6B6B68;">Script</div>
+        <div style="font-size:12.5px;padding:6px 10px;border-radius:7px;background:#EFEFEB;font-weight:500;">Storyboard</div>
+        <div style="font-size:12.5px;padding:6px 10px;border-radius:7px;color:#6B6B68;">Timeline</div>
+        <div style="font-size:12.5px;padding:6px 10px;border-radius:7px;color:#6B6B68;">Assets</div>
+      </div>
+      <div style="flex:1;padding:20px;display:flex;flex-direction:column;gap:14px;">
+        <div style="flex:1;background:#0E0E10;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;">
+          <div style="font-size:10px;letter-spacing:.14em;color:#6E6E76;font-family:'Geist Mono';">SCENE 04 · MULTI-HEAD ATTENTION</div>
+          <div style="display:flex;gap:8px;">
+            <div style="width:34px;height:34px;border-radius:8px;background:#1D1D22;border:1px solid #2E2E35;"></div>
+            <div style="width:34px;height:34px;border-radius:8px;background:#1D1D22;border:1px solid #2E2E35;"></div>
+            <div style="width:34px;height:34px;border-radius:8px;background:{{ accent }};"></div>
+            <div style="width:34px;height:34px;border-radius:8px;background:#1D1D22;border:1px solid #2E2E35;"></div>
+          </div>
+          <div style="color:#E8E8EC;font-family:'Bricolage Grotesque';font-size:17px;font-weight:500;">Eight heads, eight relationships</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <div style="height:52px;flex:1;border-radius:8px;border:1px solid #EFEFEC;background:#F6F6F4;"></div>
+          <div style="height:52px;flex:1;border-radius:8px;border:2px solid {{ accent }};background:#fff;"></div>
+          <div style="height:52px;flex:1;border-radius:8px;border:1px solid #EFEFEC;background:#F6F6F4;"></div>
+          <div style="height:52px;flex:1;border-radius:8px;border:1px solid #EFEFEC;background:#F6F6F4;"></div>
+        </div>
+      </div>
+      <div style="width:200px;border-left:1px solid #EFEFEC;padding:16px;display:flex;flex-direction:column;gap:12px;background:#FBFBFA;">
+        <div style="font-size:11px;color:#B0B0AC;letter-spacing:.08em;text-transform:uppercase;">Narration</div>
+        <div style="height:8px;border-radius:4px;background:#ECECE8;width:100%;"></div>
+        <div style="height:8px;border-radius:4px;background:#ECECE8;width:86%;"></div>
+        <div style="height:8px;border-radius:4px;background:#ECECE8;width:70%;"></div>
+        <div style="font-size:11px;color:#B0B0AC;letter-spacing:.08em;text-transform:uppercase;margin-top:8px;">Animation</div>
+        <div style="height:26px;border-radius:7px;border:1px solid #E7E7E4;background:#fff;"></div>
+        <div style="margin-top:auto;height:32px;border-radius:8px;background:#141414;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;">Regenerate scene</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align:center;padding:110px 0 44px;max-width:560px;margin:0 auto;">
+    <div style="font-family:'Caveat';font-size:22px;color:{{ accent }};margin-bottom:10px;">why it works</div>
+    <h2 style="font-family:'Bricolage Grotesque';font-size:clamp(26px,3.2vw,38px);line-height:1.12;letter-spacing:-0.025em;font-weight:600;margin:0;text-wrap:balance;">Built like creative software.<br><span style="color:#A3A39E;">Not like a chatbot.</span></h2>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(232px,1fr));gap:16px;">
+    <div style="grid-column:span 2;min-width:0;border:1px solid rgba(255,255,255,0.9);border-radius:24px;box-shadow:0 8px 28px rgba(30,30,28,0.06);padding:30px;background:#fff;display:flex;gap:28px;align-items:center;transition:transform .25s ease,box-shadow .25s ease;" style-hover="transform:translateY(-4px);box-shadow:0 20px 44px rgba(30,30,28,0.10);">
+      <div style="flex:1;">
+        <div style="font-family:'Bricolage Grotesque';font-size:20px;font-weight:600;margin-bottom:10px;">Direct, don't prompt</div>
+        <div style="font-size:14px;line-height:1.6;color:#6B6B68;text-wrap:pretty;">No blank text box. Decode proposes a full cut — lesson plan, script, storyboard — and you edit it the way you'd edit a document. Change a sentence, and the voice and captions follow.</div>
+      </div>
+      <div style="flex:1;border:1px solid #EFEFEC;border-radius:16px;background:#FBFBFA;padding:18px;position:relative;">
+        <div style="font-family:'Geist Mono';font-size:9.5px;letter-spacing:.1em;color:#9A9A96;margin-bottom:10px;">SCRIPT · SCENE 03</div>
+        <div style="font-size:12.5px;line-height:1.8;color:#4A4A47;">We scale by <span style="background:rgba(15,118,110,0.14);border-radius:4px;padding:1px 4px;color:#0F5D57;font-weight:500;">the square root of the key dimension</span> so the softmax stays in a usable range…</div>
+        <div style="position:absolute;right:-12px;bottom:-14px;background:#141414;color:#fff;border-radius:999px;padding:8px 14px;font-size:11.5px;font-weight:500;box-shadow:0 10px 24px rgba(30,30,28,0.22);">↻ Regenerate scene 03</div>
+      </div>
+    </div>
+    <div style="border-radius:24px;padding:30px;background:#0E0E10;box-shadow:0 16px 40px rgba(30,30,28,0.14);display:flex;flex-direction:column;transition:transform .25s ease;" style-hover="transform:translateY(-4px);">
+      <div style="font-family:'Bricolage Grotesque';font-size:20px;font-weight:600;color:#F2F2F0;margin-bottom:10px;">One scene, not the whole video</div>
+      <div style="font-size:13.5px;line-height:1.6;color:#8A8A92;">Every scene is its own unit — narration, visuals, pacing. Redo exactly what's wrong and nothing else.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:auto;padding-top:22px;">
+        <div style="height:44px;border-radius:10px;background:#1D1D22;border:1px solid #2E2E35;"></div>
+        <div style="height:44px;border-radius:10px;background:#1D1D22;border:1px solid #2E2E35;"></div>
+        <div style="height:44px;border-radius:10px;background:rgba(15,118,110,0.25);border:1.5px solid {{ accent }};display:flex;align-items:center;justify-content:center;"><div style="width:12px;height:12px;border-radius:50%;border:2px solid rgba(255,255,255,0.25);border-top-color:{{ accent }};animation:spin .8s linear infinite;"></div></div>
+        <div style="height:44px;border-radius:10px;background:#1D1D22;border:1px solid #2E2E35;"></div>
+      </div>
+    </div>
+    <div style="border:1px solid rgba(255,255,255,0.9);border-radius:24px;box-shadow:0 8px 28px rgba(30,30,28,0.06);padding:30px;background:#fff;transition:transform .25s ease,box-shadow .25s ease;" style-hover="transform:translateY(-4px);box-shadow:0 20px 44px rgba(30,30,28,0.10);">
+      <div style="font-family:'Bricolage Grotesque';font-size:18px;font-weight:600;margin-bottom:8px;">A timeline that reads like a doc</div>
+      <div style="font-size:13.5px;line-height:1.6;color:#6B6B68;margin-bottom:20px;">Scrub, trim, and retime without leaving the text.</div>
+      <div style="display:flex;align-items:flex-end;gap:2px;height:34px;">
+        <div style="flex:1;height:12px;background:{{ accent }};border-radius:1.5px;"></div><div style="flex:1;height:24px;background:{{ accent }};border-radius:1.5px;"></div><div style="flex:1;height:18px;background:{{ accent }};border-radius:1.5px;"></div><div style="flex:1;height:30px;background:#DBDBD6;border-radius:1.5px;"></div><div style="flex:1;height:14px;background:#DBDBD6;border-radius:1.5px;"></div><div style="flex:1;height:26px;background:#DBDBD6;border-radius:1.5px;"></div><div style="flex:1;height:10px;background:#DBDBD6;border-radius:1.5px;"></div><div style="flex:1;height:20px;background:#DBDBD6;border-radius:1.5px;"></div><div style="flex:1;height:28px;background:#DBDBD6;border-radius:1.5px;"></div><div style="flex:1;height:16px;background:#DBDBD6;border-radius:1.5px;"></div>
+      </div>
+      <div style="font-size:11.5px;color:#9A9A96;margin-top:12px;line-height:1.6;">“…every word <span style="background:#EFEFEB;border-radius:3px;padding:1px 3px;">asks a question</span>, and every word offers an answer.”</div>
+    </div>
+    <div style="border:1px solid rgba(255,255,255,0.9);border-radius:24px;box-shadow:0 8px 28px rgba(30,30,28,0.06);padding:30px;background:#fff;transition:transform .25s ease,box-shadow .25s ease;" style-hover="transform:translateY(-4px);box-shadow:0 20px 44px rgba(30,30,28,0.10);">
+      <div style="font-family:'Bricolage Grotesque';font-size:18px;font-weight:600;margin-bottom:8px;">Voices that teach</div>
+      <div style="font-size:13.5px;line-height:1.6;color:#6B6B68;margin-bottom:20px;">Studio narrators tuned for explanation, retimed to your pacing.</div>
+      <div style="display:flex;align-items:center;gap:10px;border:1px solid #EFEFEC;border-radius:14px;padding:10px 12px;background:#FBFBFA;">
+        <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#2A2A28,#5A5A56);"></div>
+        <div style="flex:1;"><div style="font-size:12.5px;font-weight:500;">Nova</div><div style="font-size:10.5px;color:#9A9A96;">{{ toneLabel }} · en-US</div></div>
+        <div style="width:22px;height:22px;border-radius:50%;background:#141414;color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;">▶</div>
+      </div>
+    </div>
+    <div style="border:1px solid rgba(255,255,255,0.9);border-radius:24px;box-shadow:0 8px 28px rgba(30,30,28,0.06);padding:30px;background:#fff;transition:transform .25s ease,box-shadow .25s ease;" style-hover="transform:translateY(-4px);box-shadow:0 20px 44px rgba(30,30,28,0.10);">
+      <div style="font-family:'Bricolage Grotesque';font-size:18px;font-weight:600;margin-bottom:8px;">Nothing renders without you</div>
+      <div style="font-size:13.5px;line-height:1.6;color:#6B6B68;margin-bottom:20px;">Review every stage before a single frame is committed.</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:38px;height:22px;border-radius:11px;background:{{ accent }};position:relative;"><div style="position:absolute;top:2px;left:18px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,0.15);"></div></div>
+        <div style="font-size:12.5px;font-weight:500;">Director approval required</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;padding:clamp(60px,8vw,96px) 0 0;text-align:center;">
+    <div><div style="font-family:'Bricolage Grotesque';font-size:clamp(34px,4.4vw,52px);font-weight:600;letter-spacing:-0.03em;">8<span style="font-size:0.5em;color:#A3A39E;"> min</span></div><div style="font-size:13px;color:#8A8A86;margin-top:4px;">from paper to first cut</div></div>
+    <div><div style="font-family:'Bricolage Grotesque';font-size:clamp(34px,4.4vw,52px);font-weight:600;letter-spacing:-0.03em;">1<span style="font-size:0.5em;color:#A3A39E;"> scene</span></div><div style="font-size:13px;color:#8A8A86;margin-top:4px;">smallest thing you can regenerate</div></div>
+    <div><div style="font-family:'Bricolage Grotesque';font-size:clamp(34px,4.4vw,52px);font-weight:600;letter-spacing:-0.03em;">100<span style="font-size:0.5em;color:#A3A39E;">%</span></div><div style="font-size:13px;color:#8A8A86;margin-top:4px;">editable before render</div></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:clamp(30px,5vw,64px);padding:clamp(72px,10vw,120px) 0 0;align-items:start;">
+    <div>
+      <div style="font-family:'Caveat';font-size:22px;color:{{ accent }};margin-bottom:10px;">the workflow</div>
+      <h2 style="font-family:'Bricolage Grotesque';font-size:clamp(26px,3.2vw,38px);line-height:1.12;letter-spacing:-0.025em;font-weight:600;margin:0 0 16px;text-wrap:balance;">From PDF to premiere, in nine editable stages.</h2>
+      <p style="font-size:14.5px;line-height:1.65;color:#6B6B68;text-wrap:pretty;">The AI carries the production. You approve, redirect, or redo any stage — and only that stage moves.</p>
+    </div>
+    <div style="display:flex;flex-direction:column;">
+      <sc-for list="{{ workflowSteps }}" as="ws" hint-placeholder-count="4">
+        <div style="display:flex;gap:24px;padding:16px 6px;border-bottom:1px solid #E3E3DF;align-items:baseline;border-radius:8px;transition:background .15s;" style-hover="background:rgba(255,255,255,0.6);">
+          <div style="font-family:'Bricolage Grotesque';font-size:15px;font-weight:600;color:#C4C4BF;width:30px;">{{ ws.n }}</div>
+          <div style="font-family:'Bricolage Grotesque';font-size:16px;font-weight:600;width:150px;">{{ ws.t }}</div>
+          <div style="font-size:13.5px;color:#8A8A86;flex:1;line-height:1.55;">{{ ws.d }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="text-align:center;padding:130px 0 0;max-width:720px;margin:0 auto;">
+    <div style="font-family:'Caveat';font-size:24px;color:{{ accent }};margin-bottom:18px;">from a director</div>
+    <div style="font-family:'Bricolage Grotesque';font-size:clamp(21px,2.6vw,30px);line-height:1.3;letter-spacing:-0.02em;font-weight:500;text-wrap:balance;">“It's the difference between prompting a model and directing a crew. I redid one scene four times and never touched the rest.”</div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:26px;">
+      <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#C9BBA8,#8A9B93);"></div>
+      <div style="text-align:left;"><div style="font-size:13.5px;font-weight:600;">Priya Subramanian</div><div style="font-size:12px;color:#9A9A96;">ML educator · 240k subscribers</div></div>
+    </div>
+  </div>
+
+  <div style="margin:120px 0 0;border-radius:32px;padding:88px 48px;text-align:center;background:#0E0E10;box-shadow:0 30px 70px rgba(30,30,28,0.18);position:relative;overflow:hidden;">
+    <div style="position:absolute;inset:0;background:radial-gradient(640px 260px at 50% -60px, rgba(15,118,110,0.35), transparent 70%);animation:glowpulse 5s ease-in-out infinite;"></div>
+    <div style="position:relative;">
+      <div style="font-family:'Caveat';font-size:24px;color:#7FC7BE;margin-bottom:12px;">ready when you are</div>
+      <div style="font-family:'Bricolage Grotesque';font-size:clamp(30px,3.8vw,46px);line-height:1.08;font-weight:600;letter-spacing:-0.03em;color:#F5F5F3;margin-bottom:16px;text-wrap:balance;">Bring the source.<br>Leave with a film.</div>
+      <div style="font-size:15px;color:#8A8A92;margin-bottom:34px;">Any technical source, any audience. Free while in beta.</div>
+      <div style="display:flex;gap:12px;justify-content:center;">
+        <button onClick="{{ goDashboard }}" style="background:linear-gradient(180deg,#15897F,#0F766E);border:1px solid rgba(255,255,255,0.22);box-shadow:inset 0 1px 0 rgba(255,255,255,0.34),0 10px 26px rgba(15,118,110,0.34);color:#fff;border-radius:999px;padding:14px 30px;font-size:15px;font-weight:500;transition:transform .2s ease,filter .2s ease;" style-hover="filter:brightness(1.1);transform:translateY(-2px);">Start decoding</button>
+        <button onClick="{{ goDashboard }}" style="background:rgba(255,255,255,0.08);color:#F2F2F0;border:1px solid rgba(255,255,255,0.16);border-radius:999px;padding:14px 30px;font-size:15px;font-weight:500;" style-hover="background:rgba(255,255,255,0.14);">Watch a decode</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding:72px 0 0;">
+    <div style="display:flex;justify-content:space-between;gap:48px;padding-bottom:56px;flex-wrap:wrap;">
+      <div style="max-width:260px;">
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px;">
+          <div style="width:20px;height:20px;border-radius:6px;background:#141414;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Bricolage Grotesque';font-weight:700;font-size:12px;">D</div>
+          <div style="font-family:'Bricolage Grotesque';font-weight:600;font-size:15px;">Decode</div>
+        </div>
+        <div style="font-size:13px;color:#8A8A86;line-height:1.6;">Decode any technical content into stories people understand.</div>
+      </div>
+      <div style="display:flex;gap:64px;flex-wrap:wrap;">
+        <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;"><div style="font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:#B0B0AC;font-weight:500;margin-bottom:2px;">Product</div><a href="#" style="color:#5A5A56;">Studio</a><a href="#" style="color:#5A5A56;">Workflow</a><a href="#" style="color:#5A5A56;">Voices</a><a href="#" style="color:#5A5A56;">Pricing</a></div>
+        <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;"><div style="font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:#B0B0AC;font-weight:500;margin-bottom:2px;">Resources</div><a href="#" style="color:#5A5A56;">Examples</a><a href="#" style="color:#5A5A56;">Docs</a><a href="#" style="color:#5A5A56;">Changelog</a><a href="#" style="color:#5A5A56;">Blog</a></div>
+        <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;"><div style="font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:#B0B0AC;font-weight:500;margin-bottom:2px;">Company</div><a href="#" style="color:#5A5A56;">About</a><a href="#" style="color:#5A5A56;">Careers</a><a href="#" style="color:#5A5A56;">Twitter</a><a href="#" style="color:#5A5A56;">GitHub</a></div>
+      </div>
+    </div>
+    <div style="font-family:'Bricolage Grotesque';font-weight:700;font-size:clamp(64px,15vw,170px);line-height:1.12;letter-spacing:-0.05em;text-align:center;color:#E2E2DD;user-select:none;">decode</div>
+    <div style="display:flex;justify-content:space-between;border-top:1px solid #E3E3DF;margin-top:-8px;position:relative;background:transparent;padding:18px 0 28px;font-size:12.5px;color:#B0B0AC;">
+      <div>© 2026 Decode. The AI produces, you direct.</div><div style="display:flex;gap:20px;"><a href="#" style="color:#B0B0AC;">Privacy</a><a href="#" style="color:#B0B0AC;">Terms</a></div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ false }}">
+<div style="min-height:100vh;">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 28px;border-bottom:1px solid #ECECE8;background:rgba(244,244,242,0.7);backdrop-filter:blur(24px);position:sticky;top:0;z-index:5;">
+    <div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onClick="{{ goLanding }}">
+      <div style="width:20px;height:20px;border-radius:6px;background:#141414;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Bricolage Grotesque';font-weight:700;font-size:12px;">D</div>
+      <div style="font-family:'Bricolage Grotesque';font-weight:600;font-size:15px;">Decode</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div style="display:flex;align-items:center;gap:8px;border:1px solid #E7E7E4;border-radius:999px;padding:7px 14px;width:260px;color:#B0B0AC;font-size:13px;background:#fff;">⌘K · Search decodes…</div>
+      <div style="display:flex;align-items:stretch;border-radius:999px;background:linear-gradient(180deg,#2C2C29,#141414);border:1px solid rgba(255,255,255,0.13);box-shadow:inset 0 1px 0 rgba(255,255,255,0.17),0 6px 18px rgba(20,20,20,0.20);overflow:hidden;transition:filter .15s,transform .15s;" style-hover="filter:brightness(1.18);transform:translateY(-1px);">
+        <button onClick="{{ goUpload }}" style="display:flex;align-items:center;gap:8px;background:transparent;color:#fff;border:none;padding:8px 16px 8px 10px;font-size:13.5px;font-weight:500;">
+          <span style="width:20px;height:20px;border-radius:7px;background:rgba(255,255,255,0.16);display:flex;align-items:center;justify-content:center;font-size:12px;line-height:1;">+</span>New Decode
+        </button>
+        <button onClick="{{ goUpload }}" title="From a template" style="background:transparent;color:rgba(255,255,255,0.72);border:none;border-left:1px solid rgba(255,255,255,0.14);padding:0 12px;font-size:9px;">▼</button>
+      </div>
+      <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#D8D8D2,#B9B9B2);"></div>
+    </div>
+  </div>
+
+  <div style="max-width:1040px;margin:0 auto;padding:44px 32px;">
+    <div style="font-family:'Bricolage Grotesque';font-size:24px;font-weight:600;letter-spacing:-0.01em;margin-bottom:6px;">Good morning, Mo</div>
+    <div style="font-size:14px;color:#8A8A86;margin-bottom:36px;">3 decodes in your studio · 16:22 total runtime</div>
+
+    <div style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#8A8A86;font-weight:500;margin-bottom:14px;">Recent Decodes</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(238px,1fr));gap:16px;margin-bottom:48px;">
+      <sc-for list="{{ projects }}" as="p" hint-placeholder-count="3">
+        <div onClick="{{ p.open }}" style="border:1px solid rgba(255,255,255,0.9);border-radius:20px;box-shadow:0 8px 28px rgba(30,30,28,0.06);overflow:hidden;background:#fff;cursor:pointer;transition:border-color .15s, transform .15s;" style-hover="border-color:#C9C9C4;transform:translateY(-2px);">
+          <div style="height:130px;background:{{ p.thumbBg }};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;">
+            <div style="font-family:'Geist Mono';font-size:9px;letter-spacing:.14em;color:{{ p.chipFg }};">{{ p.chip }}</div>
+            <div style="color:#2A2A28;font-family:'Bricolage Grotesque';font-size:15px;font-weight:500;padding:0 20px;text-align:center;">{{ p.frame }}</div>
+          </div>
+          <div style="padding:14px 16px;">
+            <div style="font-size:14px;font-weight:500;margin-bottom:4px;">{{ p.title }}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div style="font-size:12px;color:#9A9A96;">{{ p.meta }}</div>
+              <div style="font-size:11px;font-weight:500;padding:3px 8px;border-radius:20px;background:{{ p.pillBg }};color:{{ p.pillFg }};">{{ p.status }}</div>
+            </div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#8A8A86;font-weight:500;margin-bottom:14px;">Templates</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(188px,1fr));gap:12px;">
+      <sc-for list="{{ templates }}" as="t" hint-placeholder-count="4">
+        <div onClick="{{ goUpload }}" style="border:1px solid rgba(255,255,255,0.9);border-radius:16px;box-shadow:0 6px 20px rgba(30,30,28,0.05);padding:18px;background:#fff;cursor:pointer;" style-hover="border-color:#C9C9C4;">
+          <div style="font-size:16px;margin-bottom:10px;font-family:'Geist Mono';color:{{ accent }};">{{ t.glyph }}</div>
+          <div style="font-size:13.5px;font-weight:500;margin-bottom:3px;">{{ t.title }}</div>
+          <div style="font-size:12px;color:#9A9A96;line-height:1.45;">{{ t.desc }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isUpload }}" hint-placeholder-val="{{ false }}">
+<div style="min-height:100vh;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:14px;padding:14px 28px;">
+    <button onClick="{{ goDashboard }}" style="background:transparent;border:1px solid #E7E7E4;border-radius:999px;padding:6px 14px;font-size:13px;color:#6B6B68;" style-hover="border-color:#B9B9B4;">← Studio</button>
+    <div style="font-size:13.5px;color:#8A8A86;">New Decode</div>
+  </div>
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 32px 56px;">
+
+    <div style="width:56px;height:56px;border-radius:17px;background:linear-gradient(180deg,#2E2E2B,#141414);border:1px solid rgba(255,255,255,0.12);box-shadow:inset 0 1px 0 rgba(255,255,255,0.18),0 14px 32px rgba(30,30,28,0.22);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Bricolage Grotesque';font-weight:700;font-size:27px;margin-bottom:26px;">D</div>
+
+    <div style="font-family:'Bricolage Grotesque';font-size:33px;font-weight:600;letter-spacing:-0.025em;line-height:1.18;text-align:center;color:#A3A39E;">Good to see you, Mo.</div>
+    <div style="font-family:'Bricolage Grotesque';font-size:33px;font-weight:600;letter-spacing:-0.025em;line-height:1.18;text-align:center;margin-bottom:12px;">What should we decode?</div>
+    <div style="font-size:14px;color:#8A8A86;margin-bottom:34px;text-align:center;">Attach a source, direct the production, and I'll plan the lesson.</div>
+
+    <div style="width:720px;max-width:100%;border:1px solid rgba(255,255,255,0.9);border-radius:26px;box-shadow:0 20px 54px rgba(30,30,28,0.10);background:#fff;overflow:hidden;">
+
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid #F4F4F1;background:#FBFBFA;">
+        <sc-if value="{{ noAttachment }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
+            <div style="font-size:12.5px;color:#9A9A96;">Papers · Books · Docs · Slides · Whitepapers</div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ hasAttachment }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:9px;flex:1;min-width:0;">
+            <div style="font-family:'Geist Mono';font-size:9.5px;color:#8A8A86;border:1px solid #E3E3DF;border-radius:5px;padding:2px 6px;background:#fff;flex:none;">{{ src.ext }}</div>
+            <div style="font-size:12.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ src.title }}</div>
+            <div style="font-size:11.5px;color:#B0B0AC;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:none;">{{ src.meta }}</div>
+            <button onClick="{{ detach }}" style="border:none;background:transparent;font-size:14px;color:#B0B0AC;line-height:1;flex:none;padding:0 2px;" style-hover="color:#141414;">×</button>
+          </div>
+        </sc-if>
+        <div style="display:flex;align-items:center;gap:6px;flex:none;">
+          <div style="width:6px;height:6px;border-radius:50%;background:{{ accent }};"></div>
+          <div style="font-size:12px;color:#8A8A86;white-space:nowrap;">Producer ready</div>
+        </div>
+      </div>
+
+      <div style="padding:14px 14px 10px;">
+        <div style="display:flex;align-items:flex-start;gap:12px;border:1px solid #E9E9E5;border-radius:19px;background:linear-gradient(180deg,#FFFFFF,#FAFAF8);box-shadow:inset 0 1px 0 #FFFFFF,inset 0 -1px 0 rgba(30,30,28,0.03),0 1px 2px rgba(30,30,28,0.03);padding:12px 12px 12px 13px;">
+          <button onClick="{{ attachDefault }}" title="Attach a source" style="width:32px;height:32px;flex:none;border:1px solid #E7E7E4;background:#FBFBFA;border-radius:11px;font-size:15px;color:#6B6B68;display:flex;align-items:center;justify-content:center;line-height:1;" style-hover="border-color:{{ accent }};color:#141414;background:#fff;">＋</button>
+          <textarea value="{{ brief }}" onChange="{{ setBrief }}" rows="2" placeholder="Direct the production — who's watching, what to emphasise, what to leave out." style="flex:1;border:none;font-size:15px;line-height:1.6;resize:none;background:transparent;padding:5px 0 0;"></textarea>
+          <button onClick="{{ launchDecode }}" style="flex:none;display:flex;align-items:center;gap:8px;border:1px solid {{ launchRing }};background:{{ launchBg }};color:{{ launchFg }};box-shadow:{{ launchShadow }};border-radius:999px;padding:8px 9px 8px 17px;font-size:13.5px;font-weight:500;white-space:nowrap;transition:filter .15s,transform .15s;" style-hover="filter:brightness(1.07);transform:translateY(-1px);">
+            Start decode
+            <span style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.18);font-size:11px;">→</span>
+          </button>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-wrap:wrap;gap:7px;padding:0 15px 14px;">
+        <div style="display:flex;align-items:center;gap:7px;border:1px solid #E7E7E4;border-radius:999px;padding:5px 13px;background:#FBFBFA;flex:1 1 230px;min-width:190px;">
+          <div style="font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:#A3A39E;white-space:nowrap;flex:none;">Audience</div>
+          <input value="{{ audience }}" onChange="{{ setAudience }}" placeholder="who is this for?" style="flex:1;min-width:0;border:none;background:transparent;font-size:12.5px;font-weight:500;color:#141414;padding:0;" />
+        </div>
+        <sc-for list="{{ variables }}" as="vr" hint-placeholder-count="3">
+          <div style="display:flex;align-items:center;gap:7px;border:1px solid #E7E7E4;border-radius:999px;padding:5px 6px 5px 12px;background:#FBFBFA;">
+            <div style="font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:#A3A39E;white-space:nowrap;">{{ vr.label }}</div>
+            <select value="{{ vr.value }}" onChange="{{ vr.set }}" style="border:none;background:transparent;font-size:12.5px;font-weight:500;color:#141414;padding:0 2px;">
+              <sc-for list="{{ vr.options }}" as="op" hint-placeholder-count="4"><option>{{ op }}</option></sc-for>
+            </select>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <sc-if value="{{ showAudienceHints }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:16px;max-width:720px;">
+        <sc-for list="{{ audienceHints }}" as="ah" hint-placeholder-count="4">
+          <button onClick="{{ ah.apply }}" style="display:flex;align-items:center;gap:7px;border:1px solid rgba(255,255,255,0.9);background:#fff;box-shadow:0 2px 10px rgba(30,30,28,0.05);border-radius:999px;padding:7px 14px;font-size:12.5px;color:#5A5A56;white-space:nowrap;flex:0 0 auto;transition:transform .15s,box-shadow .15s;" style-hover="transform:translateY(-1px);box-shadow:0 8px 20px rgba(30,30,28,0.09);color:#141414;">
+            <span style="width:5px;height:5px;border-radius:50%;background:#D4D4CF;"></span>{{ ah.label }}
+          </button>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <div style="width:720px;max-width:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(258px,1fr));gap:clamp(20px,4vw,32px);margin-top:40px;">
+      <div>
+        <div style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#8A8A86;font-weight:500;margin-bottom:12px;">Recent files</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <sc-for list="{{ recentFiles }}" as="f" hint-placeholder-count="4">
+            <div onClick="{{ f.attach }}" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(255,255,255,0.9);border-radius:14px;box-shadow:0 2px 10px rgba(30,30,28,0.04);background:#fff;cursor:pointer;" style-hover="border-color:#C9C9C4;">
+              <div style="font-family:'Geist Mono';font-size:10px;color:#9A9A96;border:1px solid #E7E7E4;border-radius:5px;padding:2px 5px;flex:none;">{{ f.ext }}</div>
+              <div style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ f.name }}</div>
+              <div style="font-size:12px;color:#B0B0AC;flex:none;">{{ f.when }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#8A8A86;font-weight:500;margin-bottom:12px;">Or try an example</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <sc-for list="{{ examples }}" as="ex" hint-placeholder-count="4">
+            <div onClick="{{ ex.attach }}" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(255,255,255,0.9);border-radius:14px;box-shadow:0 2px 10px rgba(30,30,28,0.04);background:#fff;cursor:pointer;" style-hover="border-color:{{ accent }};">
+              <div style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ ex.name }}</div>
+              <div style="font-size:12px;color:#B0B0AC;flex:none;">{{ ex.meta }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isProcessing }}" hint-placeholder-val="{{ false }}">
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;">
+  <div style="width:480px;max-width:92vw;">
+    <div style="display:flex;align-items:center;gap:10px;border:1px solid rgba(255,255,255,0.9);border-radius:16px;box-shadow:0 6px 20px rgba(30,30,28,0.05);padding:12px 16px;background:rgba(255,255,255,0.75);backdrop-filter:blur(20px);margin-bottom:28px;">
+      <div style="font-family:'Geist Mono';font-size:10px;color:#9A9A96;border:1px solid #E7E7E4;border-radius:5px;padding:2px 5px;">{{ src.ext }}</div>
+      <div style="font-size:13.5px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ src.file }}</div>
+      <div style="font-size:12px;color:#B0B0AC;white-space:nowrap;">{{ src.meta }}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:2px;">
+      <sc-for list="{{ psteps }}" as="st" hint-placeholder-count="7">
+        <div style="display:flex;align-items:flex-start;gap:14px;padding:10px 4px;opacity:{{ st.opacity }};transition:opacity .3s;">
+          <div style="width:18px;height:18px;flex:none;margin-top:1px;display:flex;align-items:center;justify-content:center;">
+            <sc-if value="{{ st.done }}" hint-placeholder-val="{{ false }}"><div style="width:18px;height:18px;border-radius:50%;background:#141414;color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;">✓</div></sc-if>
+            <sc-if value="{{ st.active }}" hint-placeholder-val="{{ false }}"><div style="width:14px;height:14px;border-radius:50%;border:2px solid #E0E0DC;border-top-color:{{ accent }};animation:spin .7s linear infinite;"></div></sc-if>
+            <sc-if value="{{ st.pending }}" hint-placeholder-val="{{ false }}"><div style="width:6px;height:6px;border-radius:50%;background:#D8D8D2;margin:6px;"></div></sc-if>
+          </div>
+          <div style="flex:1;">
+            <div style="font-size:14.5px;font-weight:500;">{{ st.label }}</div>
+            <sc-if value="{{ st.showDetail }}" hint-placeholder-val="{{ false }}"><div style="font-size:12.5px;color:#9A9A96;margin-top:2px;font-family:'Geist Mono';">{{ st.detail }}</div></sc-if>
+          </div>
+          <sc-if value="{{ st.done }}" hint-placeholder-val="{{ false }}"><div style="font-size:11.5px;color:#C4C4BF;font-family:'Geist Mono';margin-top:3px;">{{ st.time }}</div></sc-if>
+        </div>
+      </sc-for>
+    </div>
+    <div style="height:2px;background:#EFEFEC;border-radius:1px;margin:24px 0 20px;overflow:hidden;"><div style="height:100%;background:{{ accent }};width:{{ ppct }};transition:width .5s ease;"></div></div>
+    <sc-if value="{{ pdone }}" hint-placeholder-val="{{ false }}">
+      <button onClick="{{ goProject }}" style="width:100%;background:#141414;color:#fff;border:none;border-radius:999px;padding:12px;font-size:14px;font-weight:500;" style-hover="background:#2a2a2a;">Open project →</button>
+    </sc-if>
+    <sc-if value="{{ pworking }}" hint-placeholder-val="{{ true }}"><div style="text-align:center;font-size:12.5px;color:#B0B0AC;">You'll review everything before a single frame renders.</div></sc-if>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isProject }}" hint-placeholder-val="{{ false }}">
+<div style="height:100vh;display:flex;flex-direction:column;overflow:hidden;">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #ECECE8;background:rgba(244,244,242,0.7);backdrop-filter:blur(24px);flex:none;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button onClick="{{ goDashboard }}" style="background:transparent;border:1px solid #E7E7E4;border-radius:999px;padding:5px 12px;font-size:12.5px;color:#6B6B68;" style-hover="border-color:#B9B9B4;">←</button>
+      <div style="font-size:14px;font-weight:500;">{{ src.title }}</div>
+      <div style="font-size:11.5px;color:#9A9A96;border:1px solid #EFEFEC;border-radius:20px;padding:3px 9px;background:#fff;">Draft · saved just now</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="font-size:12.5px;color:#8A8A86;font-family:'Geist Mono';">{{ totalLabel }} · {{ sceneCount }} scenes</div>
+      <button onClick="{{ toggleThread }}" style="background:{{ threadBtnBg }};color:{{ threadBtnFg }};border:1px solid {{ threadBtnRing }};border-radius:999px;padding:5px 14px 5px 5px;font-size:12.5px;font-weight:500;display:flex;align-items:center;gap:8px;" style-hover="border-color:#B9B9B4;">
+        <span style="width:21px;height:21px;border-radius:50%;background:{{ activeCrew.color }};color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;font-family:'Bricolage Grotesque';">{{ activeCrew.initial }}</span>{{ activeCrew.name }}</button>
+      <button onClick="{{ tabExportGo }}" style="background:linear-gradient(180deg,#2C2C29,#141414);border:1px solid rgba(255,255,255,0.13);box-shadow:inset 0 1px 0 rgba(255,255,255,0.17),0 6px 18px rgba(20,20,20,0.20);color:#fff;border-radius:999px;padding:7px 16px;font-size:13px;font-weight:500;transition:filter .15s,transform .15s;" style-hover="filter:brightness(1.18);transform:translateY(-1px);">Export</button>
+    </div>
+  </div>
+
+  <div style="flex:1;display:flex;min-height:0;">
+    <div style="width:200px;flex:none;border-right:1px solid rgba(255,255,255,0.8);padding:14px 12px;display:flex;flex-direction:column;gap:3px;background:rgba(255,255,255,0.42);backdrop-filter:blur(24px);">
+      <sc-for list="{{ navItems }}" as="ni" hint-placeholder-count="7">
+        <div onClick="{{ ni.go }}" style="display:flex;align-items:center;gap:9px;font-size:13px;padding:7px 12px;border-radius:999px;cursor:pointer;background:{{ ni.bg }};box-shadow:{{ ni.sh }};font-weight:{{ ni.fw }};color:{{ ni.fg }};" style-hover="background:rgba(255,255,255,0.7);">
+          <div style="width:19px;height:19px;flex:none;border-radius:50%;background:{{ ni.markBg }};border:1px solid {{ ni.markRing }};color:{{ ni.markFg }};display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:600;font-family:'Bricolage Grotesque';">{{ ni.mark }}</div>
+          <div style="flex:1;">{{ ni.label }}</div><div style="font-size:11px;color:#B0B0AC;font-family:'Geist Mono';">{{ ni.count }}</div>
+        </div>
+      </sc-for>
+      <div style="margin-top:auto;border:1px solid rgba(255,255,255,0.9);border-radius:14px;box-shadow:0 2px 10px rgba(30,30,28,0.04);padding:10px 12px;background:#fff;">
+        <div style="font-size:11px;color:#9A9A96;margin-bottom:6px;">Source</div>
+        <div style="font-size:12px;font-weight:500;line-height:1.4;word-break:break-word;">{{ src.file }}</div>
+        <div style="font-size:11px;color:#B0B0AC;margin-top:4px;">{{ src.author }}</div>
+      </div>
+    </div>
+
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden;">
+
+      <sc-if value="{{ tabOverview }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;overflow-y:auto;padding:34px 40px 20px;display:flex;flex-direction:column;">
+        <div style="max-width:880px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:34px;flex:1;">
+
+          <div style="display:flex;gap:32px;align-items:flex-start;">
+            <div style="flex:1;">
+              <div style="font-family:'Caveat';font-size:19px;color:{{ accent }};margin-bottom:2px;">understanding</div>
+              <div style="font-family:'Bricolage Grotesque';font-size:30px;font-weight:600;letter-spacing:-0.02em;line-height:1.15;margin-bottom:10px;">{{ src.title }}</div>
+              <div style="font-size:14.5px;color:#6B6B68;line-height:1.65;max-width:520px;text-wrap:pretty;">A 5½-minute explainer for engineers who know backprop but haven't read the paper. Builds from the RNN bottleneck to the full Transformer — one mechanism per scene.</div>
+            </div>
+            <div style="width:180px;flex:none;border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,0.9);box-shadow:0 8px 24px rgba(30,30,28,0.08);background:#0E0E10;padding:14px;">
+              <div style="font-family:'Geist Mono';font-size:8.5px;letter-spacing:.14em;color:#6E6E76;margin-bottom:10px;">FIRST FRAME</div>
+              <div style="display:flex;gap:4px;margin-bottom:10px;"><div style="width:18px;height:18px;border-radius:5px;background:#1D1D22;border:1px solid #2E2E35;"></div><div style="width:18px;height:18px;border-radius:5px;background:#1D1D22;border:1px solid #2E2E35;"></div><div style="width:18px;height:18px;border-radius:5px;background:{{ accent }};"></div></div>
+              <div style="color:#E8E8EC;font-family:'Bricolage Grotesque';font-size:12.5px;font-weight:500;line-height:1.35;">Memory that fades by word forty</div>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:12px;">
+            <sc-for list="{{ overviewStats }}" as="st" hint-placeholder-count="4">
+              <div style="border:1px solid rgba(255,255,255,0.9);border-radius:16px;box-shadow:0 6px 20px rgba(30,30,28,0.05);padding:16px 18px;background:#fff;display:flex;flex-direction:column;">
+                <div style="font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:#A3A39E;margin-bottom:8px;">{{ st.k }}</div>
+                <div style="font-family:'Bricolage Grotesque';font-size:{{ st.size }};font-weight:600;letter-spacing:-0.02em;line-height:1.25;overflow-wrap:break-word;">{{ st.v }}</div>
+                <div style="font-size:11.5px;color:#B0B0AC;margin-top:auto;padding-top:6px;">{{ st.sub }}</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div>
+            <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;">
+              <div style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#8A8A86;font-weight:500;">Concepts extracted</div>
+              <div style="font-size:11.5px;color:#B0B0AC;font-family:'Geist Mono';">37 found · 12 in the cut</div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:7px;">
+              <sc-for list="{{ concepts }}" as="c" hint-placeholder-count="6"><div style="font-size:12.5px;border:1px solid #E3E3DF;border-radius:999px;padding:5px 13px;background:#fff;color:#4A4A47;cursor:default;white-space:nowrap;transition:border-color .15s,color .15s;" style-hover="border-color:{{ accent }};color:#141414;">{{ c }}</div></sc-for>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div style="border:1px solid rgba(255,255,255,0.9);border-radius:18px;box-shadow:0 6px 20px rgba(30,30,28,0.05);background:#fff;padding:20px;">
+              <div style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#8A8A86;font-weight:500;margin-bottom:12px;">Prerequisites</div>
+              <div style="font-size:12.5px;color:#8A8A86;margin-bottom:12px;line-height:1.5;">What a viewer needs before this makes sense. I teach the rest on the way through.</div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                <sc-for list="{{ prereqs }}" as="pq" hint-placeholder-count="6"><div style="font-size:12px;border:1px solid #E3E3DF;border-radius:999px;padding:4px 11px;background:#FBFBFA;color:#4A4A47;">{{ pq }}</div></sc-for>
+              </div>
+            </div>
+            <div style="border:1px solid rgba(255,255,255,0.9);border-radius:18px;box-shadow:0 6px 20px rgba(30,30,28,0.05);background:#fff;padding:20px;">
+              <div style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#8A8A86;font-weight:500;margin-bottom:12px;">Logical dependencies</div>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <sc-for list="{{ deps }}" as="dp" hint-placeholder-count="5">
+                  <div style="display:flex;align-items:center;gap:9px;font-size:12.5px;">
+                    <div style="color:#5A5A56;">{{ dp.a }}</div>
+                    <div style="flex:1;height:1px;background:#EFEFEC;"></div>
+                    <div style="color:#9A9A96;font-size:11px;">{{ dp.b }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#8A8A86;font-weight:500;margin-bottom:14px;">Equations found</div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <sc-for list="{{ equations }}" as="eq" hint-placeholder-count="3">
+                <div style="border:1px solid rgba(255,255,255,0.9);border-radius:14px;box-shadow:0 2px 10px rgba(30,30,28,0.04);background:#0E0E10;padding:13px 16px;font-family:'Geist Mono';font-size:12.5px;color:#D8D8DC;overflow-x:auto;white-space:nowrap;">{{ eq }}</div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div>
+            <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;">
+              <div style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#8A8A86;font-weight:500;">Teaching opportunities</div>
+              <div style="font-size:11.5px;color:#B0B0AC;">how I plan to make it land</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+              <sc-for list="{{ opportunities }}" as="op" hint-placeholder-count="4">
+                <div style="border:1px solid rgba(255,255,255,0.9);border-radius:16px;box-shadow:0 4px 16px rgba(30,30,28,0.04);background:#fff;padding:16px 18px;">
+                  <div style="font-family:'Bricolage Grotesque';font-size:14.5px;font-weight:600;margin-bottom:5px;">{{ op.t }}</div>
+                  <div style="font-size:12.5px;color:#6B6B68;line-height:1.55;">{{ op.d }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+
+          <div>
+            <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;">
+              <div style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#8A8A86;font-weight:500;">Scene list</div>
+              <div style="font-size:11.5px;color:#B0B0AC;">Click any scene to open it on the canvas</div>
+            </div>
+            <div style="border:1px solid rgba(255,255,255,0.9);border-radius:18px;box-shadow:0 8px 28px rgba(30,30,28,0.06);background:#fff;overflow:hidden;">
+              <sc-for list="{{ scenes }}" as="s" hint-placeholder-count="8">
+                <div onClick="{{ s.selectStory }}" style="display:flex;align-items:center;gap:16px;padding:13px 18px;border-top:1px solid {{ s.rowDivider }};cursor:pointer;transition:background .15s;" style-hover="background:#FBFBFA;">
+                  <div style="font-family:'Geist Mono';font-size:11px;color:#C4C4BF;width:18px;">{{ s.num }}</div>
+                  <div style="width:5px;height:5px;border-radius:50%;background:{{ s.dot }};flex:none;"></div>
+                  <div style="font-size:13.5px;font-weight:500;width:210px;flex:none;">{{ s.title }}</div>
+                  <div style="font-size:12.5px;color:#9A9A96;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ s.caption }}</div>
+                  <div style="font-size:11px;color:#B0B0AC;font-family:'Geist Mono';">{{ s.animation }}</div>
+                  <div style="font-size:11.5px;color:#8A8A86;font-family:'Geist Mono';width:38px;text-align:right;">{{ s.durLabel }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="border:1px solid {{ uCrew.ring }};border-radius:16px;background:{{ uCrew.bg }};overflow:hidden;position:sticky;bottom:0;z-index:4;backdrop-filter:blur(20px);box-shadow:0 -6px 20px rgba(30,30,28,0.07);margin-top:auto;">
+            <div style="display:flex;gap:12px;padding:13px 15px 12px;">
+              <div style="width:28px;height:28px;flex:none;border-radius:50%;background:{{ uCrew.color }};color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;font-family:'Bricolage Grotesque';box-shadow:0 2px 8px rgba(30,30,28,0.14);">{{ uCrew.initial }}</div>
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+                  <div style="font-size:12.5px;font-weight:600;">{{ uCrew.name }}</div>
+                  <div style="font-size:11.5px;color:#A3A39E;">{{ uCrew.status }}</div>
+                </div>
+                <div style="font-size:13px;color:#3A3A38;line-height:1.55;">{{ uCrew.message }}</div>
+                <div style="display:flex;gap:8px;margin-top:8px;align-items:flex-start;">
+                  <div style="width:2px;align-self:stretch;border-radius:1px;background:{{ uCrew.color }};opacity:.4;flex:none;"></div>
+                  <div style="font-size:12px;color:#8A8A86;line-height:1.5;"><span style="color:#B0B0AC;">Why —</span> {{ uCrew.why }}</div>
+                </div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:11px;">
+                  <button onClick="{{ toggleThread }}" style="border:1px solid #E0E0DC;background:#fff;border-radius:999px;padding:6px 13px;font-size:12px;font-weight:500;color:#5A5A56;white-space:nowrap;" style-hover="border-color:#B9B9B4;color:#141414;">Push back</button>
+                <sc-if value="{{ understandingPending }}" hint-placeholder-val="{{ true }}">
+                  <button onClick="{{ approveUnderstanding }}" style="background:linear-gradient(180deg,#2C2C29,#141414);border:1px solid rgba(255,255,255,0.13);box-shadow:inset 0 1px 0 rgba(255,255,255,0.17),0 6px 18px rgba(20,20,20,0.20);color:#fff;border-radius:999px;padding:6px 14px;font-size:12px;font-weight:500;white-space:nowrap;transition:filter .15s;" style-hover="filter:brightness(1.18);">Looks right → plan it</button>
+                </sc-if>
+                </div>
+              </div>
+            </div>
+            <sc-if value="{{ uCrew.handed }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:8px;padding:9px 15px;background:rgba(15,118,110,0.06);border-top:1px solid rgba(15,118,110,0.14);">
+                <div style="width:15px;height:15px;border-radius:50%;background:{{ accent }};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;flex:none;">✓</div>
+                <div style="font-size:11.5px;color:#5A5A56;">{{ uCrew.handoff }}</div>
+              </div>
+            </sc-if>
+          </div>
+
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ tabPlan }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;overflow-y:auto;padding:36px 44px;">
+        <div style="max-width:780px;margin:0 auto;">
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:26px;">
+            <div>
+              <div style="font-family:'Caveat';font-size:19px;color:{{ accent }};margin-bottom:2px;">lesson plan</div>
+              <div style="font-family:'Bricolage Grotesque';font-size:28px;font-weight:600;letter-spacing:-0.02em;margin-bottom:8px;">{{ actLabel }} acts, {{ sceneCount }} beats</div>
+              <div style="font-size:14px;color:#6B6B68;line-height:1.6;max-width:480px;text-wrap:pretty;">Each beat states what the viewer should be able to explain afterwards. Retime a beat here and the script, voice, and timeline all follow.</div>
+            </div>
+            <div style="text-align:right;flex:none;padding-left:24px;">
+              <div style="font-family:'Bricolage Grotesque';font-size:22px;font-weight:600;">{{ totalLabel }}</div>
+              <div style="font-size:11.5px;color:#A3A39E;">total runtime</div>
+            </div>
+          </div>
+
+          <div style="border:1px solid {{ pCrew.ring }};border-radius:16px;background:{{ pCrew.bg }};overflow:hidden;margin-bottom:20px;position:sticky;top:0;z-index:4;backdrop-filter:blur(20px);box-shadow:0 8px 22px rgba(30,30,28,0.07);">
+            <div style="display:flex;gap:12px;padding:13px 15px 12px;">
+              <div style="width:28px;height:28px;flex:none;border-radius:50%;background:{{ pCrew.color }};color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;font-family:'Bricolage Grotesque';box-shadow:0 2px 8px rgba(30,30,28,0.14);">{{ pCrew.initial }}</div>
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+                  <div style="font-size:12.5px;font-weight:600;">{{ pCrew.name }}</div>
+                  <div style="font-size:11.5px;color:#A3A39E;">{{ pCrew.status }}</div>
+                </div>
+                <div style="font-size:13px;color:#3A3A38;line-height:1.55;">{{ pCrew.message }}</div>
+                <div style="display:flex;gap:8px;margin-top:8px;align-items:flex-start;">
+                  <div style="width:2px;align-self:stretch;border-radius:1px;background:{{ pCrew.color }};opacity:.4;flex:none;"></div>
+                  <div style="font-size:12px;color:#8A8A86;line-height:1.5;"><span style="color:#B0B0AC;">Why —</span> {{ pCrew.why }}</div>
+                </div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:11px;">
+                  <button onClick="{{ toggleThread }}" style="border:1px solid #E0E0DC;background:#fff;border-radius:999px;padding:6px 13px;font-size:12px;font-weight:500;color:#5A5A56;white-space:nowrap;" style-hover="border-color:#B9B9B4;color:#141414;">Push back</button>
+                <sc-if value="{{ notApproved }}" hint-placeholder-val="{{ true }}">
+                  <button onClick="{{ approvePlan }}" style="background:linear-gradient(180deg,#2C2C29,#141414);border:1px solid rgba(255,255,255,0.13);box-shadow:inset 0 1px 0 rgba(255,255,255,0.17),0 6px 18px rgba(20,20,20,0.20);color:#fff;border-radius:999px;padding:6px 14px;font-size:12px;font-weight:500;white-space:nowrap;transition:filter .15s;" style-hover="filter:brightness(1.18);">Approve plan → script</button>
+                </sc-if>
+                </div>
+              </div>
+            </div>
+            <sc-if value="{{ pCrew.handed }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:8px;padding:9px 15px;background:rgba(15,118,110,0.06);border-top:1px solid rgba(15,118,110,0.14);">
+                <div style="width:15px;height:15px;border-radius:50%;background:{{ accent }};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;flex:none;">✓</div>
+                <div style="font-size:11.5px;color:#5A5A56;">{{ pCrew.handoff }}</div>
+              </div>
+            </sc-if>
+          </div>
+
+          <div style="border:1px solid rgba(255,255,255,0.9);border-radius:16px;box-shadow:0 6px 20px rgba(30,30,28,0.05);background:#fff;padding:15px 18px;margin-bottom:34px;">
+            <div style="display:flex;gap:3px;height:8px;margin-bottom:10px;">
+              <sc-for list="{{ scenes }}" as="s" hint-placeholder-count="8">
+                <div onClick="{{ s.selectStory }}" style="width:{{ s.widthPct }};border-radius:3px;background:{{ s.arcBg }};cursor:pointer;transition:background .15s;" style-hover="background:{{ accent }};"></div>
+              </sc-for>
+            </div>
+            <div style="display:flex;gap:3px;">
+              <sc-for list="{{ acts }}" as="ac" hint-placeholder-count="3">
+                <div style="width:{{ ac.widthPct }};padding-right:8px;">
+                  <div style="font-family:'Geist Mono';font-size:9.5px;color:{{ accent }};letter-spacing:.1em;margin-bottom:2px;">{{ ac.label }}</div>
+                  <div style="font-size:12px;font-weight:500;">{{ ac.name }}</div>
+                  <div style="font-size:11px;color:#B0B0AC;">{{ ac.meta }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:26px;">
+            <sc-for list="{{ acts }}" as="ac" hint-placeholder-count="3">
+              <div>
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+                  <div style="font-family:'Caveat';font-size:20px;color:{{ accent }};">{{ ac.name }}</div>
+                  <div style="flex:1;height:1px;background:#E3E3DF;"></div>
+                  <div style="font-family:'Geist Mono';font-size:10.5px;color:#B0B0AC;">{{ ac.meta }}</div>
+                </div>
+                <div style="position:relative;padding-left:32px;">
+                  <div style="position:absolute;left:8px;top:14px;bottom:14px;width:1.5px;background:#E3E3DF;"></div>
+                  <div style="display:flex;flex-direction:column;gap:10px;">
+                    <sc-for list="{{ ac.beats }}" as="s" hint-placeholder-count="3">
+                      <div onClick="{{ s.selectStory }}" draggable="{{ true }}" onDragStart="{{ s.dragStart }}" onDragOver="{{ s.dragOver }}" onDrop="{{ s.drop }}" onDragEnd="{{ s.dragEnd }}" style="position:relative;border:1px solid {{ s.planRing }};border-radius:18px;box-shadow:{{ s.planShadow }};padding:17px 20px;background:#fff;cursor:pointer;opacity:{{ s.dragOpacity }};transition:opacity .15s ease,box-shadow .18s ease;">
+                        <div style="position:absolute;left:0;right:0;top:-6px;height:3px;border-radius:2px;background:{{ s.dropBar }};"></div>
+                        <div style="position:absolute;left:-29px;top:21px;width:11px;height:11px;border-radius:50%;background:#fff;border:2.5px solid {{ s.dot }};"></div>
+                        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+                          <div style="font-family:'Geist Mono';font-size:10.5px;color:{{ accent }};letter-spacing:.06em;">BEAT {{ s.num }}</div>
+                          <div style="font-family:'Bricolage Grotesque';font-size:17px;font-weight:600;flex:1;letter-spacing:-0.01em;">{{ s.title }}</div>
+                          <div style="font-size:10.5px;color:#9A9A96;border:1px solid #E7E7E4;border-radius:999px;padding:2px 9px;">{{ s.pace }}</div>
+                          <div title="Drag to reorder" style="display:grid;grid-template-columns:2px 2px;gap:3px;flex:none;cursor:grab;padding:2px 3px;">
+                            <div style="width:2px;height:2px;border-radius:1px;background:#C4C4BF;"></div><div style="width:2px;height:2px;border-radius:1px;background:#C4C4BF;"></div>
+                            <div style="width:2px;height:2px;border-radius:1px;background:#C4C4BF;"></div><div style="width:2px;height:2px;border-radius:1px;background:#C4C4BF;"></div>
+                            <div style="width:2px;height:2px;border-radius:1px;background:#C4C4BF;"></div><div style="width:2px;height:2px;border-radius:1px;background:#C4C4BF;"></div>
+                          </div>
+                        </div>
+                        <div style="font-size:13.5px;color:#5A5A56;line-height:1.6;margin-bottom:10px;text-wrap:pretty;"><span style="color:#A3A39E;">Viewer learns —</span> {{ s.objective }}</div>
+                        <div style="display:flex;gap:8px;align-items:flex-start;background:#FBFBFA;border-radius:10px;padding:9px 11px;margin-bottom:12px;">
+                          <div style="width:15px;height:15px;flex:none;border-radius:5px;background:{{ accent }};color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque';font-weight:700;font-size:8px;margin-top:1px;">D</div>
+                          <div style="font-size:12px;color:#6B6B68;line-height:1.5;flex:1;">{{ s.reason }}</div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:10px;padding-top:12px;border-top:1px solid #F1F1EE;">
+                          <div style="font-size:12px;color:#6B6B68;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ s.caption }}</div>
+                          <div style="font-size:11px;color:#9A9A96;background:#F4F4F1;border-radius:999px;padding:3px 10px;white-space:nowrap;">{{ s.animation }}</div>
+                          <div style="display:flex;align-items:center;border:1px solid #E7E7E4;border-radius:999px;overflow:hidden;flex:none;">
+                            <button onClick="{{ s.durMinus }}" style="border:none;background:transparent;padding:3px 9px;font-size:13px;color:#8A8A86;line-height:1;" style-hover="background:#F4F4F1;color:#141414;">−</button>
+                            <div style="font-family:'Geist Mono';font-size:11px;width:34px;text-align:center;">{{ s.durLabel }}</div>
+                            <button onClick="{{ s.durPlus }}" style="border:none;background:transparent;padding:3px 9px;font-size:13px;color:#8A8A86;line-height:1;" style-hover="background:#F4F4F1;color:#141414;">+</button>
+                          </div>
+                          <button onClick="{{ s.split }}" style="border:1px solid #E7E7E4;background:#fff;border-radius:999px;padding:3px 10px;font-size:11px;color:#5A5A56;white-space:nowrap;flex:none;" style-hover="border-color:{{ accent }};color:#141414;">Split</button>
+                          <button onClick="{{ s.remove }}" style="border:1px solid #E7E7E4;background:#fff;border-radius:999px;padding:3px 10px;font-size:11px;color:#5A5A56;white-space:nowrap;flex:none;" style-hover="border-color:#B9B9B4;color:#141414;">Cut</button>
+                        </div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+              </div>
+            </sc-for>
+            <button onClick="{{ addScene }}" style="border:1.5px dashed #D9D9D4;background:transparent;border-radius:16px;padding:13px;font-size:13px;font-weight:500;color:#8A8A86;width:100%;" style-hover="border-color:{{ accent }};color:#141414;">＋ Add a beat</button>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ tabScript }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;overflow-y:auto;padding:36px 44px;">
+        <div style="max-width:760px;margin:0 auto;">
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:30px;">
+            <div>
+              <div style="font-family:'Caveat';font-size:19px;color:{{ accent }};margin-bottom:2px;">script</div>
+              <div style="font-family:'Bricolage Grotesque';font-size:28px;font-weight:600;letter-spacing:-0.02em;margin-bottom:8px;">Written for the ear</div>
+              <div style="font-size:14px;color:#6B6B68;line-height:1.6;max-width:460px;text-wrap:pretty;">Click a scene to load it into the inspector. Edits re-sync narration and captions automatically.</div>
+            </div>
+            <div style="text-align:right;flex:none;padding-left:24px;">
+              <div style="font-family:'Bricolage Grotesque';font-size:22px;font-weight:600;">{{ scriptWords }}</div>
+              <div style="font-size:11.5px;color:#A3A39E;">words · {{ sceneCount }} scenes</div>
+            </div>
+          </div>
+
+          <div style="border:1px solid {{ sCrew.ring }};border-radius:16px;background:{{ sCrew.bg }};overflow:hidden;margin-bottom:22px;position:sticky;top:0;z-index:4;backdrop-filter:blur(20px);box-shadow:0 8px 22px rgba(30,30,28,0.07);">
+            <div style="display:flex;gap:12px;padding:13px 15px 12px;">
+              <div style="width:28px;height:28px;flex:none;border-radius:50%;background:{{ sCrew.color }};color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;font-family:'Bricolage Grotesque';box-shadow:0 2px 8px rgba(30,30,28,0.14);">{{ sCrew.initial }}</div>
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+                  <div style="font-size:12.5px;font-weight:600;">{{ sCrew.name }}</div>
+                  <div style="font-size:11.5px;color:#A3A39E;">{{ sCrew.status }}</div>
+                </div>
+                <div style="font-size:13px;color:#3A3A38;line-height:1.55;">{{ sCrew.message }}</div>
+                <div style="display:flex;gap:8px;margin-top:8px;align-items:flex-start;">
+                  <div style="width:2px;align-self:stretch;border-radius:1px;background:{{ sCrew.color }};opacity:.4;flex:none;"></div>
+                  <div style="font-size:12px;color:#8A8A86;line-height:1.5;"><span style="color:#B0B0AC;">Why —</span> {{ sCrew.why }}</div>
+                </div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:11px;">
+                  <button onClick="{{ toggleThread }}" style="border:1px solid #E0E0DC;background:#fff;border-radius:999px;padding:6px 13px;font-size:12px;font-weight:500;color:#5A5A56;white-space:nowrap;" style-hover="border-color:#B9B9B4;color:#141414;">Push back</button>
+                <sc-if value="{{ scriptPending }}" hint-placeholder-val="{{ true }}">
+                  <button onClick="{{ approveScript }}" style="background:linear-gradient(180deg,#2C2C29,#141414);border:1px solid rgba(255,255,255,0.13);box-shadow:inset 0 1px 0 rgba(255,255,255,0.17),0 6px 18px rgba(20,20,20,0.20);color:#fff;border-radius:999px;padding:6px 14px;font-size:12px;font-weight:500;white-space:nowrap;transition:filter .15s;" style-hover="filter:brightness(1.18);">Approve script → storyboard</button>
+                </sc-if>
+                </div>
+              </div>
+            </div>
+            <sc-if value="{{ sCrew.handed }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:8px;padding:9px 15px;background:rgba(15,118,110,0.06);border-top:1px solid rgba(15,118,110,0.14);">
+                <div style="width:15px;height:15px;border-radius:50%;background:{{ accent }};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;flex:none;">✓</div>
+                <div style="font-size:11.5px;color:#5A5A56;">{{ sCrew.handoff }}</div>
+              </div>
+            </sc-if>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:2px;">
+            <sc-for list="{{ scenes }}" as="s" hint-placeholder-count="8">
+              <div onClick="{{ s.select }}" style="display:flex;gap:18px;border-radius:16px;padding:16px 18px;cursor:pointer;background:{{ s.blockBg }};box-shadow:{{ s.blockShadow }};transition:background .15s;" style-hover="background:rgba(255,255,255,0.75);">
+                <div style="width:60px;flex:none;padding-top:2px;">
+                  <div style="font-family:'Geist Mono';font-size:10.5px;color:{{ s.scriptNumFg }};letter-spacing:.06em;">{{ s.num }}</div>
+                  <div style="font-family:'Geist Mono';font-size:10px;color:#C4C4BF;margin-top:3px;">{{ s.startLabel }}</div>
+                  <div style="width:2px;height:26px;border-radius:1px;background:{{ s.scriptBar }};margin-top:9px;"></div>
+                </div>
+                <div style="flex:1;min-width:0;">
+                  <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px;">
+                    <div style="font-size:12px;font-weight:500;color:#9A9A96;letter-spacing:.01em;">{{ s.title }}</div>
+                    <div style="font-size:10.5px;color:{{ s.editHintFg }};font-family:'Geist Mono';">{{ s.editHint }}</div>
+                  </div>
+                  <div contentEditable="{{ true }}" suppressContentEditableWarning="{{ true }}" onFocus="{{ s.beginEdit }}" onBlur="{{ s.commitNarration }}" style="font-size:15px;line-height:1.75;color:#2A2A28;text-wrap:pretty;outline:none;border-radius:8px;padding:3px 6px;margin:-3px -6px;cursor:text;transition:background .15s,box-shadow .15s;" style-hover="background:#FBFBFA;" style-focus="background:#fff;box-shadow:inset 0 0 0 1.5px {{ accent }};">{{ s.narration }}</div>
+                  <sc-if value="{{ s.inactive }}" hint-placeholder-val="{{ true }}">
+                    <div style="display:flex;gap:14px;margin-top:9px;font-family:'Geist Mono';font-size:10px;color:#C4C4BF;">
+                      <div>{{ s.wordCount }} words</div><div>{{ s.durLabel }}</div><div>{{ s.pace }}</div>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ s.isActive }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;align-items:center;gap:8px;margin-top:14px;padding-top:13px;border-top:1px solid #F1F1EE;flex-wrap:wrap;">
+                      <div style="font-family:'Geist Mono';font-size:10px;color:#C4C4BF;">{{ s.wordCount }}w</div>
+                      <div style="display:flex;align-items:center;border:1px solid #E7E7E4;border-radius:999px;overflow:hidden;background:#fff;">
+                        <button onClick="{{ s.durMinus }}" style="border:none;background:transparent;padding:4px 10px;font-size:13px;color:#8A8A86;line-height:1;" style-hover="background:#F4F4F1;color:#141414;">−</button>
+                        <div style="font-family:'Geist Mono';font-size:11px;width:34px;text-align:center;">{{ s.durLabel }}</div>
+                        <button onClick="{{ s.durPlus }}" style="border:none;background:transparent;padding:4px 10px;font-size:13px;color:#8A8A86;line-height:1;" style-hover="background:#F4F4F1;color:#141414;">+</button>
+                      </div>
+                      <select value="{{ s.animation }}" onChange="{{ setAnimation }}" style="border:1px solid #E7E7E4;border-radius:999px;padding:4px 10px;font-size:11.5px;background:#fff;color:#5A5A56;">
+                        <sc-for list="{{ animOptions }}" as="ao" hint-placeholder-count="4"><option>{{ ao }}</option></sc-for>
+                      </select>
+                      <div style="display:flex;align-items:center;gap:7px;border:1px solid #E7E7E4;border-radius:999px;padding:3px 11px 3px 5px;background:#fff;">
+                        <div style="width:17px;height:17px;border-radius:50%;background:linear-gradient(135deg,#2A2A28,#5A5A56);"></div>
+                        <div style="font-size:11.5px;color:#5A5A56;">Nova</div>
+                      </div>
+                      <div style="margin-left:auto;display:flex;gap:7px;">
+                        <button onClick="{{ regenVoice }}" style="border:1px solid #E0E0DC;background:#fff;border-radius:999px;padding:5px 13px;font-size:11.5px;font-weight:500;color:#5A5A56;" style-hover="border-color:#B9B9B4;color:#141414;">Re-record</button>
+                        <button onClick="{{ s.openOnCanvas }}" style="border:none;background:#141414;color:#fff;border-radius:999px;padding:5px 13px;font-size:11.5px;font-weight:500;" style-hover="background:#2a2a2a;">Open on canvas →</button>
+                      </div>
+                    </div>
+                  </sc-if>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ tabEdit }}" hint-placeholder-val="{{ true }}">
+      <div style="flex:1;display:flex;flex-direction:column;min-height:0;">
+        <div style="flex:1;display:flex;min-height:0;">
+
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;padding:18px 20px 14px;min-height:0;overflow:hidden;">
+            <div style="flex:1;background:#0E0E10;border-radius:20px;box-shadow:0 16px 44px rgba(30,30,28,0.12);position:relative;display:flex;flex-direction:column;min-height:0;overflow:hidden;">
+              <div style="flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:22px 26px 8px;">
+                <div style="font-family:'Geist Mono';font-size:10.5px;letter-spacing:.16em;color:#6E6E76;text-align:center;">SCENE {{ curScene.num }} · {{ curScene.titleUpper }}</div>
+              <div style="display:flex;gap:6px;flex-wrap:nowrap;justify-content:center;max-width:92%;min-width:0;">
+                <sc-for list="{{ curScene.viz }}" as="v" hint-placeholder-count="4">
+                  <div style="padding:9px 12px;border-radius:9px;font-family:'Geist Mono';font-size:clamp(10px,1.5vh,15px);white-space:nowrap;flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;text-align:center;background:{{ v.bg }};border:1px solid {{ v.bd }};color:{{ v.fg }};">{{ v.t }}</div>
+                </sc-for>
+              </div>
+                <div style="color:#E8E8EC;font-family:'Bricolage Grotesque';font-size:clamp(15px,2.3vh,22px);line-height:1.25;font-weight:500;text-align:center;max-width:74%;">{{ curScene.caption }}</div>
+              </div>
+              <sc-if value="{{ regenerating }}" hint-placeholder-val="{{ false }}">
+                <div style="position:absolute;inset:0;background:rgba(14,14,16,0.82);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;">
+                  <div style="width:22px;height:22px;border-radius:50%;border:2px solid #3A3A42;border-top-color:{{ accent }};animation:spin .7s linear infinite;"></div>
+                  <div style="color:#B9B9C2;font-size:13.5px;font-family:'Geist Mono';">{{ regenLabel }}</div>
+                </div>
+              </sc-if>
+              <div style="flex:none;display:flex;align-items:center;gap:12px;padding:0 16px 14px;">
+                <button onClick="{{ playToggle }}" style="width:34px;height:34px;flex:none;border-radius:50%;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);" style-hover="background:rgba(255,255,255,0.2);">{{ playGlyph }}</button>
+                <div style="font-family:'Geist Mono';font-size:11.5px;color:#8A8A92;">{{ playheadLabel }} / {{ totalLabel }}</div>
+                <div style="margin-left:auto;font-family:'Geist Mono';font-size:10.5px;color:#5C5C64;white-space:nowrap;">1920 × 1080 · 24 fps</div>
+              </div>
+            </div>
+          </div>
+
+          <sc-if value="{{ showScenePanel }}" hint-placeholder-val="{{ true }}">
+          <div style="width:318px;flex:0 1 318px;min-width:240px;border-left:1px solid rgba(255,255,255,0.8);background:rgba(255,255,255,0.5);backdrop-filter:blur(28px);display:flex;flex-direction:column;min-height:0;">
+            <div style="flex:none;display:flex;gap:3px;padding:12px 14px 0;">
+              <button onClick="{{ showTranscript }}" style="flex:1;border:none;border-radius:999px;padding:7px 0;font-size:12.5px;font-weight:500;background:{{ rtTranscriptBg }};box-shadow:{{ rtTranscriptSh }};color:{{ rtTranscriptFg }};">Transcript</button>
+              <button onClick="{{ showSceneTab }}" style="flex:1;border:none;border-radius:999px;padding:7px 0;font-size:12.5px;font-weight:500;background:{{ rtSceneBg }};box-shadow:{{ rtSceneSh }};color:{{ rtSceneFg }};">Scene</button>
+            </div>
+
+            <sc-if value="{{ rightTranscript }}" hint-placeholder-val="{{ true }}">
+            <div style="flex:1;overflow-y:auto;padding:16px 18px 22px;min-height:0;">
+              <div style="font-size:11px;color:#B0B0AC;font-family:'Geist Mono';margin-bottom:12px;">FOLLOWS THE PLAYHEAD · CLICK TO SEEK</div>
+              <div style="display:flex;flex-direction:column;gap:16px;">
+                <sc-for list="{{ transcriptScenes }}" as="ts" hint-placeholder-count="8">
+                  <div style="border-left:2px solid {{ ts.rail }};padding-left:12px;">
+                    <div style="display:flex;gap:8px;align-items:baseline;margin-bottom:5px;">
+                      <div style="font-family:'Geist Mono';font-size:9.5px;color:{{ ts.numFg }};">{{ ts.num }}</div>
+                      <div style="font-size:11px;font-weight:500;color:#9A9A96;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ ts.title }}</div>
+                      <div style="font-family:'Geist Mono';font-size:9.5px;color:#C4C4BF;">{{ ts.startLabel }}</div>
+                    </div>
+                    <div style="font-size:13px;line-height:1.75;">
+                      <sc-for list="{{ ts.words }}" as="w" hint-placeholder-count="24"><span onClick="{{ w.seek }}" style="cursor:pointer;border-radius:3px;padding:0 1px;color:{{ w.fg }};background:{{ w.bg }};" style-hover="background:#EFEFEB;">{{ w.t }} </span></sc-for>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            </sc-if>
+
+            <sc-if value="{{ rightScene }}" hint-placeholder-val="{{ false }}">
+            <div style="flex:1;overflow-y:auto;padding:16px 18px 24px;min-height:0;display:flex;flex-direction:column;gap:18px;">
+              <div>
+                <div style="font-family:'Geist Mono';font-size:10.5px;letter-spacing:.12em;color:#9A9A96;margin-bottom:4px;">SCENE {{ curScene.num }} OF {{ sceneCount }}</div>
+                <div style="font-family:'Bricolage Grotesque';font-size:17px;font-weight:600;letter-spacing:-0.01em;margin-bottom:10px;">{{ curScene.title }}</div>
+                <div style="display:flex;gap:8px;align-items:flex-start;background:#FBFBFA;border:1px solid #EFEFEC;border-radius:12px;padding:10px 11px;">
+                  <div style="width:15px;height:15px;flex:none;border-radius:5px;background:{{ accent }};color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque';font-weight:700;font-size:8px;margin-top:1px;">D</div>
+                  <div style="font-size:11.5px;color:#6B6B68;line-height:1.5;flex:1;">{{ curScene.reason }}</div>
+                </div>
+                <div style="font-size:11px;color:#A3A39E;margin-top:8px;line-height:1.5;">Objective: {{ curScene.objective }}</div>
+              </div>
+              <sc-if value="{{ sceneNote.open }}" hint-placeholder-val="{{ false }}">
+                <div style="border:1px solid {{ sceneNote.ring }};border-radius:14px;background:#fff;padding:12px 13px;box-shadow:0 4px 14px rgba(30,30,28,0.05);">
+                  <div style="display:flex;gap:9px;margin-bottom:4px;">
+                    <div style="width:22px;height:22px;flex:none;border-radius:50%;background:{{ sceneNote.color }};color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;font-family:'Bricolage Grotesque';">{{ sceneNote.initial }}</div>
+                    <div style="flex:1;min-width:0;">
+                      <div style="font-size:12px;font-weight:600;margin-bottom:3px;">{{ sceneNote.name }}</div>
+                      <div style="font-size:12px;color:#5A5A56;line-height:1.5;">{{ sceneNote.text }}</div>
+                    </div>
+                  </div>
+                  <sc-for list="{{ sceneNote.options }}" as="op" hint-placeholder-count="2">
+                    <div onClick="{{ op.pick }}" style="display:flex;gap:9px;align-items:flex-start;border:1px solid #EFEFEC;border-radius:11px;padding:9px 11px;margin-top:6px;cursor:pointer;transition:border-color .15s,background .15s;" style-hover="border-color:{{ sceneNote.color }};background:#FBFBFA;">
+                      <div style="font-family:'Geist Mono';font-size:9.5px;color:#B0B0AC;flex:none;padding-top:2px;">{{ op.key }}</div>
+                      <div style="flex:1;min-width:0;"><div style="font-size:12px;font-weight:500;margin-bottom:2px;">{{ op.title }}</div><div style="font-size:11.5px;color:#9A9A96;line-height:1.45;">{{ op.desc }}</div></div>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <sc-if value="{{ sceneNote.resolved }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:flex-start;gap:9px;border:1px solid rgba(15,118,110,0.22);border-radius:14px;background:rgba(15,118,110,0.05);padding:10px 12px;">
+                  <div style="width:16px;height:16px;flex:none;margin-top:1px;border-radius:50%;background:{{ accent }};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;">✓</div>
+                  <div style="font-size:11.5px;color:#5A5A56;line-height:1.5;">{{ sceneNote.resolvedText }}</div>
+                </div>
+              </sc-if>
+              <div>
+                <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;"><div style="font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:#8A8A86;font-weight:500;">Narration</div><div style="font-size:11px;color:#C4C4BF;font-family:'Geist Mono';">{{ curScene.wordCount }} words</div></div>
+                <textarea value="{{ curScene.narration }}" onChange="{{ editNarration }}" rows="7" style="width:100%;border:1px solid #E3E3DF;border-radius:12px;padding:11px 12px;font-size:13px;line-height:1.6;resize:vertical;background:#fff;" style-focus="border-color:{{ accent }};"></textarea>
+              </div>
+              <div>
+                <div style="font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:#8A8A86;font-weight:500;margin-bottom:8px;">Voice</div>
+                <div style="display:flex;align-items:center;gap:10px;border:1px solid #E3E3DF;border-radius:12px;padding:9px 12px;background:#fff;">
+                  <div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#2A2A28,#5A5A56);"></div>
+                  <div style="flex:1;"><div style="font-size:12.5px;font-weight:500;">Nova</div><div style="font-size:11px;color:#9A9A96;">{{ toneLabel }} · en-US</div></div>
+                  <button style="border:none;background:transparent;font-size:11.5px;color:#8A8A86;font-weight:500;" style-hover="color:#141414;">Change</button>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:#8A8A86;font-weight:500;margin-bottom:8px;">Animation</div>
+                <select value="{{ curScene.animation }}" onChange="{{ setAnimation }}" style="width:100%;border:1px solid #E3E3DF;border-radius:12px;padding:9px 12px;font-size:13px;background:#fff;">
+                  <sc-for list="{{ animOptions }}" as="ao" hint-placeholder-count="4"><option>{{ ao }}</option></sc-for>
+                </select>
+              </div>
+              <div>
+                <div style="font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:#8A8A86;font-weight:500;margin-bottom:8px;">Duration</div>
+                <div style="display:flex;align-items:center;border:1px solid #E3E3DF;border-radius:12px;background:#fff;overflow:hidden;">
+                  <button onClick="{{ durMinus }}" style="border:none;background:transparent;padding:9px 14px;font-size:14px;color:#6B6B68;" style-hover="background:#F4F4F1;">−</button>
+                  <div style="flex:1;text-align:center;font-family:'Geist Mono';font-size:13px;">{{ curScene.durLabel }}</div>
+                  <button onClick="{{ durPlus }}" style="border:none;background:transparent;padding:9px 14px;font-size:14px;color:#6B6B68;" style-hover="background:#F4F4F1;">+</button>
+                </div>
+                <div style="font-size:11px;color:#B0B0AC;margin-top:6px;">Pacing: {{ curScene.pace }} · narration auto-retimed</div>
+              </div>
+              <div>
+                <div style="font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:#8A8A86;font-weight:500;margin-bottom:8px;">Visual prompt</div>
+                <textarea value="{{ curScene.prompt }}" onChange="{{ editPrompt }}" rows="3" style="width:100%;border:1px solid #E3E3DF;border-radius:12px;padding:11px 12px;font-size:12.5px;line-height:1.55;resize:vertical;background:#fff;color:#4A4A47;" style-focus="border-color:{{ accent }};"></textarea>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <button onClick="{{ regenScene }}" style="background:linear-gradient(180deg,#2C2C29,#141414);border:1px solid rgba(255,255,255,0.13);box-shadow:inset 0 1px 0 rgba(255,255,255,0.17),0 6px 18px rgba(20,20,20,0.20);color:#fff;border-radius:999px;padding:11px;font-size:13.5px;font-weight:500;transition:filter .15s;" style-hover="filter:brightness(1.18);">↻ Regenerate scene</button>
+                <div style="display:flex;gap:8px;">
+                  <button onClick="{{ regenVisuals }}" style="flex:1;background:#fff;border:1px solid #E0E0DC;border-radius:999px;padding:9px;font-size:12.5px;font-weight:500;" style-hover="border-color:#B9B9B4;">Visuals only</button>
+                  <button onClick="{{ regenVoice }}" style="flex:1;background:#fff;border:1px solid #E0E0DC;border-radius:999px;padding:9px;font-size:12.5px;font-weight:500;" style-hover="border-color:#B9B9B4;">Voice only</button>
+                </div>
+                <div style="display:flex;gap:6px;">
+                  <button onClick="{{ splitCur }}" style="flex:1;background:#fff;border:1px solid #E0E0DC;border-radius:999px;padding:8px 0;font-size:11.5px;font-weight:500;" style-hover="border-color:#B9B9B4;">Split</button>
+                  <button onClick="{{ mergeCur }}" style="flex:1;background:#fff;border:1px solid #E0E0DC;border-radius:999px;padding:8px 0;font-size:11.5px;font-weight:500;" style-hover="border-color:#B9B9B4;">Merge next</button>
+                  <button onClick="{{ dupCur }}" style="flex:1;background:#fff;border:1px solid #E0E0DC;border-radius:999px;padding:8px 0;font-size:11.5px;font-weight:500;" style-hover="border-color:#B9B9B4;">Duplicate</button>
+                </div>
+                <div style="font-size:11px;color:#B0B0AC;text-align:center;">Only this scene is touched. Everything else stays.</div>
+              </div>
+            </div>
+            </sc-if>
+          </div>
+          </sc-if>
+        </div>
+
+        <div style="flex:none;border-top:1px solid rgba(255,255,255,0.8);background:rgba(255,255,255,0.5);backdrop-filter:blur(24px);padding:12px 24px 16px;">
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px;">
+            <button onClick="{{ playToggle }}" style="width:30px;height:30px;border-radius:50%;background:#141414;color:#fff;border:none;font-size:11px;display:flex;align-items:center;justify-content:center;" style-hover="background:#2a2a2a;">{{ playGlyph }}</button>
+            <div style="font-family:'Geist Mono';font-size:12px;color:#6B6B68;">{{ playheadLabel }} <span style="color:#C4C4BF;">/ {{ totalLabel }}</span></div>
+            <div style="font-size:11.5px;color:#9A9A96;border-left:1px solid #E3E3DF;padding-left:14px;">Scene {{ curScene.num }} · {{ curScene.title }}</div>
+            <div style="margin-left:auto;font-size:11.5px;color:#B0B0AC;">Drag to scrub · click a scene to select</div>
+          </div>
+          <div onMouseDown="{{ scrubDown }}" style="position:relative;cursor:col-resize;user-select:none;">
+            <div style="display:flex;height:16px;position:relative;">
+              <sc-for list="{{ ticks }}" as="tk" hint-placeholder-count="6"><div style="position:absolute;left:{{ tk.left }};font-family:'Geist Mono';font-size:9.5px;color:#B0B0AC;">{{ tk.label }}</div></sc-for>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;position:relative;">
+              <div style="display:flex;align-items:center;gap:0;height:40px;border:1px solid #E7E7E4;border-radius:8px;background:#fff;overflow:hidden;padding:0 2px;">
+                <sc-for list="{{ bars }}" as="b" hint-placeholder-count="60"><div style="flex:1;height:{{ b.h }};background:{{ b.c }};border-radius:1px;margin:0 0.5px;"></div></sc-for>
+              </div>
+              <div style="display:flex;height:32px;gap:2px;">
+                <sc-for list="{{ scenes }}" as="s" hint-placeholder-count="8">
+                  <div onClick="{{ s.select }}" style="width:{{ s.widthPct }};border-radius:6px;border:1px solid {{ s.tlRing }};background:{{ s.tlBg }};display:flex;align-items:center;padding:0 8px;cursor:pointer;overflow:hidden;">
+                    <div style="font-size:10.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ s.num }} {{ s.title }}</div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display:flex;height:19px;gap:2px;">
+                <sc-for list="{{ scenes }}" as="s" hint-placeholder-count="8">
+                  <div style="width:{{ s.widthPct }};border-radius:5px;background:#EFEFEB;display:flex;align-items:center;padding:0 8px;overflow:hidden;">
+                    <div style="font-size:9.5px;color:#9A9A96;font-family:'Geist Mono';white-space:nowrap;">{{ s.animation }}</div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="position:absolute;top:-16px;bottom:0;left:{{ playheadLeft }};width:0;pointer-events:none;">
+                <div style="position:absolute;top:0;bottom:0;left:-1px;width:2px;background:{{ accent }};border-radius:1px;"></div>
+                <div style="position:absolute;top:-2px;left:-5px;width:10px;height:10px;border-radius:3px;background:{{ accent }};"></div>
+              </div>
+            </div>
+            <div style="display:flex;gap:2px;margin-top:8px;font-family:'Geist Mono';font-size:9.5px;color:#C4C4BF;"><div style="width:44px;">VOICE</div><div>Nova · {{ toneLabelLower }}</div></div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ tabAssets }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;overflow-y:auto;padding:36px 44px;">
+        <div style="max-width:900px;margin:0 auto;">
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:28px;">
+            <div>
+              <div style="font-family:'Caveat';font-size:19px;color:{{ accent }};margin-bottom:2px;">assets</div>
+              <div style="font-family:'Bricolage Grotesque';font-size:28px;font-weight:600;letter-spacing:-0.02em;margin-bottom:8px;">24 pieces, all replaceable</div>
+              <div style="font-size:14px;color:#6B6B68;line-height:1.6;max-width:460px;text-wrap:pretty;">Everything generated for this decode. Swap any asset without touching its scene.</div>
+            </div>
+            <div style="display:flex;gap:7px;flex:none;">
+              <div style="font-size:12px;font-weight:500;border-radius:999px;padding:6px 14px;background:#141414;color:#fff;">All</div>
+              <div style="font-size:12px;border-radius:999px;padding:6px 14px;border:1px solid #E3E3DF;background:#fff;color:#6B6B68;cursor:pointer;" style-hover="border-color:#B9B9B4;">Diagrams</div>
+              <div style="font-size:12px;border-radius:999px;padding:6px 14px;border:1px solid #E3E3DF;background:#fff;color:#6B6B68;cursor:pointer;" style-hover="border-color:#B9B9B4;">Animations</div>
+              <div style="font-size:12px;border-radius:999px;padding:6px 14px;border:1px solid #E3E3DF;background:#fff;color:#6B6B68;cursor:pointer;" style-hover="border-color:#B9B9B4;">Charts</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:14px;">
+            <sc-for list="{{ assets }}" as="a" hint-placeholder-count="8">
+              <div style="border:1px solid rgba(255,255,255,0.9);border-radius:16px;box-shadow:0 6px 20px rgba(30,30,28,0.05);overflow:hidden;background:#fff;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease;" style-hover="transform:translateY(-3px);box-shadow:0 14px 32px rgba(30,30,28,0.10);">
+                <div style="height:96px;background:{{ a.thumb }};display:flex;align-items:center;justify-content:center;position:relative;">
+                  <div style="font-family:'Geist Mono';font-size:13px;color:{{ a.glyphFg }};">{{ a.glyph }}</div>
+                  <div style="position:absolute;top:8px;right:8px;font-family:'Geist Mono';font-size:9px;color:#fff;background:rgba(20,20,20,0.5);backdrop-filter:blur(6px);border-radius:5px;padding:2px 6px;">{{ a.scene }}</div>
+                </div>
+                <div style="padding:11px 13px;">
+                  <div style="font-size:12.5px;font-weight:500;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ a.name }}</div>
+                  <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;"><div style="font-size:11px;color:#B0B0AC;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ a.kind }}</div><div style="font-size:10px;color:#C4C4BF;font-family:'Geist Mono';flex:none;white-space:nowrap;">{{ a.size }}</div></div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ tabExport }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;overflow-y:auto;padding:36px 44px;">
+        <div style="max-width:520px;margin:0 auto;">
+          <div style="font-family:'Caveat';font-size:19px;color:{{ accent }};margin-bottom:2px;">export</div>
+          <div style="font-family:'Bricolage Grotesque';font-size:26px;font-weight:600;letter-spacing:-0.02em;margin-bottom:8px;">The project stays. Video is one format.</div>
+          <div style="font-size:13.5px;color:#6B6B68;line-height:1.6;margin-bottom:26px;">Nothing renders until you say so, and rendering never flattens the project — come back and change a scene any time.</div>
+          <div style="border:1px solid rgba(255,255,255,0.9);border-radius:20px;box-shadow:0 8px 28px rgba(30,30,28,0.06);background:#fff;padding:22px;display:flex;flex-direction:column;gap:18px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-size:13.5px;font-weight:500;">Resolution</div>
+              <select value="{{ exportRes }}" onChange="{{ setRes }}" style="border:1px solid #E7E7E4;border-radius:8px;padding:7px 10px;font-size:13px;background:#FBFBFA;"><option>1080p</option><option>1440p</option><option>4K</option></select></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-size:13.5px;font-weight:500;">Format</div>
+              <select value="{{ exportFmt }}" onChange="{{ setFmt }}" style="border:1px solid #E7E7E4;border-radius:8px;padding:7px 10px;font-size:13px;background:#FBFBFA;"><option>MP4 · H.264</option><option>WebM</option><option>ProRes</option></select></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;"><div><div style="font-size:13.5px;font-weight:500;">Burned-in captions</div><div style="font-size:12px;color:#9A9A96;">From the transcript, styled to match</div></div>
+              <button onClick="{{ toggleCaptions }}" style="width:38px;height:22px;border-radius:11px;border:none;position:relative;background:{{ capBg }};transition:background .15s;"><div style="position:absolute;top:2px;left:{{ capKnob }};width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,0.15);"></div></button></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;"><div><div style="font-size:13.5px;font-weight:500;">Chapter markers</div><div style="font-size:12px;color:#9A9A96;">One per scene, for YouTube</div></div>
+              <button onClick="{{ toggleChapters }}" style="width:38px;height:22px;border-radius:11px;border:none;position:relative;background:{{ chapBg }};transition:background .15s;"><div style="position:absolute;top:2px;left:{{ chapKnob }};width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,0.15);"></div></button></div>
+            <sc-if value="{{ notRendering }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ startRender }}" style="background:linear-gradient(180deg,#15897F,#0F766E);border:1px solid rgba(255,255,255,0.22);box-shadow:inset 0 1px 0 rgba(255,255,255,0.34),0 10px 26px rgba(15,118,110,0.34);color:#fff;border-radius:999px;padding:12px;font-size:14px;font-weight:500;transition:filter .15s;" style-hover="filter:brightness(1.07);">Render video · {{ totalLabel }}</button>
+            </sc-if>
+            <sc-if value="{{ rendering }}" hint-placeholder-val="{{ false }}">
+              <div><div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:8px;"><div style="font-weight:500;">Rendering…</div><div style="font-family:'Geist Mono';color:#8A8A86;">{{ renderPctLabel }}</div></div>
+              <div style="height:4px;background:#EFEFEC;border-radius:2px;overflow:hidden;"><div style="height:100%;background:{{ accent }};width:{{ renderPctLabel }};transition:width .3s;"></div></div></div>
+            </sc-if>
+            <sc-if value="{{ renderDone }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:12px;border:1px solid #E3E3DF;border-radius:12px;padding:12px 14px;background:#FBFBFA;">
+                <div style="width:20px;height:20px;border-radius:50%;background:#141414;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;">✓</div>
+                <div style="flex:1;"><div style="font-size:13px;font-weight:500;">attention-explained.mp4</div><div style="font-size:11.5px;color:#9A9A96;">{{ totalLabel }} · 214 MB</div></div>
+                <button style="border:1px solid #E0E0DC;background:#fff;border-radius:8px;padding:6px 12px;font-size:12.5px;font-weight:500;" style-hover="border-color:#B9B9B4;">Download</button>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+    </div>
+
+  </div>
+</div>
+</sc-if>
+
+
+<sc-if value="{{ threadOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;top:0;right:0;bottom:0;width:340px;max-width:88vw;z-index:80;border-left:1px solid #E7E7E4;background:#FCFCFB;box-shadow:-24px 0 60px rgba(30,30,28,0.14);display:flex;flex-direction:column;">
+      <div style="flex:none;display:flex;align-items:center;gap:9px;padding:14px 16px;border-bottom:1px solid #EFEFEC;">
+        <div style="width:22px;height:22px;border-radius:7px;background:{{ accent }};display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Bricolage Grotesque';font-weight:700;font-size:11px;">D</div>
+        <div style="flex:1;"><div style="font-size:13px;font-weight:600;">Producer</div><div style="font-size:10.5px;color:#9A9A96;">{{ threadContext }}</div></div>
+        <button onClick="{{ toggleThread }}" style="border:none;background:transparent;font-size:15px;color:#B0B0AC;line-height:1;" style-hover="color:#141414;">×</button>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px;min-height:0;">
+        <sc-for list="{{ thread }}" as="m" hint-placeholder-count="3">
+          <div style="align-self:{{ m.align }};max-width:88%;">
+            <div style="font-size:12.5px;line-height:1.6;border-radius:14px;padding:10px 12px;background:{{ m.bg }};color:{{ m.fg }};border:1px solid {{ m.ring }};">{{ m.text }}</div>
+            <sc-if value="{{ m.hasReceipt }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:6px;margin-top:5px;padding-left:2px;">
+                <div style="width:13px;height:13px;border-radius:50%;background:#141414;color:#fff;display:flex;align-items:center;justify-content:center;font-size:7px;">✓</div>
+                <div style="font-size:10.5px;color:#8A8A86;font-family:'Geist Mono';">{{ m.receipt }}</div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
+        <sc-if value="{{ producerThinking }}" hint-placeholder-val="{{ false }}">
+          <div style="align-self:flex-start;display:flex;align-items:center;gap:8px;padding:2px;">
+            <div style="width:13px;height:13px;border-radius:50%;border:2px solid #E0E0DC;border-top-color:{{ accent }};animation:spin .7s linear infinite;"></div>
+            <div style="font-size:11.5px;color:#9A9A96;">Reworking the plan…</div>
+          </div>
+        </sc-if>
+      </div>
+      <div style="flex:none;padding:12px 16px 14px;border-top:1px solid #EFEFEC;">
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+          <sc-for list="{{ threadActions }}" as="ta" hint-placeholder-count="3">
+            <button onClick="{{ ta.run }}" style="border:1px solid #E3E3DF;background:#fff;border-radius:999px;padding:6px 12px;font-size:11.5px;color:#5A5A56;text-align:left;flex:0 0 auto;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;" style-hover="border-color:{{ accent }};color:#141414;">{{ ta.label }}</button>
+          </sc-for>
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:8px;border:1px solid #E3E3DF;border-radius:14px;background:#fff;padding:8px 10px;">
+          <textarea value="{{ draft }}" onChange="{{ setDraft }}" rows="1" placeholder="Ask anything, or give a note…" style="flex:1;border:none;font-size:12.5px;line-height:1.5;resize:none;background:transparent;"></textarea>
+          <button onClick="{{ sendNote }}" style="width:24px;height:24px;flex:none;border:none;border-radius:50%;background:#141414;color:#fff;font-size:10px;display:flex;align-items:center;justify-content:center;" style-hover="background:#2a2a2a;">↑</button>
+        </div>
+      </div>
+    </div>
+</sc-if>
+
+<sc-if value="{{ showAskPill }}" hint-placeholder-val="{{ false }}">
+<button onClick="{{ toggleThread }}" style="position:fixed;right:22px;bottom:22px;z-index:55;display:flex;align-items:center;gap:9px;border:1px solid rgba(255,255,255,0.9);background:rgba(255,255,255,0.9);backdrop-filter:blur(20px);border-radius:999px;padding:9px 16px 9px 12px;box-shadow:0 12px 30px rgba(30,30,28,0.14);font-size:13px;font-weight:500;color:#141414;" style-hover="box-shadow:0 16px 38px rgba(30,30,28,0.2);">
+  <span style="width:20px;height:20px;border-radius:6px;background:{{ accent }};display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Bricolage Grotesque';font-weight:700;font-size:10px;">D</span>
+  Ask the producer
+  <span style="font-family:'Geist Mono';font-size:10px;color:#B0B0AC;border:1px solid #E7E7E4;border-radius:5px;padding:1px 5px;">⌘J</span>
+</button>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;100%&quot;,&quot;height&quot;:&quot;100%&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#0F766E&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;#5B5BD6&quot;,&quot;#0F766E&quot;,&quot;#C2410C&quot;,&quot;#141414&quot;],&quot;section&quot;:&quot;Theme&quot;},&quot;startScreen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;landing&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;landing&quot;,&quot;dashboard&quot;,&quot;upload&quot;,&quot;processing&quot;,&quot;project&quot;],&quot;section&quot;:&quot;Prototype&quot;},&quot;glassPanels&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Theme&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const S=(o)=>({...o, altUsed:false});
+    this.SEED=[
+      S({title:'The Bottleneck', dur:32, anim:'Fade sequence', reason:'Opening on the failure makes the fix feel earned.',
+       objective:'why fixed-size hidden states cap what RNNs can translate, and why depth alone can\u2019t fix it.', caption:'Memory that fades by word forty',
+       prompt:'Chain of RNN hidden states passing a shrinking summary vector left to right; early tokens fade out as the chain grows.',
+       viz:['h\u2081','\u2192','h\u2082','\u2192','\u2026','\u2192','h\u2099'], hot:6,
+       narration:'Before 2017, machines read sentences the way you\u2019d read through a keyhole \u2014 one word at a time. Recurrent networks passed a single summary vector down the line, and by word forty, the beginning was mostly forgotten. Translation quality hit a ceiling, and the ceiling was the architecture itself.',
+       alt:'Sequence models had a memory problem. Every sentence, no matter how long, was squeezed through one fixed-size vector \u2014 and long-range meaning simply didn\u2019t survive the trip. The field needed a way for any word to reach any other word directly.'}),
+      S({title:'Queries, Keys & Values', dur:45, anim:'Token flow', reason:'Borrowed the database framing \u2014 it lands faster than the algebra.',
+       objective:'the database analogy \u2014 every token emits a query, a key, and a value via three learned projections.', caption:'Every word asks, every word answers',
+       prompt:'A single token splitting into three labeled projections Q, K, V; other tokens\u2019 keys light up as a query sweeps across them.',
+       viz:['token','\u2192','Q','K','V'], hot:2,
+       narration:'Attention starts with a simple idea from databases: every word asks a question, and every word offers an answer. Each token is projected into a query, a key, and a value. The query is what I\u2019m looking for, the key is what I contain, and the value is what I\u2019ll hand over if we match.',
+       alt:'Think of a sentence as a tiny database. Each word publishes a key \u2014 here\u2019s what I am \u2014 and holds a value \u2014 here\u2019s what I know. To understand itself, a word broadcasts a query and reads back a blend of everyone\u2019s values, weighted by how well their keys match.'}),
+      S({title:'Scaled Dot-Product Attention', dur:52, anim:'Equation build', reason:'Longest beat on purpose \u2014 this is the one idea they must leave with.',
+       objective:'how QK\u1d40/\u221ad\u2096 scores all pairs at once, and why the \u221ad\u2096 scaling keeps softmax gradients alive.', caption:'One matrix multiply reads the whole sentence',
+       prompt:'The attention equation assembling term by term; a heatmap of pairwise scores forming behind it, then softening under softmax.',
+       viz:['softmax(','QK\u1d40 / \u221ad\u2096',')','\u00b7 V'], hot:1,
+       narration:'To decide who talks to whom, we take the dot product of every query with every key \u2014 a similarity score for all pairs at once. We scale by the square root of the key dimension so the softmax stays in a usable range, then blend the values by those weights. One matrix multiply, and every word has read the entire sentence.',
+       alt:'Score every pair: query dot key. Big dot products would shove softmax into regions where gradients vanish, so the paper divides by root d-k first \u2014 a one-character fix that keeps training stable. Softmax turns scores into weights; the weights mix the values. That\u2019s the whole mechanism.'}),
+      S({title:'Multi-Head Attention', dur:48, anim:'Head split', reason:'Kept as its own beat \u2014 folding it into the last one buried it.',
+       objective:'why eight parallel heads in projected subspaces beat one full-width attention pattern.', caption:'Eight heads, eight relationships',
+       prompt:'One wide attention block splitting into eight slim parallel heads, each with a differently-structured attention map, then concatenating.',
+       viz:['h1','h2','h3','h4','h5','h6','h7','h8'], hot:2,
+       narration:'One attention pattern isn\u2019t enough. Syntax, coreference, position \u2014 each is a different relationship. So the model runs eight attention heads in parallel, each in its own subspace, then concatenates what they found. Eight specialists reading the same sentence for different reasons.',
+       alt:'A single softmax averages everything into one pattern. Split the model into eight lower-dimensional heads and each is free to specialize \u2014 one tracks syntax, another resolves pronouns, another watches position. Concatenate, project, done: same cost, far richer readings.'}),
+      S({title:'Positional Encoding', dur:38, anim:'Wave overlay', reason:'Placed after the mechanism \u2014 it only makes sense once order is missing.',
+       objective:'how sinusoids at geometric frequencies give each position a unique, learnable signature.', caption:'Order, restored by sine waves',
+       prompt:'A row of identical tokens; sinusoids of increasing frequency layer beneath them, giving each position a distinct striped fingerprint.',
+       viz:['pos 0','pos 1','pos 2','pos 3','\u2026'], hot:1,
+       narration:'Attention is order-blind \u2014 \u201cdog bites man\u201d and \u201cman bites dog\u201d look identical. The fix is elegant: add a fingerprint of sinusoids to each position. Frequencies vary across the dimension, so every position gets a unique, smooth signature the model can learn to use.',
+       alt:'Strip out recurrence and you lose word order entirely. The paper\u2019s answer costs nothing: add sine and cosine waves \u2014 slow ones and fast ones \u2014 onto each embedding. Position one and position fifty end up with unmistakably different fingerprints, and relative offsets become simple transforms.'}),
+      S({title:'The Encoder\u2013Decoder Stack', dur:44, anim:'Stack build', reason:'Assembly beat \u2014 pays off every mechanism shown so far.',
+       objective:'how six encoder and six decoder blocks connect, and what the causal mask does.', caption:'Read the source, write the answer',
+       prompt:'Six encoder blocks stacking on the left, six masked decoder blocks on the right; cross-attention arrows bridging the two towers.',
+       viz:['Encoder \u00d76','\u21c4','Decoder \u00d76'], hot:1,
+       narration:'Stack six of these blocks and you get the encoder; six more, with a causal mask, become the decoder. Residual connections and layer norm keep gradients healthy through the depth. The decoder attends to the encoder\u2019s output \u2014 reading the source sentence while writing the new one.',
+       alt:'The full machine is two towers. The encoder\u2019s six blocks read the source in parallel. The decoder\u2019s six blocks write the output one step at a time, masked so they can\u2019t peek ahead \u2014 and at every layer, cross-attention lets them look back at the source.'}),
+      S({title:'Training & Results', dur:40, anim:'Chart reveal', reason:'One beat, not two \u2014 for this audience the numbers are confirmation, not content.',
+       objective:'the WMT14 results \u2014 28.4 BLEU \u2014 and why parallelism collapsed the training cost.', caption:'State of the art, at a fraction of the cost',
+       prompt:'A bar chart of BLEU scores rising past prior models; a second axis showing training FLOPs falling by an order of magnitude.',
+       viz:['28.4 BLEU','3.5 days','8 GPUs'], hot:0,
+       narration:'Trained on WMT English\u2013German, the Transformer set a new state of the art: 28.4 BLEU, at a fraction of the training cost of previous models. No recurrence meant every position trained in parallel \u2014 and parallel meant fast.',
+       alt:'The results table did the arguing. 28.4 BLEU on English\u2013German \u2014 past every ensemble that came before \u2014 after three and a half days on eight GPUs. Removing recurrence didn\u2019t just match the old models; it beat them while training an order of magnitude cheaper.'}),
+      S({title:'Why It Changed Everything', dur:28, anim:'Zoom out', reason:'Short closer \u2014 the payoff needs air, not more detail.',
+       objective:'the through-line from this block to GPT, BERT, and modern scaling.', caption:'The title was an understatement',
+       prompt:'The single Transformer block zooming out to a constellation of descendant models \u2014 GPT, BERT, T5, ViT \u2014 all sharing its silhouette.',
+       viz:['GPT','BERT','T5','ViT'], hot:0,
+       narration:'Drop the recurrence, keep the attention \u2014 that one decision made scale possible. GPT, BERT, and everything after are this same block, repeated and enlarged. The paper\u2019s title was a claim. It turned out to be an understatement.',
+       alt:'Parallelism was the real prize. Once training scaled with hardware instead of sentence length, bigger became better \u2014 and the same block, repeated, became GPT, BERT, and the modern stack. Attention wasn\u2019t just all you need. It was all anyone used.'})
+    ];
+    this.bars = Array.from({length:110}, (_,i)=> 8 + Math.abs(Math.sin(i*0.9)*22 + Math.sin(i*0.23)*10));
+    this._timers = [];
+    this.state = {
+      screen:null, tab:'overview', rightTab:'transcript', sceneIdx:0, playhead:0, playing:false,
+      sc:this.SEED.map(s=>({...s})),
+      approvals:{understanding:false, plan:false, script:false},
+      source:{ext:'PDF', file:'attention-is-all-you-need.pdf', title:'Attention Is All You Need', author:'Vaswani et al. \u00b7 2017', meta:'11 pages \u00b7 5,214 words', pages:'11 pp', words:'5,214 words', kind:'paper'},
+      visualPick:{}, dragPos:null, dragOverPos:null, attached:null,
+      audience:'AI engineers who know backprop', runtime:'5\u20136 min', depth:'Balanced', tone:'Calm explainer',
+      brief:'', threadOpen:false, draft:'', thinking:false,
+      thread:[
+        {who:'p', text:'I read the source and pulled out 37 concepts. Eight of them carry the story \u2014 the rest are supporting detail.'},
+        {who:'p', text:'One call I made: the results get one beat, not two. For this audience the numbers confirm the mechanism rather than teach it.', receipt:'Beat 07 \u00b7 40s allocated'}
+      ],
+      pstep:0, regen:null,
+      exportRes:'1080p', exportFmt:'MP4 \u00b7 H.264', captions:true, chapters:true, renderState:'idle', renderPct:0
+    };
+  }
+  componentDidMount(){
+    this._keys=(e)=>{
+      if((e.metaKey||e.ctrlKey) && (e.key==='j'||e.key==='J')){ e.preventDefault(); this.setState(s=>({threadOpen:!s.threadOpen})); }
+      else if(e.key==='Escape' && this.state.threadOpen){ this.setState({threadOpen:false}); }
+    };
+    window.addEventListener('keydown', this._keys);
+  }
+  componentWillUnmount(){ window.removeEventListener('keydown', this._keys); this.clearTimers(); if(this._iv) clearInterval(this._iv); }
+  clearTimers(){ this._timers.forEach(t=>clearTimeout(t)); this._timers=[]; }
+  T(fn,ms){ this._timers.push(setTimeout(fn,ms)); }
+  crew(){ return {
+      producer:{name:'Producer', initial:'P', color:'#0F766E'},
+      educator:{name:'Educator', initial:'E', color:'#4C5B7A'},
+      writer:{name:'Script Writer', initial:'W', color:'#7A5B4C'},
+      artist:{name:'Storyboard Artist', initial:'S', color:'#5B7A4C'},
+      motion:{name:'Motion Designer', initial:'M', color:'#6B4F6B'},
+      voice:{name:'Voice Director', initial:'V', color:'#4A6472'}
+    }; }
+  fmt(s){ s=Math.max(0,Math.round(s)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+  total(){ return this.state.sc.reduce((a,s)=>a+s.dur,0); }
+  starts(){ let acc=0; return this.state.sc.map(s=>{const v=acc; acc+=s.dur; return v;}); }
+  patch(i, fields){ const sc=this.state.sc.map((s,ix)=> ix===i? {...s,...fields} : s); this.setState({sc}); }
+  go(screen){ this.clearTimers(); this.stopPlay(); this.setState({screen}); }
+  stopPlay(){ if(this._iv){clearInterval(this._iv); this._iv=null;} if(this.state.playing) this.setState({playing:false}); }
+  sceneAt(t){ const st=this.starts(); for(let i=st.length-1;i>=0;i--) if(t>=st[i]) return i; return 0; }
+  seek(t){ const tt=Math.max(0,Math.min(this.total(),t)); this.setState({playhead:tt, sceneIdx:this.sceneAt(tt)}); }
+  say(text, receipt){ this.setState(st=>({thread:[...st.thread,{who:'p',text,receipt}]})); }
+  ask(text){ this.setState(st=>({thread:[...st.thread,{who:'u',text}]})); }
+  unlockLevel(){ const a=this.state.approvals; if(a.script) return 5; if(a.plan) return 2; if(a.understanding) return 1; return 0; }
+  approve(stage, msg, receipt, nextTab){
+    this.setState(st=>({approvals:{...st.approvals,[stage]:true}, tab:nextTab||st.tab}));
+    this.say(msg, receipt);
+  }
+  dropAt(to){
+    const from=this.state.dragPos;
+    if(from===null||from===to){ this.setState({dragPos:null,dragOverPos:null}); return; }
+    const sc=this.state.sc.slice(); const [moved]=sc.splice(from,1); sc.splice(to,0,moved);
+    let sel=this.state.sceneIdx;
+    if(sel===from) sel=to; else if(from<sel && to>=sel) sel-=1; else if(from>sel && to<=sel) sel+=1;
+    this.setState({sc, sceneIdx:sel, dragPos:null, dragOverPos:null, approvals:{...this.state.approvals, plan:false, script:false}});
+    this.say('Reordered the plan. Everything downstream re-timed \u2014 nothing else changed.','Beat order changed');
+  }
+  splitScene(i){
+    const s=this.state.sc[i]; const toks=s.narration.trim().split(/\s+/); const mid=Math.ceil(toks.length/2);
+    const a={...s, title:s.title+' \u00b7 setup', narration:toks.slice(0,mid).join(' '), dur:Math.round(s.dur/2), reason:'Split \u2014 two ideas were sharing one beat.'};
+    const b={...s, title:s.title+' \u00b7 payoff', narration:toks.slice(mid).join(' '), dur:s.dur-Math.round(s.dur/2), reason:'Second half of a beat that ran too dense.'};
+    const sc=this.state.sc.slice(); sc.splice(i,1,a,b);
+    this.setState({sc});
+    this.say('Split scene '+String(i+1).padStart(2,'0')+' in two \u2014 the concept was too dense to land in one beat. Timing divided between them.','1 scene \u2192 2 scenes');
+  }
+  mergeScene(i){
+    if(i>=this.state.sc.length-1){ this.say('That\u2019s the last scene \u2014 nothing after it to merge into.'); return; }
+    const a=this.state.sc[i], b=this.state.sc[i+1];
+    const m={...a, title:a.title, narration:a.narration+' '+b.narration, dur:a.dur+b.dur, reason:'Merged \u2014 the two beats were making one point.'};
+    const sc=this.state.sc.slice(); sc.splice(i,2,m);
+    this.setState({sc, sceneIdx:Math.min(i,sc.length-1)});
+    this.say('Merged scenes '+String(i+1).padStart(2,'0')+' and '+String(i+2).padStart(2,'0')+'. They were circling the same idea.','2 scenes \u2192 1 scene');
+  }
+  dupScene(i){
+    const sc=this.state.sc.slice(); sc.splice(i+1,0,{...sc[i], reason:'Duplicated by you \u2014 edit freely, the original is untouched.'});
+    this.setState({sc, sceneIdx:i+1});
+  }
+  removeScene(i){
+    if(this.state.sc.length<=2) return;
+    const sc=this.state.sc.slice(); sc.splice(i,1);
+    this.setState({sc, sceneIdx:Math.min(this.state.sceneIdx, sc.length-1), approvals:{...this.state.approvals, plan:false, script:false}});
+    this.say('Cut that beat and re-timed the rest. Say the word if you want it back.','1 beat removed');
+  }
+  addScene(){
+    const sc=this.state.sc.slice();
+    sc.push({title:'New beat', dur:30, anim:'Fade sequence', reason:'Added by you \u2014 tell me what it should teach and I\u2019ll draft it.',
+      objective:'set the objective for this beat.', caption:'Untitled beat', prompt:'Describe the visual for this beat.',
+      viz:['?'], hot:0, narration:'Narration for this beat hasn\u2019t been written yet. Give the producer a note, or write it here yourself.', alt:'', altUsed:false});
+    this.setState({sc, sceneIdx:sc.length-1, approvals:{...this.state.approvals, plan:false, script:false}});
+  }
+  startProc(src){
+    this.clearTimers(); this.setState(src? {screen:'processing', pstep:0, source:src} : {screen:'processing', pstep:0});
+    const gaps=[900,1100,950,1200,1300,1100,900]; let acc=200;
+    gaps.forEach((g,i)=>{ acc+=g; this.T(()=>this.setState({pstep:i+1}), acc); });
+    this.T(()=>this.setState({screen:'project', tab:'overview'}), acc+1400);
+  }
+  regenerate(kind){
+    const i=this.state.sceneIdx, n=String(i+1).padStart(2,'0');
+    const labels={scene:'Redrafting scene '+n+' \u2014 narration, visuals, timing\u2026', visuals:'Redrawing visuals for scene '+n+'\u2026', voice:'Re-recording narration with Nova\u2026'};
+    this.setState({regen:labels[kind]});
+    this.T(()=>{
+      const s=this.state.sc[i];
+      if(kind!=='visuals' && s.alt){
+        this.patch(i, {narration: s.altUsed? s.alt : (s.alt||s.narration), altUsed:!s.altUsed});
+        const swap = s.altUsed? s.narration : s.alt;
+        this.patch(i, {narration:swap, altUsed:!s.altUsed, reason:'Redrafted at your request \u2014 same objective, plainer path.'});
+      }
+      this.setState({regen:null});
+    },1600);
+  }
+  renderVals(){
+    const S=this.state, D=S.sc;
+    const accent = this.props.accent ?? '#0F766E';
+    const screen = S.screen ?? (this.props.startScreen ?? 'landing');
+    const total=this.total(), starts=this.starts();
+    const aud = (S.audience||'').trim() || 'Engineers';
+    const audShort = aud.length>22? aud.slice(0,20).trim()+'\u2026' : aud;
+    const unlocked = this.unlockLevel();
+    const app = S.approvals;
+    const C = this.crew();
+    const scenes = D.map((d,pos)=>{
+      const active = pos===S.sceneIdx;
+      const wc = d.narration.trim().split(/\s+/).length;
+      return {
+        num:String(pos+1).padStart(2,'0'), title:d.title, titleUpper:d.title.toUpperCase(),
+        durLabel:this.fmt(d.dur), startLabel:this.fmt(starts[pos]),
+        narration:d.narration, objective:d.objective, caption:d.caption, reason:d.reason||'',
+        animation:d.anim, prompt:d.prompt,
+        ring: active? accent : '#E7E7E4',
+        blockBg: active? '#FFFFFF' : 'transparent',
+        tlRing: active? accent : '#E7E7E4',
+        tlBg: active? '#FFFFFF' : '#F6F6F4',
+        widthPct: (d.dur/total*100).toFixed(2)+'%',
+        wordCount: wc,
+        pace: wc/(d.dur/60) > 165 ? 'brisk' : 'measured',
+        viz: d.viz.map((t,vi)=>({t, bg: vi===d.hot? accent:'#1D1D22', bd: vi===d.hot? accent:'#2E2E35', fg: vi===d.hot? '#fff':'#B9B9C2'})),
+        rowDivider: pos===0? 'transparent':'#F1F1EE',
+        dot: active? accent : '#DEDEDA',
+        blockShadow: active? '0 6px 22px rgba(30,30,28,0.07)':'none',
+        scriptNumFg: active? accent : '#C4C4BF',
+        scriptBar: active? accent : '#EFEFEB',
+        planRing: active? accent : 'rgba(255,255,255,0.9)',
+        planShadow: active? '0 12px 30px rgba(30,30,28,0.10)':'0 6px 22px rgba(30,30,28,0.05)',
+        arcBg: active? accent : '#E3E3DF',
+        editHint: active? 'editing \u00b7 click to change' : 'click text to edit',
+        editHintFg: active? accent : '#D4D4CF',
+        isActive: active, inactive: !active,
+        durMinus: (e)=>{ e.stopPropagation(); this.patch(pos,{dur:Math.max(10,D[pos].dur-5)}); },
+        durPlus: (e)=>{ e.stopPropagation(); this.patch(pos,{dur:Math.min(150,D[pos].dur+5)}); },
+        remove: (e)=>{ e.stopPropagation(); this.removeScene(pos); },
+        split: (e)=>{ e.stopPropagation(); this.splitScene(pos); },
+        merge: (e)=>{ e.stopPropagation(); this.mergeScene(pos); },
+        duplicate: (e)=>{ e.stopPropagation(); this.dupScene(pos); },
+        openOnCanvas: (e)=>{ e.stopPropagation(); this.stopPlay(); this.setState({sceneIdx:pos, playhead:starts[pos], tab:'edit'}); },
+        beginEdit: ()=>{ if(this.state.sceneIdx!==pos) this.setState({sceneIdx:pos}); },
+        commitNarration: (e)=>{ const t=e.target.innerText.trim(); if(t) this.patch(pos,{narration:t}); },
+        select: ()=>{ this.stopPlay(); this.setState({sceneIdx:pos, playhead:starts[pos]}); },
+        selectStory: ()=>{ this.stopPlay(); this.setState({sceneIdx:pos, playhead:starts[pos], tab:'edit'}); },
+        dragStart: (e)=>{ e.dataTransfer.effectAllowed='move'; try{e.dataTransfer.setData('text/plain',String(pos));}catch(err){} this.setState({dragPos:pos}); },
+        dragOver: (e)=>{ e.preventDefault(); e.dataTransfer.dropEffect='move'; if(this.state.dragOverPos!==pos) this.setState({dragOverPos:pos}); },
+        drop: (e)=>{ e.preventDefault(); e.stopPropagation(); this.dropAt(pos); },
+        dragEnd: ()=>this.setState({dragPos:null, dragOverPos:null}),
+        dragOpacity: S.dragPos===pos? '0.4':'1',
+        dropBar: (S.dragOverPos===pos && S.dragPos!==null && S.dragPos!==pos)? accent : 'transparent'
+      };
+    });
+    const cur = scenes[Math.min(S.sceneIdx, scenes.length-1)];
+    const stepDefs=[
+      {label:'Reading document', detail:S.source.meta+' \u00b7 42 citations', time:'0.9s'},
+      {label:'Extracting concepts', detail:'37 concepts \u00b7 12 equations \u00b7 4 figures', time:'1.1s'},
+      {label:'Mapping prerequisites', detail:'6 prerequisites \u00b7 9 dependencies', time:'0.9s'},
+      {label:'Finding teaching opportunities', detail:'4 analogies \u00b7 3 worked examples', time:'1.2s'},
+      {label:'Planning the lesson', detail:D.length+' beats \u00b7 target '+S.runtime+' \u00b7 '+aud.toLowerCase(), time:'1.3s'},
+      {label:'Drafting the script', detail:D.reduce((a,s)=>a+s.narration.trim().split(/\s+/).length,0)+' words \u00b7 measured pacing', time:'1.1s'},
+      {label:'Preparing the storyboard', detail:D.length+' boards \u00b7 one idea each', time:'0.9s'}
+    ];
+    const psteps = stepDefs.map((sd,i)=>({...sd, done:i<S.pstep, active:i===S.pstep, pending:i>S.pstep, showDetail:i<S.pstep, opacity: i>S.pstep? '0.35':'1'}));
+    const OWN={overview:C.producer, plan:C.educator, script:C.writer, edit:C.artist, assets:C.motion, export:C.voice};
+    const navDefs=[
+      ['overview','Understanding','37',0],
+      ['plan','Teaching Plan',String(D.length),1],
+      ['script','Script',String(this.state.sc.reduce((a,s)=>a+s.narration.trim().split(/\s+/).length,0))+'w',2],
+      ['edit','Edit',String(D.length),3],
+      ['assets','Assets','24',4],
+      ['export','Export','',5]
+    ];
+    const navItems=navDefs.map(([id,label,count,lvl])=>{
+      const locked = lvl>unlocked;
+      const done = (id==='overview'&&app.understanding)||(id==='plan'&&app.plan)||(id==='script'&&app.script);
+      const owner = OWN[id]||C.producer;
+      return {
+        label, count: locked? '\u2013' : count,
+        bg: S.tab===id? '#FFFFFF':'transparent', sh: S.tab===id? '0 2px 10px rgba(30,30,28,0.08)':'none',
+        fw: S.tab===id? '500':'400', fg: locked? '#C4C4BF' : (S.tab===id? '#141414':'#5A5A56'),
+        mark: done? '\u2713' : owner.initial,
+        markBg: done? accent : (locked? 'transparent' : owner.color),
+        markRing: done? accent : (locked? '#DEDEDA' : owner.color),
+        markFg: locked? '#C4C4BF' : '#fff',
+        go:()=>{ if(locked){ this.setState({threadOpen:true}); this.say('That stage opens once you\u2019ve approved the one before it \u2014 I build each on the last so nothing gets orphaned.'); } else this.setState({tab:id}); }
+      };
+    });
+    let words=[];
+    D.forEach((d,pos)=>{
+      const toks=d.narration.trim().split(/\s+/); const per=d.dur/toks.length; let t0=starts[pos];
+      toks.forEach(tok=>{ const tw=t0; words.push({t:tok, seek:()=>this.seek(tw), fg: tw<=S.playhead? '#141414':'#8A8A86', bg: (S.playhead>=tw && S.playhead<tw+per)? accent+'33':'transparent'}); t0+=per; });
+    });
+    const transcriptScenes = D.map((d,pos)=>{
+      const toks=d.narration.trim().split(/\s+/); const per=d.dur/toks.length; let t0=starts[pos];
+      const ws = toks.map(tok=>{ const tw=t0; t0+=per; return {t:tok, seek:()=>this.seek(tw), fg: tw<=S.playhead? '#2A2A28':'#9A9A96', bg: (S.playhead>=tw && S.playhead<tw+per)? accent+'33':'transparent'}; });
+      const act = pos===S.sceneIdx;
+      return {num:String(pos+1).padStart(2,'0'), title:d.title, startLabel:this.fmt(starts[pos]), words:ws, rail: act? accent:'#E3E3DF', numFg: act? accent:'#C4C4BF'};
+    });
+    const ticks=[]; for(let t=0;t<=total;t+=30) ticks.push({label:this.fmt(t), left:(t/total*100).toFixed(1)+'%'});
+    const phFrac = S.playhead/total;
+    const bars = this.bars.map((h,i)=>({h:h+'px', c: i/this.bars.length<=phFrac? '#3A3A38':'#DBDBD6'}));
+    const n=D.length, cut1=Math.max(1,Math.round(n*0.25)), cut2=Math.max(cut1+1,Math.round(n*0.75));
+    const actDefs=[
+      {label:'ACT I', name:'The problem', beats:scenes.slice(0,cut1)},
+      {label:'ACT II', name:'The mechanism', beats:scenes.slice(cut1,cut2)},
+      {label:'ACT III', name:'The payoff', beats:scenes.slice(cut2)}
+    ].filter(a=>a.beats.length);
+    const acts = actDefs.map(a=>{
+      const dur=a.beats.reduce((t,b)=>t+D[parseInt(b.num,10)-1].dur,0);
+      return {...a, meta:a.beats.length+' beat'+(a.beats.length>1?'s':'')+' \u00b7 '+this.fmt(dur), widthPct:(dur/total*100).toFixed(2)+'%'};
+    });
+    const ctxActions = screen==='dashboard'? [
+        {label:'What should I decode next?', run:()=>{ this.ask('What should I decode next?'); this.T(()=>this.say('Your docs decode is the only one without a sequel. The chapter that follows it would reuse half the visuals.'),800); }},
+        {label:'Summarise my last decode', run:()=>{ this.ask('Summarise my last decode'); this.T(()=>this.say('Ch. 10 ran 7:02 across eleven beats \u2014 two over my recommendation. Act II carries the weight.'),800); }}
+      ] : screen==='upload'? [
+        {label:'Is my brief specific enough?', run:()=>{ this.ask('Is my brief specific enough?'); this.T(()=>this.say('Name what they already know \u2014 that\u2019s what lets me skip setup and spend runtime on the mechanism.'),800); }},
+        {label:'How long should this be?', run:()=>{ this.ask('How long should this be?'); this.T(()=>this.say('For this source, 5\u20136 minutes. Past eight, retention falls faster than comprehension rises.'),800); }}
+      ] : S.tab==='overview'? [
+        {label:'What did you leave out?', run:()=>{ this.ask('What did you leave out?'); this.T(()=>this.say('Label smoothing, beam search width, and the byte-pair details. They\u2019re real but they don\u2019t change the mental model.'),850); }},
+        {label:'What must they know first?', run:()=>{ this.ask('What must they know first?'); this.T(()=>this.say('Dot products, softmax, and what a hidden state is. Everything else I teach on the way through.'),850); }}
+      ] : S.tab==='plan'? [
+        {label:'Why this order?', run:()=>{ this.ask('Why this order?'); this.T(()=>this.say('Prerequisites first: the bottleneck motivates attention, attention motivates heads, and position only makes sense once recurrence is gone.'),850); }},
+        {label:'Tighten act II by 20s', run:()=>{ this.ask('Tighten act II by 20s'); this.T(()=>{ const sc=this.state.sc.map((s,ix)=> (ix>=cut1&&ix<cut2)? {...s,dur:Math.max(10,s.dur-5)} : s); this.setState({sc}); this.say('Trimmed five seconds from each mechanism beat and re-paced the narration.','Act II \u00b7 \u221220s'); },700); }},
+        {label:'Is this too much for one video?', run:()=>{ this.ask('Is this too much for one video?'); this.T(()=>this.say('For this audience, no. If you wanted undergrads, I\u2019d cut act III and make it a two-parter.'),850); }}
+      ] : S.tab==='script'? [
+        {label:'Make this scene plainer', run:()=>{ this.ask('Make scene '+String(this.state.sceneIdx+1).padStart(2,'0')+' plainer'); this.T(()=>{ this.regenerate('scene'); this.say('Rewrote it without the jargon and kept the length.','1 scene rewritten'); },700); }},
+        {label:'Where does the pacing drag?', run:()=>{ this.ask('Where does the pacing drag?'); this.T(()=>this.say('Beats 03 and 06. Both carry two ideas \u2014 splitting either helps more than trimming words.'),850); }}
+      ] : S.tab==='edit'? [
+        {label:'Why this visual?', run:()=>{ this.ask('Why this visual?'); this.T(()=>this.say('The chips stand in for tokens so attention weights have somewhere to land. Abstract shapes tested worse on recall.'),850); }},
+        {label:'Split this scene', run:()=>{ this.ask('Split this scene'); this.T(()=>this.splitScene(this.state.sceneIdx),600); }},
+        {label:'Make this scene shorter', run:()=>{ this.ask('Make this scene shorter'); this.T(()=>{ const i=this.state.sceneIdx; this.patch(i,{dur:Math.max(10,this.state.sc[i].dur-8)}); this.say('Took eight seconds off and re-paced the narration to match.','Scene retimed'); },700); }}
+      ] : S.tab==='export'? [
+        {label:'Which format should I pick?', run:()=>{ this.ask('Which format should I pick?'); this.T(()=>this.say('MP4 at 1080p for anywhere people watch. ProRes only if this goes into another edit.'),800); }},
+        {label:'Is it ready to render?', run:()=>{ this.ask('Is it ready to render?'); this.T(()=>this.say('Every beat is approved and the timeline has no gaps. I\u2019d ship it.'),800); }}
+      ] : [
+        {label:'What are you looking at?', run:()=>{ this.ask('What are you looking at?'); this.T(()=>this.say('The project as a whole \u2014 '+D.length+' beats, '+this.fmt(total)+', built for '+aud.toLowerCase()+'.'),800); }}
+      ];
+    return {
+      accent,
+      isLanding:screen==='landing', isDashboard:screen==='dashboard', isUpload:screen==='upload', isProcessing:screen==='processing', isProject:screen==='project',
+      goLanding:()=>this.go('landing'), goDashboard:()=>this.go('dashboard'), goUpload:()=>this.go('upload'), goProject:()=>this.go('project'),
+      startProcessing:()=>this.startProc(), src:S.attached || S.source,
+      noAttachment:!S.attached, hasAttachment:!!S.attached,
+      attachDefault:()=>this.setState({attached:{ext:'PDF', file:'attention-is-all-you-need.pdf', title:'Attention Is All You Need', author:'Vaswani et al. \u00b7 2017', meta:'11 pages \u00b7 5,214 words', pages:'11 pp', words:'5,214 words', kind:'paper'}}),
+      detach:()=>this.setState({attached:null}),
+      readyHint: S.attached? (audShort+' \u00b7 '+S.runtime+' \u00b7 '+S.depth) : 'Attach a source to begin',
+      launchBg: S.attached? 'linear-gradient(180deg,#15897F,#0F766E)':'#E4E4E0',
+      launchFg: S.attached? '#fff':'#AEAEA9',
+      launchRing: S.attached? 'rgba(255,255,255,0.22)':'#DCDCD8',
+      launchShadow: S.attached? 'inset 0 1px 0 rgba(255,255,255,0.34),0 8px 22px rgba(15,118,110,0.32)':'none',
+      launchDecode:()=>{ if(!this.state.attached) return; this.startProc(this.state.attached); },
+      audience:S.audience, setAudience:(e)=>this.setState({audience:e.target.value}),
+      audienceRing:'#E7E7E4', showAudienceHints: !S.audience.trim(),
+      audienceHints:['AI engineers who know backprop','Second-year CS undergrads','Researchers outside the subfield','Product managers, no math'].map(l=>({label:l, apply:()=>this.setState({audience:l})})),
+      variables:[
+        {label:'Runtime', value:S.runtime, options:['2\u20133 min','5\u20136 min','8\u201310 min','15 min deep dive'], set:(e)=>this.setState({runtime:e.target.value})},
+        {label:'Depth', value:S.depth, options:['Intuition first','Balanced','Rigorous'], set:(e)=>this.setState({depth:e.target.value})},
+        {label:'Voice', value:S.tone, options:['Calm explainer','Energetic','Documentary','Lecture hall'], set:(e)=>this.setState({tone:e.target.value})}
+      ],
+      brief:S.brief, setBrief:(e)=>this.setState({brief:e.target.value}),
+      sourceTypes:['Research papers','Documentation','Blog articles','Lecture notes','PDFs','Plain text'],
+      marquee:['UNDERSTAND','PLAN','SCRIPT','STORYBOARD','VISUALS','NARRATION','TIMELINE','EXPORT','UNDERSTAND','PLAN','SCRIPT','STORYBOARD','VISUALS','NARRATION','TIMELINE','EXPORT'],
+      workflowSteps:[
+        {n:'01',t:'Upload',d:'Papers, docs, articles, notes, PDFs, plain text.'},
+        {n:'02',t:'Understand',d:'Concepts, prerequisites, dependencies \u2014 extracted and shown.'},
+        {n:'03',t:'Teaching plan',d:'How it should be taught, not what it says.'},
+        {n:'04',t:'Script',d:'Narration per beat, editable like a doc.'},
+        {n:'05',t:'Storyboard',d:'One idea per scene. Split, merge, duplicate.'},
+        {n:'06',t:'Visuals',d:'Generated per scene, regenerated per scene.'},
+        {n:'07',t:'Narration',d:'Studio voices, retimed to your pacing.'},
+        {n:'08',t:'Timeline',d:'Voice and visuals stay in sync on their own.'},
+        {n:'09',t:'Export',d:'The project is the artifact. Video is one format.'}
+      ],
+      projects:[
+        {title:'Attention Is All You Need', meta:D.length+' scenes \u00b7 '+this.fmt(total)+' \u00b7 2h ago', status:'In edit', pillBg:'#DDEBE6', pillFg:accent, chip:'SCENE 04', frame:'Eight heads, eight relationships', thumbBg:'linear-gradient(135deg,#D6E8E1 0%,#E9E7F1 55%,#F3ECE1 100%)', chipFg:'#66776F', open:()=>this.go('project')},
+        {title:'Dive into Deep Learning \u00b7 Ch. 10', meta:'11 scenes \u00b7 7:02 \u00b7 yesterday', status:'Plan review', pillBg:'#F1F1EE', pillFg:'#6B6B68', chip:'SCENE 02', frame:'Recurrence, unrolled', thumbBg:'linear-gradient(135deg,#E6E3F0 0%,#F1E6DE 100%)', chipFg:'#77716E', open:()=>this.go('project')},
+        {title:'Kubernetes Networking Docs', meta:'6 scenes \u00b7 3:53 \u00b7 3d ago', status:'Rendering 64%', pillBg:'#F1F1EE', pillFg:'#6B6B68', chip:'SCENE 05', frame:'Every pod gets an IP', thumbBg:'linear-gradient(135deg,#E9E8E1 0%,#DCE7E9 100%)', chipFg:'#6E7A7C', open:()=>this.go('project')}
+      ],
+      templates:[
+        {glyph:'\u00a7', title:'Paper walkthrough', desc:'Method-first explainer from any paper or preprint.'},
+        {glyph:'\u2261', title:'Docs onboarding', desc:'Turn API docs into a getting-started video.'},
+        {glyph:'\u270e', title:'Lecture recap', desc:'Slides or notes into a 5-minute review.'},
+        {glyph:'\u2318', title:'Book chapter', desc:'Turn a dense chapter into a study video.'}
+      ],
+      recentFiles:[
+        {ext:'PDF', name:'ddpm-2020.pdf', when:'2d ago', src:{ext:'PDF', file:'ddpm-2020.pdf', title:'Denoising Diffusion Probabilistic Models', author:'Ho et al. \u00b7 2020', meta:'14 pages \u00b7 6,180 words', pages:'14 pp', words:'6,180 words', kind:'paper'}},
+        {ext:'PPTX', name:'cs224n-lecture-08.pptx', when:'3d ago', src:{ext:'PPTX', file:'cs224n-lecture-08.pptx', title:'CS224N \u00b7 Lecture 08', author:'Stanford NLP \u00b7 lecture notes', meta:'48 slides \u00b7 3,240 words', pages:'48 slides', words:'3,240 words', kind:'slides'}},
+        {ext:'EPUB', name:'dive-into-deep-learning.epub', when:'4d ago', src:{ext:'EPUB', file:'dive-into-deep-learning.epub', title:'Dive into Deep Learning \u00b7 Ch. 10', author:'Zhang et al. \u00b7 book chapter', meta:'34 pages \u00b7 11,900 words', pages:'34 pp', words:'11,900 words', kind:'book'}},
+        {ext:'MD', name:'k8s-networking-docs.md', when:'1w ago', src:{ext:'MD', file:'k8s-networking-docs.md', title:'Kubernetes Networking', author:'kubernetes.io \u00b7 documentation', meta:'9 pages \u00b7 4,050 words', pages:'9 pp', words:'4,050 words', kind:'docs'}}
+      ].map(r=>({...r, attach:()=>this.setState({attached:r.src})})),
+      examples:[
+        {name:'Attention Is All You Need', meta:'paper \u00b7 11 pp', src:{ext:'PDF', file:'attention-is-all-you-need.pdf', title:'Attention Is All You Need', author:'Vaswani et al. \u00b7 2017', meta:'11 pages \u00b7 5,214 words', pages:'11 pp', words:'5,214 words', kind:'paper'}},
+        {name:'Dive into Deep Learning, ch. 10', meta:'book \u00b7 34 pp', src:{ext:'EPUB', file:'dive-into-deep-learning.epub', title:'Dive into Deep Learning \u00b7 Ch. 10', author:'Zhang et al. \u00b7 book chapter', meta:'34 pages \u00b7 11,900 words', pages:'34 pp', words:'11,900 words', kind:'book'}},
+        {name:'React Server Components docs', meta:'docs \u00b7 web', src:{ext:'URL', file:'react.dev/reference/rsc', title:'React Server Components', author:'react.dev \u00b7 documentation', meta:'6 sections \u00b7 3,760 words', pages:'6 sections', words:'3,760 words', kind:'docs'}},
+        {name:'A blog post on KV caching', meta:'article \u00b7 web', src:{ext:'URL', file:'blog.dev/kv-caching', title:'How KV Caching Works', author:'blog article', meta:'2,400 words', pages:'1 article', words:'2,400 words', kind:'article'}}
+      ].map(x=>({...x, attach:()=>this.setState({attached:x.src})})),
+      psteps, ppct: Math.round(S.pstep/7*100)+'%', pdone:S.pstep>=7, pworking:S.pstep<7,
+      navItems, scenes, curScene:cur, acts, actLabel:String(acts.length),
+      tabOverview:S.tab==='overview', tabPlan:S.tab==='plan', tabScript:S.tab==='script', tabEdit:S.tab==='edit', tabAssets:S.tab==='assets', tabExport:S.tab==='export',
+      tabExportGo:()=>this.setState({tab:'export'}),
+      showScenePanel: true,
+      rightTranscript:S.rightTab==='transcript', rightScene:S.rightTab==='scene',
+      showTranscript:()=>this.setState({rightTab:'transcript'}), showSceneTab:()=>this.setState({rightTab:'scene'}),
+      rtTranscriptBg:S.rightTab==='transcript'?'#FFFFFF':'transparent', rtTranscriptSh:S.rightTab==='transcript'?'0 2px 10px rgba(30,30,28,0.08)':'none', rtTranscriptFg:S.rightTab==='transcript'?'#141414':'#8A8A86',
+      rtSceneBg:S.rightTab==='scene'?'#FFFFFF':'transparent', rtSceneSh:S.rightTab==='scene'?'0 2px 10px rgba(30,30,28,0.08)':'none', rtSceneFg:S.rightTab==='scene'?'#141414':'#8A8A86',
+      concepts:['self-attention','query / key / value','softmax scaling','multi-head','positional encoding','residual stream','layer norm','causal mask','BLEU','encoder\u2013decoder','beam search','label smoothing'],
+      prereqs:['dot products','softmax','hidden states','gradient flow','embeddings','matrix shapes'],
+      equations:['Attention(Q,K,V) = softmax(QK\u1d40/\u221ad\u2096)V','PE(pos,2i) = sin(pos / 10000^(2i/d))','MultiHead = Concat(head\u2081\u2026head\u2088)W\u1d3c'],
+      opportunities:[
+        {t:'Database analogy', d:'Queries, keys, and values map cleanly onto lookups \u2014 fastest route into the mechanism.'},
+        {t:'Failure-first opening', d:'Showing the RNN bottleneck first makes attention feel inevitable rather than clever.'},
+        {t:'Worked example', d:'One sentence, eight heads, side by side \u2014 makes specialization visible.'},
+        {t:'Deferred detail', d:'Positional encoding held back until order is visibly missing.'}
+      ],
+      deps:[
+        {a:'dot products', b:'attention scores'},
+        {a:'softmax', b:'attention weights'},
+        {a:'attention', b:'multi-head attention'},
+        {a:'no recurrence', b:'positional encoding'},
+        {a:'encoder blocks', b:'cross-attention'}
+      ],
+      overviewStats:[
+        {k:'Concepts', v:'37', sub:'12 in the cut', size:'24px'},
+        {k:'Audience', v:aud, sub:S.depth.toLowerCase(), size: aud.length>26? '13.5px' : (aud.length>16? '15px':'18px')},
+        {k:'Target', v:S.runtime, sub:'requested', size:'24px'},
+        {k:'Source', v:S.source.pages, sub:S.source.words, size:'24px'}
+      ],
+      assets:[
+        {glyph:'\u25a4 diagram', name:'RNN bottleneck chain', kind:'Diagram \u00b7 S01', thumb:'linear-gradient(135deg,#D6E8E1,#E9E7F1)', glyphFg:'#5A6B65', scene:'S01', size:'SVG \u00b7 42 KB'},
+        {glyph:'\u0192(x) equation', name:'Scaled dot-product', kind:'Equation \u00b7 S03', thumb:'#0E0E10', glyphFg:'#8A8A92', scene:'S03', size:'SVG \u00b7 18 KB'},
+        {glyph:'\u25a4 diagram', name:'QKV projection', kind:'Diagram \u00b7 S02', thumb:'linear-gradient(135deg,#E9E7F1,#F3ECE1)', glyphFg:'#6B6672', scene:'S02', size:'SVG \u00b7 36 KB'},
+        {glyph:'\u29c9 heads', name:'Eight-head split', kind:'Animation \u00b7 S04', thumb:'#0E0E10', glyphFg:'#8A8A92', scene:'S04', size:'Lottie \u00b7 128 KB'},
+        {glyph:'\u223f waves', name:'Sinusoid overlay', kind:'Animation \u00b7 S05', thumb:'linear-gradient(135deg,#DCE7E9,#E9E8E1)', glyphFg:'#5F6E70', scene:'S05', size:'Lottie \u00b7 96 KB'},
+        {glyph:'\u25a4 diagram', name:'Encoder\u2013decoder towers', kind:'Diagram \u00b7 S06', thumb:'linear-gradient(135deg,#F3ECE1,#E6E3F0)', glyphFg:'#726A62', scene:'S06', size:'SVG \u00b7 54 KB'},
+        {glyph:'\u2586\u2585 chart', name:'BLEU comparison', kind:'Chart \u00b7 S07', thumb:'#0E0E10', glyphFg:'#8A8A92', scene:'S07', size:'SVG \u00b7 22 KB'},
+        {glyph:'\u29bf lineage', name:'Descendant models', kind:'Diagram \u00b7 S08', thumb:'linear-gradient(135deg,#E9E7F1,#D6E8E1)', glyphFg:'#63706B', scene:'S08', size:'SVG \u00b7 44 KB'}
+      ],
+      addScene:()=>this.addScene(),
+      notApproved:!app.plan,
+      uCrew:{...C.producer, ring: app.understanding? 'rgba(15,118,110,0.3)':'#E3E3DF', bg: app.understanding? '#F5FAF9':'#FFFFFF',
+        status: app.understanding? 'signed off \u00b7 handed on' : 'finished reading the source',
+        message: app.understanding? 'You confirmed my read. The Educator has the concept map and the dependency order.' : 'I read '+S.source.pages+' and pulled out 37 concepts. Eight of them carry the story \u2014 the rest are supporting detail I\u2019ll keep in reserve.',
+        why:'the results tables confirm the mechanism rather than teach it, so I weighted the mechanism heavily for this audience.',
+        handed: app.understanding, handoff:'Handed to the Educator \u2014 deciding how to teach it.'},
+      pCrew:{...C.educator, ring: app.plan? 'rgba(15,118,110,0.3)':'#E3E3DF', bg: app.plan? '#F5FAF9':'#FFFFFF',
+        status: app.plan? 'signed off \u00b7 handed on' : 'proposing a teaching order',
+        message: app.plan? 'Order locked. The Script Writer is drafting narration beat by beat.' : 'I\u2019d teach this in '+D.length+' beats across three acts, '+this.fmt(total)+' in total. Drag any beat to reorder it, or retime it in place.',
+        why:'attention has to land before multi-head, so the prerequisite goes first and the payoff waits until the mechanism is understood.',
+        handed: app.plan, handoff:'Handed to the Script Writer \u2014 one pass per beat.'},
+      sCrew:{...C.writer, ring: app.script? 'rgba(15,118,110,0.3)':'#E3E3DF', bg: app.script? '#F5FAF9':'#FFFFFF',
+        status: app.script? 'signed off \u00b7 handed on' : 'first draft ready for notes',
+        message: app.script? 'Draft approved. The Storyboard Artist and Motion Designer are working scene by scene.' : 'Narration is drafted from the approved beats \u2014 written for the ear, not the page. Edit any scene in place; editing one never touches the others.',
+        why:'I kept the sentences short where the idea is dense, so the viewer has somewhere to breathe while the visual lands.',
+        handed: app.script, handoff:'Handed to the Storyboard Artist \u2014 framing every scene.'},
+      approveRing: app.plan? accent:'#E3E3DF',
+      approveBg: app.plan? 'rgba(15,118,110,0.06)':'#fff',
+      approveBgSolid: app.plan? 'rgba(238,246,244,0.94)':'rgba(255,255,255,0.94)',
+      approveDotBg: app.plan? accent:'#C4C4BF',
+      approveGlyph: app.plan? '\u2713':'?',
+      approveText: app.plan? 'Plan approved \u2014 the script and storyboard are built from these beats.':'My proposal. Drag beats to reorder, retime them, add or cut one \u2014 then approve and I\u2019ll write the script.',
+      approvePlan:()=>this.approve('plan','Locked. Writing the script from these beats \u2014 one pass per beat, nothing shared.','Plan approved \u00b7 '+D.length+' beats','script'),
+      understandingApproved:app.understanding, understandingPending:!app.understanding,
+      understandingRing: app.understanding? accent:'#E3E3DF',
+      understandingBg: app.understanding? 'rgba(15,118,110,0.06)':'#fff',
+      understandingBgSolid: app.understanding? 'rgba(238,246,244,0.94)':'rgba(255,255,255,0.94)',
+      understandingDot: app.understanding? accent:'#C4C4BF',
+      understandingGlyph: app.understanding? '\u2713':'?',
+      understandingText: app.understanding? 'Confirmed \u2014 the teaching plan is built from these concepts and dependencies.':'This is what I understood before deciding anything. Check what I kept and what I set aside, then let me plan the lesson.',
+      approveUnderstanding:()=>this.approve('understanding','Good. Now I\u2019ll decide how to teach it \u2014 order, objectives, and runtime per beat.','Understanding confirmed','plan'),
+      scriptApproved:app.script, scriptPending:!app.script,
+      scriptRing: app.script? accent:'#E3E3DF',
+      scriptBg: app.script? 'rgba(15,118,110,0.06)':'#fff',
+      scriptBgSolid: app.script? 'rgba(238,246,244,0.94)':'rgba(255,255,255,0.94)',
+      scriptDot: app.script? accent:'#C4C4BF',
+      scriptGlyph: app.script? '\u2713':'?',
+      scriptText: app.script? 'Script approved \u2014 visuals generated per scene, and only per scene.':'Written from the approved plan. Edit any scene in place \u2014 editing one never touches the others.',
+      approveScript:()=>this.approve('script','Script locked. Building the storyboard and generating visuals per scene.','Script approved \u00b7 '+D.length+' scenes','edit'),
+      sceneNote:(()=>{
+        const notes={
+          2:{text:'The equation can carry this alone, or I can let the heat-map do the explaining. I lean toward the second \u2014 the scaling is easier to feel than to read.',
+             options:[{key:'A', title:'Equation builds term by term', desc:'Precise, but asks the viewer to read maths while listening.'},
+                      {key:'B', title:'Heat-map forms, then softens', desc:'Shows what the scaling does before naming it. My pick.'}]},
+          4:{text:'Sinusoids read abstract on their own. I could ground them in real tokens instead \u2014 slower, but it lands.',
+             options:[{key:'A', title:'Layered sine waves', desc:'Faithful to the paper, light on intuition.'},
+                      {key:'B', title:'Tokens with striped fingerprints', desc:'Concrete, costs about four seconds. My pick.'}]}
+        };
+        const pos=S.sceneIdx, n=notes[pos];
+        if(!n) return {open:false, resolved:false};
+        const picked=S.visualPick[pos];
+        if(picked) return {open:false, resolved:true, resolvedText:'Motion Designer is rebuilding this visual as option '+picked+'. Nothing else in the timeline changes.'};
+        return {...C.motion, open:true, resolved:false, ring:'rgba(107,79,107,0.35)', text:n.text,
+          options:n.options.map(o=>({...o, pick:()=>{
+            this.setState(st=>({visualPick:{...st.visualPick,[pos]:o.key}}));
+            this.say('Option '+o.key+' it is \u2014 rebuilding scene '+String(pos+1).padStart(2,'0')+' only.','Scene '+String(pos+1).padStart(2,'0')+' \u00b7 visual queued');
+          }}))};
+      })(),
+      activeCrew: (screen==='dashboard'||screen==='upload')? C.producer : ({overview:C.producer, plan:C.educator, script:C.writer, edit:C.artist, assets:C.motion, export:C.voice}[S.tab]||C.producer),
+      threadOpen:S.threadOpen, toggleThread:()=>this.setState({threadOpen:!S.threadOpen}),
+      showAskPill: !S.threadOpen && (screen==='dashboard' || screen==='upload'),
+      threadContext: screen==='dashboard'? 'Looking at your studio \u00b7 3 decodes'
+        : screen==='upload'? 'Looking at the new decode brief'
+        : ({overview:'Looking at Understanding \u00b7 37 concepts', plan:'Looking at the Teaching Plan \u00b7 '+D.length+' beats', script:'Looking at Script \u00b7 scene '+cur.num, edit:'Looking at Scene '+cur.num+' \u00b7 '+cur.title, assets:'Looking at Assets \u00b7 24 pieces', export:'Looking at Export settings'}[S.tab] || 'Knows the source and the plan'),
+      threadBtnBg:S.threadOpen? '#fff':'transparent', threadBtnFg:S.threadOpen? '#141414':'#6B6B68', threadBtnRing:S.threadOpen? '#D4D4CF':'#E7E7E4',
+      producerThinking:S.thinking,
+      thread:S.thread.map(m=>({
+        text:m.text, receipt:m.receipt||'', hasReceipt:!!m.receipt,
+        align:m.who==='p'? 'flex-start':'flex-end',
+        bg:m.who==='p'? '#fff':'#141414', fg:m.who==='p'? '#2A2A28':'#F2F2F0',
+        ring:m.who==='p'? '#EFEFEC':'#141414'
+      })),
+      draft:S.draft, setDraft:(e)=>this.setState({draft:e.target.value}),
+      sendNote:()=>{
+        const t=this.state.draft.trim(); if(!t) return;
+        this.setState(st=>({thread:[...st.thread,{who:'u',text:t}], draft:'', thinking:true}));
+        this.T(()=>this.setState(st=>({thinking:false, thread:[...st.thread,{who:'p',text:'Noted \u2014 I\u2019ve reworked the affected beats and left the rest untouched.',receipt:'2 beats revised'}]})),1500);
+      },
+      threadActions:ctxActions,
+      toneLabel:S.tone, toneLabelLower:S.tone.toLowerCase(),
+      totalLabel:this.fmt(total), playheadLabel:this.fmt(S.playhead), playheadLeft:(phFrac*100).toFixed(2)+'%',
+      playGlyph: S.playing? '\u275a\u275a':'\u25b6', words, ticks, bars, transcriptScenes,
+      sceneCount:D.length, scriptWords:D.reduce((a,s)=>a+s.narration.trim().split(/\s+/).length,0),
+      playToggle:()=>{
+        if(this.state.playing){ this.stopPlay(); return; }
+        this.setState({playing:true});
+        this._iv=setInterval(()=>{
+          const t=this.state.playhead+0.1;
+          if(t>=this.total()){ this.stopPlay(); this.setState({playhead:this.total()}); return; }
+          this.setState({playhead:t, sceneIdx:this.sceneAt(t)});
+        },100);
+      },
+      scrubDown:(e)=>{
+        this.stopPlay();
+        const rect=e.currentTarget.getBoundingClientRect();
+        const move=(ev)=>{ const fr=Math.max(0,Math.min(1,(ev.clientX-rect.left)/rect.width)); this.seek(fr*this.total()); };
+        move(e);
+        const up=()=>{ window.removeEventListener('mousemove',move); window.removeEventListener('mouseup',up); };
+        window.addEventListener('mousemove',move); window.addEventListener('mouseup',up);
+      },
+      editNarration:(e)=>this.patch(S.sceneIdx,{narration:e.target.value}),
+      editPrompt:(e)=>this.patch(S.sceneIdx,{prompt:e.target.value}),
+      setAnimation:(e)=>this.patch(S.sceneIdx,{anim:e.target.value}),
+      animOptions:['Fade sequence','Token flow','Equation build','Head split','Wave overlay','Stack build','Chart reveal','Zoom out'],
+      durMinus:()=>this.patch(S.sceneIdx,{dur:Math.max(10,D[S.sceneIdx].dur-5)}),
+      durPlus:()=>this.patch(S.sceneIdx,{dur:Math.min(150,D[S.sceneIdx].dur+5)}),
+      regenerating:!!S.regen, regenLabel:S.regen||'',
+      regenScene:()=>this.regenerate('scene'), regenVisuals:()=>this.regenerate('visuals'), regenVoice:()=>this.regenerate('voice'),
+      splitCur:()=>this.splitScene(S.sceneIdx), mergeCur:()=>this.mergeScene(S.sceneIdx), dupCur:()=>this.dupScene(S.sceneIdx),
+      exportRes:S.exportRes, exportFmt:S.exportFmt,
+      setRes:(e)=>this.setState({exportRes:e.target.value}), setFmt:(e)=>this.setState({exportFmt:e.target.value}),
+      toggleCaptions:()=>this.setState({captions:!S.captions}), toggleChapters:()=>this.setState({chapters:!S.chapters}),
+      capBg:S.captions? '#141414':'#D8D8D2', capKnob:S.captions? '18px':'2px',
+      chapBg:S.chapters? '#141414':'#D8D8D2', chapKnob:S.chapters? '18px':'2px',
+      notRendering:S.renderState==='idle', rendering:S.renderState==='rendering', renderDone:S.renderState==='done',
+      renderPctLabel:S.renderPct+'%',
+      startRender:()=>{
+        this.setState({renderState:'rendering', renderPct:0});
+        this._riv=setInterval(()=>{
+          const p=this.state.renderPct+Math.ceil(Math.random()*9);
+          if(p>=100){ clearInterval(this._riv); this.setState({renderPct:100, renderState:'done'}); }
+          else this.setState({renderPct:p});
+        },220);
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

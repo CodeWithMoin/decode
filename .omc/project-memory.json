@@ -1,0 +1,69 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1785870810359,
+  "projectRoot": "/Users/moinuddinshaik/Downloads/decode",
+  "techStack": {
+    "languages": [
+      {
+        "name": "C/C++",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "Makefile"
+        ]
+      }
+    ],
+    "frameworks": [],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": "make test",
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "apps": {
+      "path": "apps",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1785870810352,
+      "keyFiles": []
+    },
+    "design_handoff_decode_studio": {
+      "path": "design_handoff_decode_studio",
+      "purpose": null,
+      "fileCount": 3,
+      "lastAccessed": 1785870810353,
+      "keyFiles": [
+        "Decode Studio.dc.html",
+        "README.md",
+        "support.js"
+      ]
+    },
+    "packages": {
+      "path": "packages",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1785870810354,
+      "keyFiles": []
+    }
+  },
+  "hotPaths": [],
+  "userDirectives": []
+}

@@ -1,0 +1,28 @@
+import os
+from pathlib import Path
+
+os.environ["DECODE_DATABASE_URL"] = "sqlite+aiosqlite:////tmp/decode_backend_tests.db"
+os.environ["DECODE_LOCAL_OBJECT_ROOT"] = "/tmp/decode_backend_objects"
+
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
+
+from decode.db import Base, engine
+from decode.main import app
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def clean_database():
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.drop_all)
+        await connection.run_sync(Base.metadata.create_all)
+    yield
+    for path in Path("/tmp/decode_backend_objects").glob("**/*"):
+        if path.is_file():
+            path.unlink()
+
+
+@pytest_asyncio.fixture
+async def client():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as value:
+        yield value

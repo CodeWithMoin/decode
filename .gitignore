@@ -1,0 +1,31 @@
+# os
+.DS_Store
+
+# node
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# python
+.venv/
+__pycache__/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# local data + env
+.env
+.env.local
+.env.*.local
+apps/backend/.data/
+
+# tooling scratch (plans under .omc/plans and .omc/autopilot are kept)
+**/.omc/state/
+**/.omc/sessions/
+**/.omc/.DS_Store
+.serena/
+.playwright-mcp/
+.claude/settings.local.json

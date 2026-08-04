@@ -1,0 +1,92 @@
+SHELL := /bin/bash
+.DEFAULT_GOAL := help
+
+ROOT_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+BACKEND_DIR := $(ROOT_DIR)/apps/backend
+FRONTEND_DIR := $(ROOT_DIR)/apps/frontend
+BACKEND_PYTHON := $(BACKEND_DIR)/.venv/bin/python
+BACKEND_ALEMBIC := $(BACKEND_DIR)/.venv/bin/alembic
+BACKEND_ARQ := $(BACKEND_DIR)/.venv/bin/arq
+
+.PHONY: help setup env backend-install frontend-install docker-ready infra infra-down infra-status \
+	migrate api dispatcher worker frontend dev test check
+
+help: ## Show available commands
+	@awk 'BEGIN {FS = ":.*## "; printf "Decode development commands\n\n"} /^[a-zA-Z_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+setup: env backend-install frontend-install ## Install dependencies and create local env files
+
+env: ## Create local env files without overwriting existing configuration
+	@test -f $(BACKEND_DIR)/.env || cp $(BACKEND_DIR)/.env.example $(BACKEND_DIR)/.env
+	@test -f $(FRONTEND_DIR)/.env.local || cp $(FRONTEND_DIR)/.env.example $(FRONTEND_DIR)/.env.local
+
+backend-install: ## Install backend and development dependencies
+	@if command -v uv >/dev/null 2>&1; then \
+		cd $(BACKEND_DIR) && uv sync --extra dev; \
+	else \
+		python3 -m venv $(BACKEND_DIR)/.venv && \
+		$(BACKEND_PYTHON) -m pip install -e '$(BACKEND_DIR)[dev]'; \
+	fi
+
+frontend-install: ## Install locked frontend dependencies
+	@cd $(FRONTEND_DIR) && npm ci
+
+docker-ready:
+	@command -v docker >/dev/null 2>&1 || (echo "Docker is required. Install and start Docker Desktop." && exit 1)
+	@docker info >/dev/null 2>&1 || (echo "Docker is installed but not running. Start Docker Desktop and try again." && exit 1)
+
+infra: docker-ready ## Start local PostgreSQL and Redis with Docker Compose
+	@docker compose -f $(ROOT_DIR)/compose.yaml up -d --wait postgres redis
+
+infra-down: docker-ready ## Stop local PostgreSQL and Redis without deleting their data
+	@docker compose -f $(ROOT_DIR)/compose.yaml down
+
+infra-status: docker-ready ## Show local infrastructure status
+	@docker compose -f $(ROOT_DIR)/compose.yaml ps
+
+migrate: env ## Apply database migrations
+	@test -x $(BACKEND_ALEMBIC) || (echo "Backend dependencies are missing. Run 'make setup'." && exit 1)
+	@cd $(BACKEND_DIR) && $(BACKEND_ALEMBIC) upgrade head
+
+api: env ## Run the FastAPI development server
+	@test -x $(BACKEND_PYTHON) || (echo "Backend dependencies are missing. Run 'make setup'." && exit 1)
+	@cd $(BACKEND_DIR) && $(BACKEND_PYTHON) -m uvicorn decode.main:app --reload
+
+dispatcher: env ## Run the transactional-outbox dispatcher
+	@test -x $(BACKEND_PYTHON) || (echo "Backend dependencies are missing. Run 'make setup'." && exit 1)
+	@cd $(BACKEND_DIR) && $(BACKEND_PYTHON) -m decode.execution.dispatcher
+
+worker: env ## Run the ARQ worker
+	@test -x $(BACKEND_ARQ) || (echo "Backend dependencies are missing. Run 'make setup'." && exit 1)
+	@cd $(BACKEND_DIR) && $(BACKEND_ARQ) decode.execution.worker.WorkerSettings
+
+frontend: env ## Run the Next.js development server
+	@test -d $(FRONTEND_DIR)/node_modules || (echo "Frontend dependencies are missing. Run 'make setup'." && exit 1)
+	@cd $(FRONTEND_DIR) && npm run dev
+
+dev: env infra migrate ## Run API, dispatcher, worker, and frontend; stop with Ctrl-C
+	@set -m; \
+	cleanup() { \
+		trap - INT TERM EXIT; \
+		kill $$api_pid $$dispatcher_pid $$worker_pid $$frontend_pid 2>/dev/null || true; \
+		wait $$api_pid $$dispatcher_pid $$worker_pid $$frontend_pid 2>/dev/null || true; \
+	}; \
+	trap cleanup INT TERM EXIT; \
+	$(MAKE) --no-print-directory api & api_pid=$$!; \
+	$(MAKE) --no-print-directory dispatcher & dispatcher_pid=$$!; \
+	$(MAKE) --no-print-directory worker & worker_pid=$$!; \
+	$(MAKE) --no-print-directory frontend & frontend_pid=$$!; \
+	wait
+
+test: ## Run the fast backend and frontend test/typecheck suite
+	@cd $(BACKEND_DIR) && $(BACKEND_PYTHON) -m pytest -q
+	@cd $(FRONTEND_DIR) && npm run lint
+	@cd $(FRONTEND_DIR) && npx tsc --noEmit
+
+check: ## Run all backend and frontend quality gates, including production build
+	@cd $(BACKEND_DIR) && $(BACKEND_PYTHON) -m ruff check decode tests scripts
+	@cd $(BACKEND_DIR) && $(BACKEND_PYTHON) -m mypy decode
+	@cd $(BACKEND_DIR) && $(BACKEND_PYTHON) -m pytest -q
+	@cd $(FRONTEND_DIR) && npm run lint
+	@cd $(FRONTEND_DIR) && npx tsc --noEmit
+	@cd $(FRONTEND_DIR) && npm run build
