@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { ArrowLeft, Lock, MessageSquare } from "lucide-react";
+import { ArrowLeft, MessageSquare } from "lucide-react";
 import { RailFrame } from "@/components/app/RailFrame";
+import { StageRail } from "@/components/app/StageRail";
 import { StudioNav } from "@/components/app/StudioNav";
 import { CommandPalette } from "@/components/project/CommandPalette";
 import { ProducerDrawer } from "@/components/producer/ProducerDrawer";
@@ -29,14 +30,6 @@ import { Graphite, StageKicker, cx } from "@/components/ui/primitives";
  * remember to tell it.
  */
 
-const NAV: { tab: TabId; label: string }[] = [
-  { tab: "overview", label: "Understanding" },
-  { tab: "plan", label: "Teaching Plan" },
-  { tab: "script", label: "Script" },
-  { tab: "edit", label: "Edit" },
-  { tab: "export", label: "Export" },
-];
-
 export function ProjectShell({ children }: { children?: React.ReactNode }) {
   const {
     tab,
@@ -62,6 +55,15 @@ export function ProjectShell({ children }: { children?: React.ReactNode }) {
     edit: `${sc.length}`,
     export: fmt(runtime),
   };
+
+  const stageState = (id: TabId) => {
+    const locked = isLocked(id, approvals);
+    return { locked, badge: isApproved(id, approvals) ? "✓" : locked ? undefined : counts[id] };
+  };
+
+  // A locked stage is never inert and never a tooltip: it opens the production
+  // room and gets explained.
+  const selectStage = (id: TabId, locked: boolean) => (locked ? lockedNudge() : setTab(id));
 
   return (
     <div
@@ -101,51 +103,7 @@ export function ProjectShell({ children }: { children?: React.ReactNode }) {
             </span>
             <span className="font-mono text-[8.5px] text-t9">{fmt(runtime)}</span>
           </div>
-        <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
-          {NAV.map(({ tab: id, label }, index) => {
-            const locked = isLocked(id, approvals);
-            const active = id === tab;
-            const done = isApproved(id, approvals);
-
-            return (
-              <li key={id}>
-                <button
-                  type="button"
-                  // A locked stage is never inert and never a tooltip: it
-                  // opens the production room and gets explained.
-                  onClick={() => (locked ? lockedNudge() : setTab(id))}
-                  aria-current={active ? "page" : undefined}
-                  className={[
-                    "flex w-full items-center gap-2.5 rounded-full py-2 pr-3 pl-2 text-left transition-[background-color,box-shadow] duration-[var(--t-fast)]",
-                    active
-                      ? "bg-white shadow-[0_2px_10px_rgb(30_30_28_/_0.08)]"
-                      : "hover:bg-white/55",
-                  ].join(" ")}
-                >
-                  <span
-                    className={[
-                      "w-5 flex-none font-mono text-[9px] tabular-nums",
-                      active ? "text-accent-deep" : "text-t9",
-                    ].join(" ")}
-                  >
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <span
-                    className={[
-                      "min-w-0 flex-1 truncate text-[13px]",
-                      locked ? "text-t9" : active ? "font-medium" : "text-ink-2",
-                    ].join(" ")}
-                  >
-                    {label}
-                  </span>
-                  <span className="flex-none font-mono text-[9.5px] text-t9 tabular-nums">
-                    {done ? "✓" : locked ? <Lock size={11} strokeWidth={1.8} aria-label="Locked" /> : counts[id]}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+        <StageRail variant="rail" active={tab} state={stageState} onSelect={selectStage} />
         </div>
 
       </RailFrame>
@@ -214,38 +172,7 @@ export function ProjectShell({ children }: { children?: React.ReactNode }) {
         </div>
       </header>
 
-      {/* Stages below lg.
-          A drawer is wrong here: the five stages are a linear pipeline, not a
-          menu, and the whole point of the rail is showing where you are in it.
-          A scrollable strip keeps that reading, and keeps the gate visible. */}
-      <div className="panel-glass rail-x sticky top-[var(--header-h)] z-20 flex gap-1.5 overflow-x-auto border-b border-line-head px-3 py-2 lg:hidden">
-        {NAV.map(({ tab: id, label }, index) => {
-          const locked = isLocked(id, approvals);
-          const active = id === tab;
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => (locked ? lockedNudge() : setTab(id))}
-              aria-current={active ? "page" : undefined}
-              className={[
-                "flex flex-none items-center gap-2 rounded-full py-1.5 pr-3 pl-1.5 text-[12.5px] whitespace-nowrap",
-                active
-                  ? "bg-white font-medium shadow-[0_2px_10px_rgb(30_30_28_/_0.08)]"
-                  : locked
-                    ? "text-t9"
-                    : "text-ink-2",
-              ].join(" ")}
-            >
-              <span className="font-mono text-[9px] text-t9 tabular-nums">
-                {String(index + 1).padStart(2, "0")}
-              </span>
-              {label}
-              {locked && <Lock size={10} strokeWidth={1.8} aria-label="Locked" />}
-            </button>
-          );
-        })}
-      </div>
+      <StageRail variant="strip" active={tab} state={stageState} onSelect={selectStage} />
 
       <div
         className={cx(

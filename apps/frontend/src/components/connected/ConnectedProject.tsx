@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Lock } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { RailFrame } from "@/components/app/RailFrame";
+import { StageRail } from "@/components/app/StageRail";
+import { StudioNav } from "@/components/app/StudioNav";
 import { HandoffBar, HandoffBrief } from "@/components/crew/HandoffCard";
 import { Graphite, Micro, StageKicker, cx } from "@/components/ui/primitives";
 import { DecodeApiError, decodeApi, idempotencyKey } from "@/lib/decode-api";
@@ -14,9 +17,11 @@ import type {
   ProductionBriefPayload,
   ProductionBriefProjection,
   StudioSnapshot,
+  TabId,
 } from "@/lib/types";
 
-const STAGES = ["Understanding", "Teaching Plan", "Script", "Edit", "Export"];
+/** Only Understanding is connected in this milestone; the rest stay visible and locked. */
+const stageState = (tab: TabId) => ({ locked: tab !== "overview" });
 
 export function ConnectedProject({ projectId }: { projectId: string }) {
   const router = useRouter();
@@ -127,12 +132,19 @@ export function ConnectedProject({ projectId }: { projectId: string }) {
   return (
     <div className="flex min-h-dvh bg-page">
       <nav aria-label="Stages" className="panel-glass sticky top-0 hidden h-dvh w-[200px] flex-none flex-col border-r border-line-head p-3 lg:flex">
-        <button onClick={() => router.push("/studio")} className="mb-5 flex items-center gap-2 rounded-full px-2.5 py-2 text-left text-[13px] text-ink-2 hover:bg-white/60"><ArrowLeft size={14} /> Studio</button>
-        <div className="px-2.5 font-mono text-[8.5px] tracking-[0.12em] text-t9 uppercase">Current project</div>
-        <ul className="mt-2 flex list-none flex-col gap-0.5 p-0">
-          {STAGES.map((stage, index) => <li key={stage}><div className={cx("flex items-center gap-2.5 rounded-full px-2.5 py-2 text-[13px]", index === 0 ? "bg-white font-medium shadow-nav" : "text-t9")}><span className="w-5 font-mono text-[9px] text-t9">{String(index + 1).padStart(2, "0")}</span><span className="flex-1">{stage}</span>{index > 0 && <Lock size={11} aria-label="Not available yet" />}</div></li>)}
-        </ul>
-        <div className="mt-auto rounded-[14px] border border-line-input bg-card p-3"><div className="font-mono text-[8.5px] text-t9 uppercase">Sources</div><div className="mt-1 text-[12px] font-medium">{studio?.sources.length ?? 0} attached</div></div>
+        <RailFrame connected footer={
+          <div className="rounded-[14px] border border-line-input bg-card p-3">
+            <div className="font-mono text-[8.5px] text-t9 uppercase">Sources</div>
+            <div className="mt-1 text-[12px] font-medium">{studio?.sources.length ?? 0} attached</div>
+          </div>
+        }>
+          <StudioNav active="none" connected />
+
+          <div className="mt-4 border-t border-line-head pt-4">
+            <div className="mb-2 px-2.5 font-mono text-[8.5px] tracking-[0.12em] text-t9 uppercase">Current project</div>
+            <StageRail variant="rail" active="overview" state={stageState} />
+          </div>
+        </RailFrame>
       </nav>
 
       <div className="min-w-0 flex-1">
@@ -143,7 +155,7 @@ export function ConnectedProject({ projectId }: { projectId: string }) {
           <button disabled className="ml-auto rounded-full border border-line-input bg-sunken px-3 py-2 text-[12px] text-t9" title="Production room is not available yet">Production room · not available yet</button>
           <Graphite disabled className="px-4 py-2 text-[13px] opacity-50">Export · not available yet</Graphite>
         </header>
-        <div className="panel-glass flex gap-1.5 overflow-x-auto border-b border-line-head px-3 py-2 lg:hidden">{STAGES.map((stage, index) => <span key={stage} className={cx("flex items-center gap-2 rounded-full px-3 py-1.5 text-[12px] whitespace-nowrap", index === 0 ? "bg-white font-medium" : "text-t9")}>{stage}{index > 0 && <Lock size={10} />}</span>)}</div>
+        <StageRail variant="strip" active="overview" state={stageState} />
 
         {!payload ? <div className="mx-auto max-w-[900px] p-8"><StageKicker>Understanding</StageKicker><p className="mt-3 text-[13px] text-t7">{error || "Loading Production Brief…"}</p></div> : (
           <main className="mx-auto flex w-full max-w-[1100px] flex-col gap-6 p-6 pb-[var(--handoff-h)] lg:p-8 lg:pb-[var(--handoff-h)]">

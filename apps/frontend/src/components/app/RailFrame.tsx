@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { AppMark } from "@/components/ui/primitives";
 import { useStudio } from "@/store/studio";
 
@@ -24,13 +25,17 @@ export function RailFrame({
   children,
   footer,
   onLeave,
+  connected = false,
 }: {
   children: React.ReactNode;
   /** Context-owned block above the account card — a source card, say. */
   footer?: React.ReactNode;
   /** Called when the wordmark is used, so a project can close itself first. */
   onLeave?: () => void;
+  /** On the connected routes the wordmark navigates rather than switching screens. */
+  connected?: boolean;
 }) {
+  const router = useRouter();
   const go = useStudio((s) => s.go);
 
   return (
@@ -39,7 +44,8 @@ export function RailFrame({
         type="button"
         onClick={() => {
           onLeave?.();
-          go("dashboard");
+          if (connected) router.push("/studio");
+          else go("dashboard");
         }}
         aria-label="Decode — back to your studio"
         className="mb-4 flex items-center gap-2.5 rounded-[10px] px-2 py-1.5 text-left transition-colors duration-[var(--t-fast)] hover:bg-white/55"
