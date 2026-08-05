@@ -68,6 +68,10 @@ class R2ObjectStore:
             endpoint_url=settings.r2_endpoint_url,
             aws_access_key_id=settings.r2_access_key_id,
             aws_secret_access_key=settings.r2_secret_access_key,
+            # R2 is region-less but the AWS SDK is not: without this boto3 raises
+            # NoRegionError before a request is ever signed. "auto" is the value
+            # Cloudflare documents for S3-compatible clients.
+            region_name="auto",
         )
 
     async def put(

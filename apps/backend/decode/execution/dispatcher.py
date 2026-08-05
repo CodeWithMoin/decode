@@ -37,7 +37,7 @@ async def dispatch_once() -> int:
                 count += 1
             await session.commit()
     finally:
-        await redis.close()
+        await redis.aclose()
     return count
 
 
