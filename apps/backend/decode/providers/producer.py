@@ -1,11 +1,71 @@
+"""The Producer department contract and its deterministic walking-skeleton adapter.
+
+The port exists so a real model adapter can replace the fake without touching
+routes, artifact schemas, lineage, or job semantics — the exit criterion the
+backend foundation plan sets for the walking skeleton.
+
+`SourceInput` is what the contract declares a Producer may see: the source
+metadata plus a way to read the bytes. Nothing else about the project crosses
+this boundary.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Protocol
+
+from ..config import Settings
 from ..schemas import ProductionBrief, ProductionIntent
+from .storage import ObjectStore, object_store
+
+
+@dataclass(frozen=True)
+class SourceInput:
+    object_key: str
+    filename: str
+    media_type: str
+    size_bytes: int
+    sha256: str
+
+    @classmethod
+    def from_manifest(cls, manifest: dict) -> SourceInput:
+        return cls(
+            object_key=manifest["object_key"],
+            filename=manifest.get("filename", ""),
+            media_type=manifest.get("media_type", "application/octet-stream"),
+            size_bytes=manifest.get("size_bytes", 0),
+            sha256=manifest.get("sha256", ""),
+        )
+
+
+class Producer(Protocol):
+    """Turns sources plus production intent into a Production Brief."""
+
+    identifier: str
+
+    async def generate(
+        self, intent: ProductionIntent, sources: list[SourceInput]
+    ) -> ProductionBrief: ...
+
+
+class Evaluator(Protocol):
+    """Records structured checks. It never revises and never gates approval."""
+
+    identifier: str
+
+    def evaluate(self, brief: ProductionBrief) -> tuple[str, list[dict], str]: ...
 
 
 class FakeProducer:
     identifier = "fixture-producer-v1"
 
-    def generate(
-        self, intent: ProductionIntent, source_count: int, source_bytes: int
+    def __init__(self, store: ObjectStore | None = None):
+        # Deterministic output needs no bytes; the parameter keeps construction
+        # identical to a real adapter's.
+        self.store = store
+
+    async def generate(
+        self, intent: ProductionIntent, sources: list[SourceInput]
     ) -> ProductionBrief:
         direction = (
             f" based on your direction: {intent.creative_brief}"
@@ -35,8 +95,8 @@ class FakeProducer:
             ],
             source_findings={
                 "fixture": True,
-                "source_count": source_count,
-                "total_bytes": source_bytes,
+                "source_count": len(sources),
+                "total_bytes": sum(item.size_bytes for item in sources),
                 "note": (
                     "Metadata-only deterministic walking-skeleton findings; "
                     "no extraction was performed."
@@ -75,3 +135,18 @@ class FakeEvaluator:
             checks,
             "Structured fixture checks completed; human approval remains independent.",
         )
+
+
+def producer(settings: Settings) -> Producer:
+    # An unknown name raises rather than falling back: silently publishing a
+    # fixture brief while the operator believes a real Producer ran would put a
+    # "fixture: false" label on output nothing analyzed.
+    if settings.producer == "fake":
+        return FakeProducer(object_store(settings))
+    raise ValueError(f"unknown producer provider: {settings.producer!r}")
+
+
+def evaluator(settings: Settings) -> Evaluator:
+    if settings.evaluator == "fake":
+        return FakeEvaluator()
+    raise ValueError(f"unknown evaluator provider: {settings.evaluator!r}")

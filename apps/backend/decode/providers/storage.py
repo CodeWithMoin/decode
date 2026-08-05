@@ -14,6 +14,8 @@ class ObjectStore(Protocol):
         self, key: str, chunks: AsyncIterator[bytes], max_bytes: int
     ) -> tuple[int, str, str]: ...
 
+    async def get(self, key: str) -> bytes: ...
+
     async def delete(self, key: str) -> None: ...
 
 
@@ -21,12 +23,17 @@ class LocalObjectStore:
     def __init__(self, root: Path):
         self.root = root.resolve()
 
-    async def put(
-        self, key: str, chunks: AsyncIterator[bytes], max_bytes: int
-    ) -> tuple[int, str, str]:
+    def _resolve(self, key: str) -> Path:
+        """One traversal guard for every path this store touches."""
         target = (self.root / key).resolve()
         if self.root not in target.parents:
             raise ValueError("unsafe object key")
+        return target
+
+    async def put(
+        self, key: str, chunks: AsyncIterator[bytes], max_bytes: int
+    ) -> tuple[int, str, str]:
+        target = self._resolve(key)
         target.parent.mkdir(parents=True, exist_ok=True)
         size, digest = 0, hashlib.sha256()
         try:
@@ -42,11 +49,13 @@ class LocalObjectStore:
             raise
         return size, key, digest.hexdigest()
 
+    # ponytail: whole-object read. Sources are capped at max_source_bytes and the
+    # only consumer needs every byte; stream if a later artifact type outgrows that.
+    async def get(self, key: str) -> bytes:
+        return await asyncio.to_thread(self._resolve(key).read_bytes)
+
     async def delete(self, key: str) -> None:
-        target = (self.root / key).resolve()
-        if self.root not in target.parents:
-            raise ValueError("unsafe object key")
-        target.unlink(missing_ok=True)
+        self._resolve(key).unlink(missing_ok=True)
 
 
 class R2ObjectStore:
@@ -112,6 +121,10 @@ class R2ObjectStore:
                 self.client.abort_multipart_upload, Bucket=self.bucket, Key=key, UploadId=upload_id
             )
             raise
+
+    async def get(self, key: str) -> bytes:
+        result = await asyncio.to_thread(self.client.get_object, Bucket=self.bucket, Key=key)
+        return await asyncio.to_thread(result["Body"].read)
 
     async def delete(self, key: str) -> None:
         await asyncio.to_thread(self.client.delete_object, Bucket=self.bucket, Key=key)

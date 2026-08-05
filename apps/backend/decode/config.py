@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     frontend_origin: str = "http://localhost:3000"
     actor_id: str = "internal-private-beta-user"
     object_store: str = "local"
+    producer: str = "fake"
+    evaluator: str = "fake"
     local_object_root: Path = Path(".data/objects")
     max_source_bytes: int = 25 * 1024 * 1024
     upload_stale_seconds: int = 300
