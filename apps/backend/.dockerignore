@@ -1,0 +1,11 @@
+.venv
+.data
+.env
+.env.*
+!.env.example
+.pytest_cache
+.mypy_cache
+.ruff_cache
+**/__pycache__
+*.egg-info
+decode.db
