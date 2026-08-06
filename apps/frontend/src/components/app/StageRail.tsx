@@ -120,7 +120,7 @@ export function StageRail({
   }
 
   return (
-    <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
+    <ul className="m-0 flex list-none flex-col gap-1 p-0">
       {rows.map((row) => (
         <li key={row.key}>{row}</li>
       ))}

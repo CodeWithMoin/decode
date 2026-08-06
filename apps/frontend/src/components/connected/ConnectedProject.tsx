@@ -168,11 +168,11 @@ export function ConnectedProject({ projectId }: { projectId: string }) {
       </nav>
 
       <div className="min-w-0 flex-1">
-        <header className="panel-glass sticky top-0 z-30 flex items-center gap-3 border-b border-line-head px-4 py-2.5 lg:top-3 lg:rounded-t-[18px] lg:border lg:border-white/80 lg:shadow-sm">
+        <header className="panel-glass sticky top-0 z-30 mb-0 flex items-center gap-3 border-b border-line-head px-4 py-2.5 lg:top-3 lg:mb-3 lg:rounded-[18px] lg:border lg:border-white/80 lg:shadow-sm">
           <button onClick={() => router.push("/studio")} aria-label="Back to projects" className="grid h-9 w-9 place-items-center rounded-full border border-line-input bg-card lg:hidden"><ArrowLeft size={14} /></button>
           <span className="min-w-0 truncate font-display text-[14.5px] font-semibold">{projectTitle}</span>
           <span className="hidden rounded-full border border-line-input bg-sunken px-2.5 py-1 font-mono text-[9px] tracking-[0.1em] text-t6 uppercase sm:inline">Production brief · saved</span>
-          <button disabled className="ml-auto rounded-full border border-line-input bg-sunken px-3 py-2 text-[12px] text-t9" title="Production room is not available yet">Production room · not available yet</button>
+          <button disabled className="ml-auto rounded-full border border-line-input bg-sunken px-3 py-2 text-[12px] text-t9" title="Project Chat is not available yet">Chat · not available yet</button>
           <Graphite disabled className="px-4 py-2 text-[13px] opacity-50">Export · not available yet</Graphite>
         </header>
         <StageRail variant="strip" active="overview" state={stageState} />

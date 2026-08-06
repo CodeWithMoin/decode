@@ -13,17 +13,12 @@ import { useStudio } from "@/store/studio";
  * point: a crew that only ever agrees with itself is a spinner with names on.
  *
  * The copy lives in `SCENE_NOTES` and is used verbatim; this component only
- * renders it. Picking collapses the whole card into a teal confirmation that
+ * renders it. Picking collapses the whole card into an approved confirmation that
  * states the scope — what is being rebuilt, and what is not.
  *
  * `pickVisual` is what posts the receipt into the Producer thread, so nothing
  * here calls `say()` as well; a second call would post the change twice.
  */
-
-/** Teal — a resolved question, distinct from accent (an action to take). */
-const TEAL_LINE = "rgba(15,118,110,0.22)";
-const TEAL_BG = "rgba(15,118,110,0.05)";
-const TEAL = "#0F766E";
 
 export function SpecialistNote({ pos }: { pos: number }) {
   const note = SCENE_NOTES[pos];
@@ -38,11 +33,11 @@ export function SpecialistNote({ pos }: { pos: number }) {
     return (
       <div
         className="flex items-start gap-[9px] rounded-[14px] px-3 py-2.5"
-        style={{ border: `1px solid ${TEAL_LINE}`, background: TEAL_BG }}
+        style={{ border: "1px solid var(--accent-line)", background: "var(--color-accent-card)" }}
       >
         <div
           className="mt-px flex h-4 w-4 flex-none items-center justify-center rounded-full text-[8px] text-white"
-          style={{ background: TEAL }}
+          style={{ background: "var(--accent)" }}
           aria-hidden
         >
           ✓

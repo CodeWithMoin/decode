@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { fmt, num, pace, scriptWordCount, starts, total, wordCount } from "@/lib/derive";
 import type { Scene } from "@/lib/types";
 import { useStudio } from "@/store/studio";
 import { HandoffBar, HandoffBrief } from "@/components/crew/HandoffCard";
-import { cx, Graphite, StageKicker, Stepper } from "@/components/ui/primitives";
+import { cx, Ghost, Graphite, StageKicker, Stepper } from "@/components/ui/primitives";
 
 /**
  * Script — the Writer's stage.
@@ -54,7 +55,8 @@ export function Script() {
         why="Pacing narration to the plan's timing up front means nothing needs re-syncing once you approve — voice and visuals line up on their own."
       />
 
-      <div className="mt-2 flex flex-col">
+      <div className="studio-shell mt-4 p-[3px]">
+        <div className="studio-surface-muted flex flex-col rounded-[15px] p-2">
         {sc.map((scene, i) => (
           <SceneBlock
             key={scene.id}
@@ -70,6 +72,7 @@ export function Script() {
             onReRecord={() => applyRegen(i, "voice")}
           />
         ))}
+        </div>
       </div>
       <HandoffBar
         crew="writer"
@@ -133,14 +136,29 @@ function SceneBlock({
   return (
     <div
       onClick={onSelect}
-      className="flex gap-0 border-b border-line-div py-5 last:border-b-0"
+      className={cx(
+        "relative flex gap-0 rounded-[16px] border px-2 py-5 transition-[border-color] duration-[var(--t-fast)]",
+        active
+          ? "border-transparent"
+          : "border-transparent bg-transparent hover:bg-white/60",
+      )}
     >
-      <div className="relative w-[60px] flex-none pl-3">
+      {active && (
+        <motion.span
+          layoutId="script-selection"
+          className="pointer-events-none absolute inset-0 rounded-[16px] border border-[var(--accent-ring)] bg-card shadow-sm"
+          transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+          aria-hidden
+        />
+      )}
+      <div className="relative z-[1] w-[60px] flex-none pl-3">
         {active && (
-          <span
+          <motion.span
+            layoutId="script-selection-rail"
             aria-hidden
             className="absolute top-0.5 left-0 h-[calc(100%-4px)] w-[2px] rounded-full"
             style={{ background: "var(--accent)" }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
           />
         )}
         <div className="font-display text-[13px] font-semibold text-ink-2">
@@ -149,7 +167,7 @@ function SceneBlock({
         <div className="mt-0.5 font-mono text-[10px] text-t8">{fmt(start)}</div>
       </div>
 
-      <div className="min-w-0 flex-1">
+      <div className="relative z-[1] min-w-0 flex-1">
         <div
           ref={ref}
           contentEditable
@@ -160,8 +178,15 @@ function SceneBlock({
           className="rounded-lg px-2.5 py-1.5 text-[15px] leading-[1.75] text-ink-2 outline-none transition-colors hover:bg-sunken focus:bg-white focus:shadow-[inset_0_0_0_1.5px_var(--accent)]"
         />
 
+        <div className="min-h-[34px]">
+        <AnimatePresence initial={false} mode="wait">
         {active ? (
-          <div
+          <motion.div
+            key="controls"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
             className="mt-2 flex flex-wrap items-center gap-2"
             onClick={(e) => e.stopPropagation()}
           >
@@ -186,30 +211,39 @@ function SceneBlock({
               {stale ? "Downstream update pending" : scene.anim}
             </span>
             <span className="flex items-center gap-1.5 rounded-full border border-line-input bg-card px-3 py-1.5 text-[12px] text-t6">
-              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-accent" />
-              Nova
+              <span aria-hidden className={cx("h-1.5 w-1.5 rounded-full", stale ? "bg-[var(--color-stale)]" : "bg-accent")} />
+              {stale ? "Voice update pending" : "Nova"}
             </span>
-            <button
+            <Ghost
               type="button"
               onClick={onReRecord}
-              className="rounded-full border border-line-soft bg-card px-3 py-1.5 text-[12px] font-medium text-t5 transition-colors hover:border-[#B9B9B4] hover:text-ink"
+              className="px-3 py-1.5 text-[12px]"
             >
               Re-record
-            </button>
+            </Ghost>
             <Graphite
               onClick={onOpenCanvas}
               className={cx("ml-auto px-3.5 py-1.5 text-[12px] font-medium")}
             >
               Open on canvas →
             </Graphite>
-          </div>
+          </motion.div>
         ) : (
-          <div className="mt-1.5 flex items-center gap-3 font-mono text-[10.5px] text-t8">
+          <motion.div
+            key="meta"
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
+            className="mt-1.5 flex items-center gap-3 font-mono text-[10.5px] text-t7"
+          >
             <span>{count} words</span>
             <span>{fmt(scene.dur)}</span>
             <span className="capitalize">{scenePace}</span>
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
+        </div>
       </div>
     </div>
   );

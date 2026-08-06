@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { CREW } from "@/lib/crew";
 import type { CrewId } from "@/lib/types";
-import { CrewMark, Graphite, cx } from "@/components/ui/primitives";
+import { CrewMark, Ghost, Graphite, cx } from "@/components/ui/primitives";
 
 /**
  * The handoff, in two parts.
@@ -40,7 +40,7 @@ export function HandoffBrief({
   const c = CREW[crew];
 
   return (
-    <div className="rounded-2xl border border-line bg-card px-5 py-4">
+    <div className="studio-surface px-5 py-4 shadow-sm">
       <div className="mb-2.5 flex items-center gap-2.5">
         <CrewMark crew={crew} size={26} />
         <span className="text-[13px] font-semibold">{c.name}</span>
@@ -141,14 +141,12 @@ export function HandoffBar({
   return (
     <motion.div
       ref={ref}
-      layout
-      className="sticky bottom-3 z-[4] mt-auto overflow-hidden rounded-[14px] backdrop-blur-[20px]"
+      className="sticky bottom-3 z-[4] mt-auto overflow-hidden rounded-[18px]"
       style={{
         border: `1px solid ${approved ? "var(--accent-ring)" : "var(--color-line-input)"}`,
-        background: approved ? "var(--color-accent-card)" : "#FFFFFF",
+        background: approved ? "var(--color-accent-card)" : "var(--color-card)",
         boxShadow: "var(--shadow-sticky-up)",
       }}
-      transition={{ type: "spring", stiffness: 380, damping: 34 }}
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5">
         <CrewMark crew={crew} size={22} approved={approved} />
@@ -163,13 +161,13 @@ export function HandoffBar({
         </span>
 
         <div className="ml-auto flex items-center gap-2">
-          <button
+          <Ghost
             type="button"
             onClick={onPushBack}
-            className="rounded-full border border-line-soft bg-card px-3.5 py-1.5 text-[12.5px] font-medium whitespace-nowrap text-t5 transition-colors hover:border-[#B9B9B4] hover:text-ink"
+            className="px-3.5 py-1.5 text-[12.5px] whitespace-nowrap"
           >
             {secondaryLabel}
-          </button>
+          </Ghost>
           {!approved && (
             <Graphite
               onClick={onApprove}
@@ -185,11 +183,10 @@ export function HandoffBar({
       <AnimatePresence initial={false}>
         {approved && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             style={{
               background: "var(--accent-tint)",
               borderTop: "1px solid var(--accent-line)",

@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { ArrowLeft, MessageSquare } from "lucide-react";
+import { ArrowLeft, Command, MessageSquare } from "lucide-react";
 import { RailFrame } from "@/components/app/RailFrame";
 import { StageRail } from "@/components/app/StageRail";
 import { StudioNav } from "@/components/app/StudioNav";
-import { CommandPalette } from "@/components/project/CommandPalette";
+import { CommandPalette, openCommandPalette } from "@/components/project/CommandPalette";
 import { ProducerDrawer } from "@/components/producer/ProducerDrawer";
 import { Edit } from "@/components/project/stages/Edit";
 import { Export } from "@/components/project/stages/Export";
@@ -113,7 +113,7 @@ export function ProjectShell({ children }: { children?: React.ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
       {/* ============================ header ============================ */}
-      <header className="panel-glass sticky top-0 z-30 border-b border-line-head lg:top-3 lg:rounded-t-[18px] lg:border lg:border-white/80 lg:shadow-sm">
+      <header className="panel-glass sticky top-0 z-30 border-b border-line-head lg:top-3 lg:mb-3 lg:rounded-[18px] lg:border lg:border-white/80 lg:shadow-sm">
         <div className="flex items-center gap-3 px-4 py-2.5">
           {/* Icon-only on phones. The word "Projects" is the single widest
               thing in this row that carries no information the arrow does not,
@@ -145,7 +145,7 @@ export function ProjectShell({ children }: { children?: React.ReactNode }) {
             type="button"
             onClick={toggleThread}
             aria-pressed={threadOpen}
-            aria-label="Open production room — ⌘J"
+            aria-label="Open project chat — ⌘J"
             className={cx(
               "flex h-9 flex-none items-center gap-2 rounded-full border px-2.5 transition-colors duration-[var(--t-fast)]",
               threadOpen
@@ -154,7 +154,17 @@ export function ProjectShell({ children }: { children?: React.ReactNode }) {
             )}
           >
             <MessageSquare size={15} strokeWidth={1.8} aria-hidden />
-            <span className="hidden text-[12px] font-medium xl:inline">Production room</span>
+            <span className="hidden text-[12px] font-medium xl:inline">Chat</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={openCommandPalette}
+            aria-label="Open commands — Command K"
+            className="flex h-9 flex-none items-center gap-2 rounded-full border border-line-input bg-card px-2.5 text-t6 transition-[border-color,color,transform] duration-[var(--t-fast)] ease-decode hover:-translate-y-px hover:border-line-strong hover:text-ink"
+          >
+            <Command size={15} strokeWidth={1.8} aria-hidden />
+            <span className="hidden text-[12px] font-medium 2xl:inline">Commands</span>
           </button>
 
           <Graphite
@@ -178,9 +188,8 @@ export function ProjectShell({ children }: { children?: React.ReactNode }) {
 
       <div
         className={cx(
-          "flex min-h-0 flex-1",
-          "transition-[padding] duration-[250ms] ease-decode",
-          threadOpen && "lg:pr-[404px]",
+          "project-room-stage flex min-h-0 flex-1 transition-transform duration-[var(--t-normal)] ease-decode",
+          threadOpen && tab !== "edit" && "lg:-translate-x-8",
         )}
       >
 
@@ -191,7 +200,7 @@ export function ProjectShell({ children }: { children?: React.ReactNode }) {
 
       </div>
 
-      {/* ⌘K does, ⌘J discusses. The palette is the control list, so nothing
+      {/* ⌘K does, ⌘J chats. The palette is the control list, so nothing
           can appear in it that is not already a real action. */}
       <CommandPalette />
 

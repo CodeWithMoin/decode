@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { SpecialistNote } from "@/components/crew/SpecialistNote";
-import { Graphite, Stepper } from "@/components/ui/primitives";
+import { Ghost, Graphite, Stepper, cx } from "@/components/ui/primitives";
 import { fmt, num, pace, starts, wordCount } from "@/lib/derive";
 import type { StaleKind } from "@/lib/types";
 import { useStudio } from "@/store/studio";
@@ -27,7 +27,7 @@ const STALE_LABEL: Record<StaleKind, string> = {
   voice: "Voice",
 };
 
-export function Inspector() {
+export function Inspector({ inactive = false }: { inactive?: boolean }) {
   const sc = useStudio((s) => s.sc);
   const sceneIdx = useStudio((s) => s.sceneIdx);
   const regen = useStudio((s) => s.regen);
@@ -87,7 +87,12 @@ export function Inspector() {
 
   return (
     <aside
-      className="panel-glass-alt hidden w-[318px] min-w-[240px] flex-none flex-col border-l border-line-head lg:flex"
+      inert={inactive}
+      aria-hidden={inactive || undefined}
+      className={cx(
+        "studio-surface-muted flex min-h-[520px] w-full flex-none flex-col overflow-hidden rounded-[18px] lg:min-h-0 lg:w-[318px] lg:min-w-[240px]",
+        inactive && "pointer-events-none",
+      )}
       aria-label="Scene settings"
     >
       {scene ? (
@@ -108,7 +113,7 @@ export function Inspector() {
               className="flex items-center justify-between gap-3 rounded-xl border border-line-input bg-card px-3 py-2.5 text-left transition-colors hover:border-line-strong"
             >
               <span className="text-[12.5px] font-medium text-ink-2">Narration</span>
-              <span className="font-mono text-[9.5px] text-t7">
+              <span className="font-mono text-[9.5px] text-t6">
                 {wordCount(scene.narration)} words · Edit in Script →
               </span>
             </button>
@@ -133,7 +138,7 @@ export function Inspector() {
                         color: "var(--color-stale)",
                       }}
                     >
-                      {STALE_LABEL[k]} · stale
+                      {STALE_LABEL[k]} · update pending
                     </span>
                   ))}
                 </div>
@@ -148,7 +153,7 @@ export function Inspector() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))" }}>
               <Field label="Voice">
                 <div className="flex min-h-10 items-center gap-2 rounded-xl border border-line-input bg-card px-3 py-2">
                   <span aria-hidden className="h-1.5 w-1.5 flex-none rounded-full bg-accent" />
@@ -177,7 +182,7 @@ export function Inspector() {
               </div>
             </Field>
 
-            <p className="-mt-2 text-[11px] text-t7">
+              <p className="-mt-2 text-[11px] text-t6">
               Pacing: {pace(scene)} · narration auto-retimed
             </p>
 
@@ -200,18 +205,20 @@ export function Inspector() {
                 ↻ Regenerate scene
               </Graphite>
               <div className="flex gap-2">
-                <SmallButton
+                <Ghost
                   onClick={() => regenerate("visuals")}
                   disabled={regen !== null}
+                  className="flex-1 px-3 py-1.5 text-[12px] disabled:opacity-60"
                 >
                   Visuals only
-                </SmallButton>
-                <SmallButton
+                </Ghost>
+                <Ghost
                   onClick={() => regenerate("voice")}
                   disabled={regen !== null}
+                  className="flex-1 px-3 py-1.5 text-[12px] disabled:opacity-60"
                 >
                   Voice only
-                </SmallButton>
+                </Ghost>
               </div>
               <p className="text-[11.5px] leading-[1.6] text-t6">
                 Only this scene is touched. Everything else stays.
@@ -247,26 +254,5 @@ function Field({
       </div>
       {children}
     </div>
-  );
-}
-
-function SmallButton({
-  onClick,
-  disabled,
-  children,
-}: {
-  onClick: () => void;
-  disabled?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="flex-1 rounded-full border border-line-soft bg-card px-3 py-1.5 text-[12px] font-medium text-t5 transition-colors hover:border-[#B9B9B4] hover:text-ink disabled:opacity-60"
-    >
-      {children}
-    </button>
   );
 }

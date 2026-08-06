@@ -490,6 +490,25 @@
     box-shadow: var(--shadow-nav);
     backdrop-filter: blur(20px) saturate(1.2);
   }
+
+  .production-room {
+    opacity: 0;
+    pointer-events: none;
+    transform: translate3d(calc(100% + 16px), 0, 0);
+    transition:
+      transform var(--t-normal) var(--ease-decode),
+      opacity var(--t-normal) var(--ease-decode);
+  }
+
+  .production-room[data-open="true"] {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate3d(0, 0, 0);
+  }
+
+  .project-room-stage {
+    transform-origin: left center;
+  }
 }
 
 /* ============================================================
@@ -537,6 +556,14 @@
     transform: none !important;
     translate: none !important;
     scale: none !important;
+  }
+
+  .production-room {
+    transform: none !important;
+  }
+
+  .project-room-stage {
+    transform: none !important;
   }
 
 }

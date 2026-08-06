@@ -20,10 +20,6 @@ import { useStudio } from "@/store/studio";
  * It seeks and it selects.
  */
 
-/** Waveform: how much of the audio has been played. */
-const PLAYED = "#3A3A38";
-const UNPLAYED = "#DBDBD6";
-
 /** Ruler granularity, in seconds. */
 const TICK_STEP = 30;
 
@@ -136,8 +132,7 @@ export function Timeline() {
 
   return (
     <div
-      className="flex-none panel-glass-alt px-6 pt-3 pb-4"
-      style={{ borderTop: "1px solid rgba(255,255,255,0.8)" }}
+      className="studio-surface-muted flex-none rounded-[18px] px-4 pt-3 pb-4 shadow-sm sm:px-5"
     >
       {/* Transport */}
       <div className="mb-2.5 flex items-center gap-3.5">
@@ -145,7 +140,7 @@ export function Timeline() {
           type="button"
           onClick={() => setPlaying(!playing)}
           aria-label={playing ? "Pause" : "Play"}
-          className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-full border-none bg-ink text-white transition-colors duration-150 hover:bg-ink-2"
+          className="flex h-10 w-10 flex-none items-center justify-center rounded-full border-none bg-ink text-white transition-[background-color,transform] duration-[var(--t-fast)] ease-decode hover:-translate-y-px hover:bg-ink-2"
         >
           {playing ? (
             <Pause size={11} fill="currentColor" strokeWidth={0} aria-hidden />
@@ -164,11 +159,11 @@ export function Timeline() {
           {fmt(playhead)} <span className="text-t11">/ {fmt(dur)}</span>
         </div>
 
-        <div className="min-w-0 truncate border-l border-line-input pl-3.5 text-[11.5px] text-t8">
+        <div className="min-w-0 truncate border-l border-line-input pl-3.5 text-[11.5px] text-t6">
           Scene {num(sceneIdx)} · {cur?.title}
         </div>
 
-        <div className="ml-auto flex-none text-[11.5px] text-t10">
+        <div className="ml-auto hidden flex-none text-[11.5px] text-t6 xl:block">
           Drag to scrub · click a scene to select
         </div>
       </div>
@@ -224,7 +219,10 @@ export function Timeline() {
                 className="mx-[0.5px] flex-1 rounded-[1px]"
                 style={{
                   height: `${h.toFixed(2)}px`,
-                  background: i / WAVE_BARS.length <= frac ? PLAYED : UNPLAYED,
+                  background:
+                    i / WAVE_BARS.length <= frac
+                      ? "var(--color-wave-on)"
+                      : "var(--color-wave-off)",
                 }}
               />
             ))}
@@ -246,10 +244,10 @@ export function Timeline() {
                     "flex min-w-0 items-center overflow-hidden rounded-md border px-2 text-left",
                     "transition-colors duration-150",
                     active
-                      ? "border-accent bg-card"
+                      ? "border-[var(--accent-ring)] bg-[var(--accent-tint)]"
                       : "border-line bg-sunken-2 hover:bg-sunken-3",
                   )}
-                  style={{ width: pct(s.dur / dur), flex: "0 0 auto" }}
+                  style={{ flexGrow: s.dur, flexBasis: 0 }}
                 >
                   <span className="truncate whitespace-nowrap text-[10.5px] font-medium">
                     {num(i)} {s.title}

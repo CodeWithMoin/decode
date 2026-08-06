@@ -60,16 +60,15 @@ export function HowItWorks() {
           </p>
         </div>
 
-        <ol className="m-0 grid list-none gap-3 p-0">
-          {STEPS.map((step, index) => {
-            const Icon = step.icon;
-            return (
-              <li
-                key={step.n}
-                data-reveal
-                className="studio-shell group"
-              >
-                <div className="studio-surface grid grid-cols-[26px_minmax(0,1fr)_36px] items-center gap-x-3 gap-y-1 px-4 py-5 transition-[transform,box-shadow] duration-[var(--t-fast)] ease-decode group-hover:-translate-y-px group-hover:shadow-md sm:grid-cols-[32px_150px_minmax(0,1fr)_40px] sm:gap-x-4 sm:px-5">
+        <div data-reveal className="studio-shell">
+          <ol className="studio-surface m-0 list-none overflow-hidden p-0">
+            {STEPS.map((step, index) => {
+              const Icon = step.icon;
+              return (
+                <li
+                  key={step.n}
+                  className="group grid grid-cols-[26px_minmax(0,1fr)_36px] items-center gap-x-3 gap-y-1 border-b border-line-div px-4 py-6 last:border-b-0 transition-[background-color,transform] duration-[var(--t-fast)] ease-decode hover:bg-sunken sm:grid-cols-[32px_150px_minmax(0,1fr)_40px] sm:gap-x-4 sm:px-5"
+                >
                   <span className="font-mono text-[10.5px] text-t6 tabular-nums">
                     {step.n}
                   </span>
@@ -89,11 +88,11 @@ export function HowItWorks() {
                       <ArrowDown size={15} strokeWidth={1.6} aria-hidden />
                     )}
                   </span>
-                </div>
-              </li>
-            );
-          })}
-        </ol>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
       </div>
     </section>
   );

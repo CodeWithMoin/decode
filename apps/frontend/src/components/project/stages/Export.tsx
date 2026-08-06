@@ -98,7 +98,7 @@ export function Export() {
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="flex flex-col gap-4">
-          <section className="rounded-[18px] border border-line bg-card p-5 shadow-sm" aria-labelledby="output-format-title">
+          <section className="studio-surface p-5 shadow-sm" aria-labelledby="output-format-title">
             <div className="mb-5">
               <h2 id="output-format-title" className="font-display text-[16px] font-semibold text-ink">
                 Output format
@@ -130,7 +130,7 @@ export function Export() {
           <fieldset
             disabled={rendering}
             className={cx(
-              "rounded-[18px] border border-line bg-card px-5 shadow-sm transition-opacity",
+              "studio-surface px-5 shadow-sm transition-opacity",
               rendering && "opacity-55",
             )}
           >
@@ -150,8 +150,9 @@ export function Export() {
           </fieldset>
         </div>
 
-        <aside className="overflow-hidden rounded-[18px] border border-line bg-card shadow-md" aria-label="Export summary">
-          <div className="aspect-video bg-canvas p-4 text-white">
+        <aside className="studio-shell overflow-hidden" aria-label="Export summary">
+          <div className="studio-surface overflow-hidden">
+          <div className="scene-surface m-1 aspect-video rounded-[18px] p-4 text-white">
             <div className="flex h-full flex-col justify-between rounded-[11px] border border-white/10 bg-white/[0.025] p-3">
               <span className="font-mono text-[8.5px] tracking-[0.12em] text-canvas-meta uppercase">
                 Final output
@@ -209,8 +210,8 @@ export function Export() {
                 </div>
                 <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-sunken-3">
                   <div
-                    className="h-full rounded-full bg-accent transition-[width] duration-150 ease-decode"
-                    style={{ width: `${renderPct}%` }}
+                    className="h-full w-full origin-left rounded-full bg-accent transition-transform duration-[var(--t-fast)] ease-decode"
+                    style={{ transform: `scaleX(${renderPct / 100})` }}
                   />
                 </div>
               </div>
@@ -233,6 +234,7 @@ export function Export() {
                 </button>
               </div>
             )}
+          </div>
           </div>
         </aside>
       </div>
@@ -258,7 +260,12 @@ function ChoiceGroup<T extends string>({
       <legend className="mb-2.5 font-mono text-[9.5px] tracking-[0.11em] text-t7 uppercase">
         {label}
       </legend>
-      <div role="radiogroup" aria-label={label} className="grid grid-cols-3 gap-2">
+      <div
+        role="radiogroup"
+        aria-label={label}
+        className="grid gap-2"
+        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(118px, 1fr))" }}
+      >
         {options.map((option) => {
           const selected = option.value === value;
           return (
@@ -271,18 +278,18 @@ function ChoiceGroup<T extends string>({
               className={cx(
                 "relative min-w-0 rounded-[12px] border px-3 py-3 text-left transition-[background-color,border-color,box-shadow,transform] duration-[var(--t-fast)] active:translate-y-px",
                 selected
-                  ? "border-ink bg-ink text-white shadow-sm"
+                  ? "border-[var(--accent-ring)] bg-[var(--accent-tint)] text-ink shadow-sm"
                   : "border-line-input bg-sunken text-ink hover:border-line-strong hover:bg-card",
               )}
             >
               <span className="block text-[12.5px] font-semibold">{option.label}</span>
-              <span className={cx("mt-1 block truncate text-[9.5px]", selected ? "text-white/60" : "text-t7")}>
+              <span className="mt-1 block text-[9.5px] text-t6">
                 {option.detail}
               </span>
               <span
                 className={cx(
                   "absolute top-2.5 right-2.5 grid h-3.5 w-3.5 place-items-center rounded-full border transition-colors",
-                  selected ? "border-white/35 bg-white text-ink" : "border-line-strong bg-card",
+                  selected ? "border-[var(--accent-ring)] bg-accent text-white" : "border-line-strong bg-card",
                 )}
                 aria-hidden
               >

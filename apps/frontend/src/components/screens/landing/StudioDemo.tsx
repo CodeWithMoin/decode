@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Check, RotateCcw } from "lucide-react";
 import { SceneVisual } from "@/components/project/canvas/SceneVisual";
-import { StageKicker } from "@/components/ui/primitives";
+import { Accent, ButtonArrow, CrewGlyph, Ghost, Graphite, StageKicker } from "@/components/ui/primitives";
 import { CREW } from "@/lib/crew";
 import { SEED_SCENES } from "@/lib/api";
 import type { CrewId } from "@/lib/types";
@@ -153,32 +153,33 @@ export function StudioDemo() {
 
             <div className="mt-4 flex flex-wrap items-center gap-3">
               {state === "original" && (
-                <button
+                <Graphite
                   type="button"
                   onClick={edit}
-                  className="glass-graphite min-h-11 px-5 py-2.5 text-[13.5px] font-medium"
+                  className="min-h-11 px-5 py-2.5 text-[13.5px] font-medium"
                 >
                   Edit scene 05
-                </button>
+                </Graphite>
               )}
               {state === "edited" && (
-                <button
+                <Accent
                   type="button"
                   onClick={update}
-                  className="glass-accent min-h-11 px-5 py-2.5 text-[13.5px] font-medium"
+                  className="group inline-flex min-h-11 items-center gap-3 py-1.5 pr-1.5 pl-5 text-[13.5px] font-medium"
                 >
                   Update downstream work
-                </button>
+                  <ButtonArrow className="h-8 w-8" />
+                </Accent>
               )}
               {state === "updated" && (
-                <button
+                <Ghost
                   type="button"
                   onClick={reset}
-                  className="flex min-h-11 items-center gap-2 rounded-[12px] border border-line-input bg-sunken px-4 py-2.5 text-[13px] font-medium transition-[background-color,scale] duration-[160ms] ease-decode hover:bg-card active:scale-[0.97]"
+                  className="flex min-h-11 items-center gap-2 px-4 py-2.5 text-[13px]"
                 >
                   <RotateCcw size={14} strokeWidth={1.7} aria-hidden />
                   Replay the edit
-                </button>
+                </Ghost>
               )}
               <span className="text-[12.5px] text-t6">
                 {state === "original"
@@ -208,6 +209,7 @@ export function StudioDemo() {
                 const editedByYou = state !== "original" && index === 2;
                 const downstream = state !== "original" && index > 2;
                 const finished = state === "updated" && downstream;
+                const queued = state === "edited" && downstream;
                 const label =
                   state === "original"
                     ? "Current"
@@ -220,29 +222,64 @@ export function StudioDemo() {
                           : "Queued";
 
                 return (
-                  <li key={id} className="relative flex min-h-[58px] items-center gap-3">
+                  <li key={id} className="relative flex min-h-[68px] items-start gap-3">
                     {index < CREW_ORDER.length - 1 && (
                       <span
                         aria-hidden
-                        className="absolute left-[17px] top-[39px] h-[38px] w-px"
-                        style={{ background: downstream ? "var(--accent-line)" : "var(--color-line-input)" }}
+                        className="absolute top-[44px] left-[21px] h-[28px] w-px"
+                        style={{
+                          background:
+                            state === "edited" && index >= 2
+                              ? "var(--color-stale-line)"
+                              : state === "updated" && index >= 2
+                                ? "var(--accent-line)"
+                                : "var(--color-line-input)",
+                        }}
                       />
                     )}
                     <span
-                      className="relative z-10 grid h-[34px] w-[34px] flex-none place-items-center rounded-[10px] font-display text-[11px] font-semibold text-white"
-                      style={{ background: member.color, opacity: untouched ? 0.42 : 1 }}
+                      className="relative z-[1] grid h-11 w-11 flex-none place-items-center rounded-full border p-[3px] shadow-xs transition-[opacity,transform] duration-[var(--t-fast)] ease-decode"
+                      style={{
+                        background: `color-mix(in srgb, ${member.color} 14%, var(--color-card))`,
+                        borderColor: `color-mix(in srgb, ${member.color} 28%, var(--color-line-input))`,
+                        opacity: queued ? 0.5 : 1,
+                      }}
                     >
-                      {member.initial}
+                      <span
+                        className="grid h-full w-full place-items-center rounded-full text-white"
+                        style={{
+                          background: member.color,
+                          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28)",
+                        }}
+                      >
+                        <CrewGlyph crew={id} size={21} />
+                      </span>
+                      {(finished || editedByYou) && (
+                        <span
+                          aria-hidden
+                          className="absolute -right-0.5 -bottom-0.5 grid h-4 w-4 place-items-center rounded-full border-2 border-sunken text-[8px] text-white"
+                          style={{ background: finished ? "var(--accent)" : "var(--color-stale)" }}
+                        >
+                          {finished ? <Check size={9} strokeWidth={2.4} /> : "•"}
+                        </span>
+                      )}
                     </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[12.5px] font-semibold">{member.name}</span>
-                      <span className="block truncate text-[11px] text-t5">{member.artifact}</span>
+                    <span className="min-w-0 flex-1 pt-1">
+                      <span className="block text-[12.5px] font-semibold text-ink-2">{member.name}</span>
+                      <span className="mt-0.5 block truncate text-[11px] text-t6">{member.artifact}</span>
                     </span>
                     <span
-                      className="flex min-w-[76px] items-center justify-end gap-1.5 font-mono text-[8.5px] tracking-[0.08em] uppercase"
-                      style={{ color: finished || editedByYou ? "var(--color-accent-deep)" : "var(--color-t8)" }}
+                      className="flex-none pt-2 font-mono text-[8px] tracking-[0.06em] uppercase"
+                      style={{
+                        color: finished
+                          ? "var(--color-accent-deep)"
+                          : editedByYou || queued
+                            ? "var(--color-stale-fg)"
+                            : untouched
+                              ? "var(--color-t6)"
+                              : "var(--color-t8)",
+                      }}
                     >
-                      {finished && <Check size={11} strokeWidth={2} aria-hidden />}
                       {label}
                     </span>
                   </li>

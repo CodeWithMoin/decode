@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, ChevronDown, FileText, Plus, Type, X } from "lucide-react";
+import { ChevronDown, FileText, Plus, Type, X } from "lucide-react";
 import {
   AUDIENCE_HINTS,
   AUDIENCE_LEVELS,
@@ -13,7 +13,7 @@ import {
   TONE_OPTIONS,
 } from "@/lib/api";
 import { useStudio } from "@/store/studio";
-import { Select, cx } from "@/components/ui/primitives";
+import { ButtonArrow, Select, cx } from "@/components/ui/primitives";
 import { AppShell } from "@/components/app/AppShell";
 import { decodeApi, idempotencyKey } from "@/lib/decode-api";
 import { creatorError } from "@/lib/creator-errors";
@@ -544,18 +544,12 @@ export function NewDecode({ connected = false }: { connected?: boolean }) {
                 }}
                 disabled={!ready || submitting}
                 className={cx(
-                  "flex flex-none items-center gap-2 py-1.5 pr-1.5 pl-4 text-[13px] font-medium",
+                  "group flex flex-none items-center gap-2 py-1.5 pr-1.5 pl-4 text-[13px] font-medium",
                   ready && !submitting ? "glass-accent" : "glass-off",
                 )}
               >
                 {submitting ? submitStatus || "Creating project…" : "Create project"}
-                <span
-                  aria-hidden
-                  className="grid h-[22px] w-[22px] place-items-center rounded-full"
-                  style={{ background: "rgba(255,255,255,0.18)" }}
-                >
-                  <ArrowRight size={12} strokeWidth={2.2} />
-                </span>
+                <ButtonArrow className="h-[22px] w-[22px]" />
               </button>
             </div>
             {submitError && (

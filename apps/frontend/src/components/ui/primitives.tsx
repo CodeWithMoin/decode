@@ -35,6 +35,21 @@ export function Accent({ className, children, ...rest }: BtnProps) {
   );
 }
 
+/** Trailing action island shared by marketing and studio primary controls. */
+export function ButtonArrow({ className }: { className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={cx(
+        "icon-island h-8 w-8 transition-transform duration-[var(--t-fast)] ease-decode group-hover:translate-x-0.5 group-hover:-translate-y-px",
+        className,
+      )}
+    >
+      <ArrowUpRight size={15} strokeWidth={1.8} />
+    </span>
+  );
+}
+
 /**
  * The marketing primary: a graphite slab carrying an accent chip.
  * Squarer than the app's pills — this one is meant to be the heaviest
@@ -146,6 +161,70 @@ export function AppMark({
 }
 
 /** A specialist's coloured initial. */
+export function CrewGlyph({ crew, size = 18 }: { crew: CrewId; size?: number }) {
+  const shared = {
+    viewBox: "0 0 24 24",
+    width: size,
+    height: size,
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.35,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+  };
+
+  if (crew === "producer") {
+    return (
+      <svg {...shared}>
+        <circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none" />
+        <circle cx="12" cy="12" r="7.2" opacity="0.5" />
+        <path d="M12 4.8V2.8M19.2 12h2M12 19.2v2M4.8 12h-2" />
+        <path d="M7.1 7.1 5.7 5.7M16.9 7.1l1.4-1.4M16.9 16.9l1.4 1.4M7.1 16.9l-1.4 1.4" opacity="0.72" />
+      </svg>
+    );
+  }
+
+  if (crew === "director") {
+    return (
+      <svg {...shared}>
+        <path d="M4 9V5h4M16 5h4v4M20 15v4h-4M8 19H4v-4" />
+        <circle cx="12" cy="12" r="3.1" />
+        <circle cx="12" cy="12" r="0.9" fill="currentColor" stroke="none" />
+      </svg>
+    );
+  }
+
+  if (crew === "writer") {
+    return (
+      <svg {...shared}>
+        <path d="m6 17 1.1-4.2L16.8 3l4.2 4.2-9.8 9.7L7 18Z" />
+        <path d="m14.8 5 4.2 4.2M7.2 12.8l4 4M5 21h14" opacity="0.72" />
+      </svg>
+    );
+  }
+
+  if (crew === "motion") {
+    return (
+      <svg {...shared}>
+        <path d="M4 17c2.8-8.5 7.2 1 10-7 1.1-3.1 3.2-4.2 6-3" />
+        <rect x="2.8" y="15.8" width="2.4" height="2.4" rx="0.5" fill="currentColor" stroke="none" />
+        <rect x="9.8" y="10.8" width="2.4" height="2.4" rx="0.5" fill="currentColor" stroke="none" />
+        <rect x="18.8" y="5.8" width="2.4" height="2.4" rx="0.5" fill="currentColor" stroke="none" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg {...shared}>
+      <path d="M4 6.5h16M4 12h16M4 17.5h16" opacity="0.52" />
+      <path d="M9 4v16M15.5 9.5v5" />
+      <path d="m13.8 11.2 1.7-1.7 1.7 1.7M13.8 12.8l1.7 1.7 1.7-1.7" />
+    </svg>
+  );
+}
+
+/** A specialist's coloured role mark. */
 export function CrewMark({
   crew,
   size = 28,
@@ -187,7 +266,7 @@ export function CrewMark({
       }}
       aria-hidden
     >
-      {approved ? "✓" : c.initial}
+      {approved ? "✓" : <CrewGlyph crew={crew} size={Math.round(size * 0.64)} />}
     </div>
   );
 }

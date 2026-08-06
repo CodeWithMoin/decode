@@ -49,12 +49,7 @@ export function SourceToScene() {
         }}
       />
 
-      {/* Subgrid, so the two kickers share one row and the two cards share the
-          next. With plain `items-center` each figure centred independently:
-          the labels landed 19px apart and the cards ended 37px apart at the
-          bottom — near-alignment, which reads as a mistake rather than a
-          choice. */}
-      <div className="relative grid grid-cols-1 gap-6 px-5 py-6 sm:px-8 sm:py-9 lg:grid-cols-[minmax(0,0.86fr)_60px_minmax(0,1.14fr)] lg:grid-rows-[auto_minmax(0,1fr)] lg:gap-0">
+      <div className="relative grid grid-cols-1 items-center gap-6 px-5 py-6 sm:px-8 sm:py-9 lg:grid-cols-[minmax(0,0.86fr)_60px_minmax(0,1.14fr)] lg:gap-0">
         <SourcePage />
         <Connector />
         <SceneOutput scene={scene} />
@@ -67,26 +62,11 @@ export function SourceToScene() {
 
 function SourcePage() {
   return (
-    <figure className="m-0 lg:row-span-2 lg:grid lg:grid-rows-subgrid">
-      <Label>Your source</Label>
-      <div className="flex flex-col rounded-[18px] border border-white/10 bg-white/[0.055] p-5 sm:p-6">
-        <div className="flex items-center gap-3 border-b border-white/[0.07] pb-4">
-          <span className="grid h-9 w-9 flex-none place-items-center rounded-[9px] bg-white text-[10px] font-bold text-ink">
-            PDF
-          </span>
-          <span className="min-w-0">
-            <span className="block truncate text-[13px] font-semibold text-canvas-cap">
-              attention-is-all-you-need.pdf
-            </span>
-            <span className="mt-0.5 block font-mono text-[9px] tracking-[0.1em] text-canvas-meta uppercase">
-              11 pages · 5,214 words
-            </span>
-          </span>
-        </div>
-
+    <figure className="m-0">
+      <div className="flex min-h-[300px] flex-col justify-center rounded-[18px] border border-white/10 bg-white/[0.055] p-5 sm:p-6">
         {/* A page, greeked. The highlighted block is centred on purpose — it
             has to line up with the connector, which sits at the row's middle. */}
-        <div className="pt-5">
+        <div>
           <Rules widths={[52, 96, 88]} />
 
           <div
@@ -94,18 +74,10 @@ function SourcePage() {
             className="relative my-4 origin-left rounded-[8px] border border-[var(--accent-line)] bg-[var(--accent-wash)] py-3 pr-3 pl-4"
           >
             <span className="absolute inset-y-2 left-0 w-[2px] rounded-full bg-accent-lit" />
-            <div className="mb-2 font-mono text-[8.5px] tracking-[0.14em] text-accent-lit uppercase">
-              § 3.2.2
-            </div>
             <Rules widths={[94, 100, 71]} lit />
           </div>
 
           <Rules widths={[91, 84, 97, 63]} />
-        </div>
-
-        <div className="mt-auto flex items-center justify-between border-t border-white/[0.07] pt-4 font-mono text-[9px] tracking-[0.1em] text-canvas-meta uppercase">
-          <span>Page 4 of 11</span>
-          <span>Multi-head attention</span>
         </div>
       </div>
     </figure>
@@ -172,8 +144,7 @@ function Connector() {
 
 function SceneOutput({ scene }: { scene: ReturnType<typeof SEED_SCENES>[number] }) {
   return (
-    <figure className="m-0 min-w-0 lg:row-span-2 lg:grid lg:grid-rows-subgrid">
-      <Label>What Decode made from it</Label>
+    <figure className="m-0 min-w-0">
       <div className="flex flex-col overflow-hidden rounded-[18px] border border-white/10 bg-white/[0.035]">
         {/* Stacked on small screens: side by side, the provenance chip starved
             the title into "Multi-Head A…" — and the title is the payoff. */}
@@ -202,15 +173,5 @@ function SceneOutput({ scene }: { scene: ReturnType<typeof SEED_SCENES>[number] 
         </figcaption>
       </div>
     </figure>
-  );
-}
-
-/* ----------------------------------------------------------------- shared -- */
-
-function Label({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="mb-2.5 font-mono text-[9px] tracking-[0.15em] text-canvas-meta uppercase">
-      {children}
-    </div>
   );
 }

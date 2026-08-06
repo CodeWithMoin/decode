@@ -26,7 +26,7 @@ import type { TabId } from "@/lib/types";
  * typing a sentence to reach a button that exists is slower, not faster.
  * "This feels rushed" is a *conversation* — you don't know the fix yet.
  *
- * So they split. ⌘K does, ⌘J discusses. A palette is precise, fast and
+ * So they split. ⌘K does, ⌘J chats. A palette is precise, fast and
  * transient: it covers the canvas for two seconds and then it is gone, which
  * is why it works on Edit where a permanent bar did not.
  *
@@ -93,6 +93,7 @@ export function CommandPalette() {
   const [armed, setArmed] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
   const timers = useRef<number[]>([]);
 
   useEffect(
@@ -106,12 +107,16 @@ export function CommandPalette() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        setOpen((v) => !v);
+        setOpen((v) => {
+          if (!v) returnFocusRef.current = document.activeElement as HTMLElement | null;
+          return !v;
+        });
         setQ("");
         setCursor(0);
       }
     };
     const onOpen = () => {
+      returnFocusRef.current = document.activeElement as HTMLElement | null;
       setOpen(true);
       setQ("");
       setCursor(0);
@@ -126,7 +131,14 @@ export function CommandPalette() {
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
+    else returnFocusRef.current?.focus();
   }, [open]);
+
+  useEffect(() => {
+    listRef.current
+      ?.querySelector<HTMLElement>(`[data-command-index="${cursor}"]`)
+      ?.scrollIntoView({ block: "nearest" });
+  }, [cursor]);
 
   const scene = sc[sceneIdx];
   const at = `Scene ${num(sceneIdx)}`;
@@ -328,7 +340,7 @@ export function CommandPalette() {
 
     list.push({
       id: "ask",
-      label: "Open the production room",
+      label: "Open Project Chat",
       hint: "⌘J",
       group: "Go to",
       icon: MessageSquare,
@@ -357,7 +369,7 @@ export function CommandPalette() {
     // first because they are exact; the sentence is the fallback.
     const askIt: Cmd = {
       id: "ask-free",
-      label: `Send to production room — “${raw}”`,
+      label: `Send to Project Chat — “${raw}”`,
       hint: "⌘J",
       group: matched.length ? "Or just say it" : "Say it",
       icon: MessageSquare,
@@ -409,16 +421,21 @@ export function CommandPalette() {
   return (
     <div className="fixed inset-0 z-[90] flex items-start justify-center px-4 pt-[14vh]">
       <div
-        className="absolute inset-0 bg-ink/20"
+        className="absolute inset-0 bg-ink/20 backdrop-blur-sm"
         onClick={() => setOpen(false)}
         aria-hidden
       />
 
       <div
         role="dialog"
+        aria-modal="true"
         aria-label="Commands"
-        className="relative w-full max-w-[560px] overflow-hidden rounded-[16px] border border-line bg-[#FCFCFB] shadow-[0_28px_70px_rgb(30_30_28_/_0.22)]"
+        onKeyDown={(event) => {
+          if (event.key === "Escape") setOpen(false);
+        }}
+        className="studio-shell relative w-full max-w-[560px] p-[3px] shadow-[var(--shadow-float)]"
       >
+        <div className="studio-surface overflow-hidden">
         <div className="flex items-center gap-2.5 border-b border-line-head px-4 py-3">
           <span className="font-mono text-[10px] tracking-[0.1em] text-t9">
             ⌘K
@@ -473,6 +490,7 @@ export function CommandPalette() {
                 )}
                 <button
                   type="button"
+                  data-command-index={i}
                   onMouseEnter={() => {
                     setCursor(i);
                     if (armed && armed !== c.id) setArmed(null);
@@ -504,7 +522,8 @@ export function CommandPalette() {
           <span>↑↓ move</span>
           <span>↵ run</span>
           <span>esc close</span>
-          <span className="ml-auto">⌘J to talk instead</span>
+          <span className="ml-auto">⌘J to chat</span>
+        </div>
         </div>
       </div>
     </div>

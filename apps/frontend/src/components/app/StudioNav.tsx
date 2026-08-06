@@ -57,7 +57,7 @@ export function StudioNav({ active = "none", connected = false }: { active?: Stu
         <span className="order-first">New decode</span>
       </button>
 
-      <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
+      <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
         {ITEMS.map(({ id, label, icon: Icon, target }) => {
           const on = id === active;
           return (

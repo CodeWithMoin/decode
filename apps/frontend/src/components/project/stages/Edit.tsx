@@ -31,11 +31,11 @@ export function Edit() {
   const threadOpen = useStudio((s) => s.threadOpen);
 
   return (
-    <div className="flex min-h-0 lg:h-[calc(100dvh-var(--header-h))]">
+    <div className="flex min-h-0 flex-col lg:h-full lg:flex-row">
       {/* Canvas above, transport below — the timeline is a flex sibling of the
           canvas, never an overlay, so tall canvas content can never cover the
           scrub track. */}
-      <div className="flex min-w-0 flex-1 flex-col gap-3 p-3 sm:gap-4 sm:p-4">
+      <div className="flex min-h-[620px] min-w-0 flex-none flex-col gap-3 p-3 sm:gap-4 sm:p-4 lg:min-h-0 lg:flex-1">
         <div className="min-h-[280px] flex-1">
           <Canvas />
         </div>
@@ -44,7 +44,7 @@ export function Edit() {
         </div>
       </div>
 
-      {!threadOpen && <Inspector />}
+      <Inspector inactive={threadOpen} />
     </div>
   );
 }

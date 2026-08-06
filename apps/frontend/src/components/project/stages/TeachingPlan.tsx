@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useMemo, type DragEvent, type KeyboardEvent } from "react";
+import { motion } from "motion/react";
 import { HandoffBar, HandoffBrief } from "@/components/crew/HandoffCard";
 import { StageKicker, Stepper, cx } from "@/components/ui/primitives";
 import { acts, fmt, num, pace, starts, total } from "@/lib/derive";
@@ -87,7 +88,7 @@ export function TeachingPlan() {
       {/* =========================== runtime arc =========================== */}
       <section
         aria-label="Runtime arc"
-        className="mb-6 rounded-2xl border border-line-input bg-card p-4"
+        className="studio-surface mb-6 p-4 shadow-sm"
       >
         <div className="mb-3 flex items-baseline justify-between gap-3">
           <div className="font-mono text-[10px] tracking-[0.1em] text-t7 uppercase">
@@ -110,7 +111,8 @@ export function TeachingPlan() {
               aria-current={i === sceneIdx ? "true" : undefined}
               className="h-[10px] min-w-[6px] rounded-full border-none transition-colors duration-[var(--t-fast)]"
               style={{
-                flex: `0 0 calc(${((s.dur / (runtime || 1)) * 100).toFixed(3)}% - 3px)`,
+                flexGrow: s.dur,
+                flexBasis: 0,
                 background:
                   i === sceneIdx ? "var(--accent)" : "var(--color-line-soft)",
               }}
@@ -124,7 +126,10 @@ export function TeachingPlan() {
             <div
               key={a.label}
               className="min-w-0 border-t border-line-input pt-2"
-              style={{ flex: `0 0 calc(${a.widthPct} - 12px)` }}
+              style={{
+                flexGrow: a.beats.reduce((sum, i) => sum + sc[i].dur, 0),
+                flexBasis: 0,
+              }}
             >
               <div className="font-mono text-[9.5px] tracking-[0.12em] text-t8 uppercase">
                 {a.label}
@@ -152,7 +157,7 @@ export function TeachingPlan() {
           {/* The spine. */}
           <div className="relative flex flex-col gap-2.5">
             <div
-              className="absolute top-2 bottom-2 left-[7px] w-[1.5px] bg-[#E3E3DF]"
+              className="absolute top-2 bottom-2 left-[7px] w-[1.5px] bg-line-input"
               aria-hidden
             />
 
@@ -194,7 +199,7 @@ export function TeachingPlan() {
         crew="director"
         status={`${sc.length} beats · ${fmt(runtime)}`}
         approved={approvals.plan}
-        handoff="Production plan handed to the Writer."
+        handoff="Teaching Plan handed to the Writer."
         approveLabel="Approve the plan"
         onApprove={() =>
           approve(
@@ -285,23 +290,38 @@ function Beat({
       }}
       onClick={onSelect}
       className={cx(
-        "relative rounded-[18px] border bg-card pt-3 pl-[26px]",
+        "relative rounded-[18px] border pt-3 pl-[26px]",
         "transition-[border-color,box-shadow,opacity] duration-[var(--t-fast)]",
-        active ? "border-[color:var(--accent-ring)] shadow-sm" : "border-line-input",
+        active
+          ? "border-transparent"
+          : "border-line-input bg-card",
         ghost && "opacity-40",
       )}
     >
+      {active && (
+        <motion.span
+          layoutId="teaching-plan-selection"
+          className="pointer-events-none absolute inset-0 rounded-[18px] border border-[var(--accent-ring)] bg-[var(--accent-tint)] shadow-sm"
+          transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+          aria-hidden
+        />
+      )}
       {/* Spine marker. */}
       <span
         aria-hidden
-        className="absolute top-[21px] left-[-5.5px] h-[11px] w-[11px] rounded-full border-[1.5px] bg-card"
-        style={{
-          borderColor: active ? "var(--accent)" : "var(--color-line-mid)",
-        }}
+        className="absolute top-[21px] left-[-5.5px] h-[11px] w-[11px] rounded-full border-[1.5px] border-line-mid bg-card"
       />
+      {active && (
+        <motion.span
+          layoutId="teaching-plan-marker"
+          aria-hidden
+          className="absolute top-[21px] left-[-5.5px] h-[11px] w-[11px] rounded-full border-[1.5px] border-accent bg-accent"
+          transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+        />
+      )}
 
-      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pr-3">
-        <span className="font-mono text-[10.5px] tracking-[0.1em] text-accent uppercase">
+      <div className="relative z-[1] flex flex-wrap items-center gap-x-2.5 gap-y-1 pr-3">
+        <span className={cx("font-mono text-[10.5px] tracking-[0.1em] uppercase", active ? "text-accent-deep" : "text-t7")}>
           Beat {num(index)}
         </span>
         <span className="min-w-0 flex-1 font-display text-[17px] font-semibold">
@@ -328,11 +348,11 @@ function Beat({
         </button>
       </div>
 
-      <p className="m-0 mt-1.5 pr-3 text-[13px] leading-[1.55] text-t5 pretty">
+      <p className="pretty relative z-[1] m-0 mt-1.5 pr-3 text-[13px] leading-[1.55] text-t5">
         <span className="text-t8">Viewer learns —</span> {scene.objective}
       </p>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line-div px-0 py-2.5 pr-3">
+      <div className="relative z-[1] mt-3 flex flex-wrap items-center gap-2 border-t border-line-div px-0 py-2.5 pr-3">
         <span className="min-w-0 flex-1 truncate text-[12.5px] text-t6">
           {scene.caption}
         </span>

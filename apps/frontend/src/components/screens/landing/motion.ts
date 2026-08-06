@@ -73,29 +73,30 @@ export function useLandingMotion(scope: RefObject<HTMLDivElement | null>) {
             .from(q("[data-hero-word]"), {
               ease: EASE,
               autoAlpha: 0,
-              y: 18,
+              y: 32,
+              scale: 0.975,
               duration: 0.4,
               stagger: 0.07,
             })
             .from(q("[data-hero-sub]"), {
               ease: EASE,
               autoAlpha: 0,
-              y: 12,
+              y: 22,
               duration: 0.4,
             }, "-=0.22")
             .from(
               q("[data-hero-act]"),
-              { autoAlpha: 0, y: 10, duration: 0.4, stagger: 0.07, ease: EASE },
+              { autoAlpha: 0, y: 20, scale: 0.98, duration: 0.4, stagger: 0.07, ease: EASE },
               "-=0.25",
             )
             .from(
               q("[data-stage]"),
-              { autoAlpha: 0, y: 22, duration: 0.4, ease: EASE },
+              { autoAlpha: 0, y: 42, scale: 0.985, duration: 0.4, ease: EASE },
               "-=0.24",
             )
             .from(
               q("[data-hero-strip] > *"),
-              { autoAlpha: 0, y: 6, duration: 0.4, stagger: 0.07, ease: EASE },
+              { autoAlpha: 0, y: 16, duration: 0.4, stagger: 0.07, ease: EASE },
               "-=0.22",
             )
             // The diptych's argument, made once and then left alone: the
@@ -138,10 +139,10 @@ export function useLandingMotion(scope: RefObject<HTMLDivElement | null>) {
           });
 
           const activateScene = (index: number) => {
-            gsap.to(rulerItems, { opacity: 0.4, duration: 0.15, ease: EASE });
+            gsap.to(rulerItems, { opacity: 1, x: 0, duration: 0.15, ease: EASE });
             gsap.to(
               rulerItems.filter((item) => Number(item.dataset.rulerIndex) === index),
-              { opacity: 1, duration: 0.15, ease: EASE },
+              { x: 2, duration: 0.15, ease: EASE },
             );
           };
 
@@ -163,7 +164,8 @@ export function useLandingMotion(scope: RefObject<HTMLDivElement | null>) {
             once: true,
             onEnter: (els) =>
               gsap.from(els, {
-                y: 22,
+                y: 38,
+                scale: 0.985,
                 autoAlpha: 0,
                 duration: 0.4,
                 stagger: 0.07,

@@ -4,7 +4,6 @@ import { CONCEPTS, PROJECT_DESCRIPTION } from "@/lib/api";
 import { fmt, num } from "@/lib/derive";
 import { useStudio } from "@/store/studio";
 import { HandoffBrief, HandoffBar } from "@/components/crew/HandoffCard";
-import { SceneVisual } from "@/components/project/canvas/SceneVisual";
 import { Micro, StageKicker, cx } from "@/components/ui/primitives";
 
 const CONCEPTS_FOUND = 37;
@@ -49,25 +48,19 @@ export function Understanding() {
   return (
     <div className="mx-auto flex min-h-full w-full max-w-[1200px] flex-col gap-6 p-6 pb-[var(--handoff-h)] lg:p-8 lg:pb-[var(--handoff-h)]">
       {/* ============================ header ============================ */}
-      <div className="grid grid-cols-[1fr_auto] items-start gap-6">
-        <div className="min-w-0">
-          <StageKicker>understanding</StageKicker>
-          <h1 className="mt-1 truncate font-display text-[26px] font-semibold">
-            {source.title}
-          </h1>
-          <p className="mt-2 max-w-[54ch] text-[14px] leading-[1.6] text-t6 pretty">
-            {PROJECT_DESCRIPTION}
-          </p>
-        </div>
-
-        <div className="relative hidden h-[180px] w-[260px] flex-none overflow-hidden rounded-2xl bg-canvas sm:block">
-          <span className="absolute left-3 top-3 z-[1] font-mono text-[9px] tracking-[0.14em] text-canvas-meta uppercase">
-            First frame
-          </span>
-          <div className="flex h-full w-full items-center justify-center p-5">
-            {sc[0] && <SceneVisual scene={sc[0]} p={0} />}
-          </div>
-        </div>
+      {/* No "First frame" panel. Nothing has been designed yet at Understanding
+          — the Motion Designer has not run, so a frame here showed a visual the
+          production had not made. It also rendered scene 1 at p=0, which is a
+          near-empty canvas: the heaviest element on the screen carrying the
+          least information. The read comes first; frames arrive in Edit. */}
+      <div className="min-w-0">
+        <StageKicker>understanding</StageKicker>
+        <h1 className="mt-1 text-balance font-display text-[26px] font-semibold">
+          {source.title}
+        </h1>
+        <p className="mt-2 max-w-[54ch] text-[14px] leading-[1.6] text-t6 pretty">
+          {PROJECT_DESCRIPTION}
+        </p>
       </div>
 
       {/* ============================ stat row =========================== */}
@@ -94,7 +87,7 @@ export function Understanding() {
         why={`The rest are supporting detail this audience won't need spelled out. Keeping the beat count tight keeps the ${runtime} target honest.`}
       />
 
-      <section className="rounded-2xl border border-line bg-card p-5">
+      <section className="studio-surface p-5 shadow-sm">
         <div className="mb-3 flex items-baseline justify-between gap-3">
           <h2 className="font-display text-[15px] font-semibold">
             Concepts extracted
@@ -107,7 +100,7 @@ export function Understanding() {
           {CONCEPTS.map((concept) => (
             <span
               key={concept}
-              className="whitespace-nowrap rounded-full border border-line-input bg-sunken px-3 py-1.5 text-[12.5px] text-ink-2 transition-colors duration-[var(--t-fast)] hover:border-accent"
+              className="whitespace-nowrap rounded-full border border-line-input bg-sunken px-3 py-1.5 text-[12.5px] text-ink-2"
             >
               {concept}
             </span>
@@ -116,40 +109,30 @@ export function Understanding() {
       </section>
 
       {/* ============================ scene list =========================== */}
-      <section className="overflow-hidden rounded-2xl border border-line bg-card">
+      <section className="studio-surface overflow-hidden shadow-sm">
         {sc.map((scene, i) => (
           <button
             key={scene.id}
             type="button"
             onClick={() => select(i)}
+            aria-current={i === sceneIdx ? "true" : undefined}
             className={cx(
-              "flex w-full items-center gap-3 border-0 bg-transparent px-4 py-3 text-left transition-colors duration-[var(--t-fast)] hover:bg-sunken",
+              "grid w-full grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 border-0 px-4 py-3 text-left transition-colors duration-[var(--t-fast)]",
               i !== sc.length - 1 && "border-b border-line-div",
+              i === sceneIdx ? "bg-[var(--accent-tint)]" : "bg-transparent hover:bg-sunken",
             )}
           >
-            <span className="w-5 flex-none font-mono text-[11px] text-t8 tabular-nums">
+            <span className={cx("row-span-2 font-mono text-[11px] tabular-nums", i === sceneIdx ? "text-accent-deep" : "text-t7")}>
               {num(i)}
             </span>
-            <span
-              className="h-[7px] w-[7px] flex-none rounded-full"
-              style={{
-                background:
-                  i === sceneIdx ? "var(--accent)" : "var(--color-line-mid)",
-              }}
-              aria-hidden
-            />
-            <span className="w-[210px] flex-none truncate text-[13.5px] font-medium">
+            <span className="min-w-0 truncate text-[13.5px] font-medium">
               {scene.title}
             </span>
-            <span className="min-w-0 flex-1 truncate text-[13px] text-t6">
-              {scene.caption}
-            </span>
-            <span className="flex-none font-mono text-[11px] text-t7">
-              {scene.anim}
-            </span>
-            <span className="flex-none font-mono text-[11px] text-t8 tabular-nums">
+            <span className="font-mono text-[11px] text-t6 tabular-nums">
               {fmt(scene.dur)}
             </span>
+            <span className="min-w-0 truncate text-[12.5px] text-t6">{scene.caption}</span>
+            <span className="hidden font-mono text-[10px] text-t7 sm:block">{scene.anim}</span>
           </button>
         ))}
       </section>
@@ -187,7 +170,7 @@ function Stat({
   valueStyle?: React.CSSProperties;
 }) {
   return (
-    <div className="flex min-h-[96px] flex-col rounded-2xl border border-line-input bg-card p-4">
+    <div className="studio-surface-muted flex min-h-[96px] flex-col p-4">
       <Micro>{label}</Micro>
       <div
         className={cx(
@@ -198,7 +181,7 @@ function Stat({
       >
         {value}
       </div>
-      <div className="mt-auto pt-2 text-[12px] text-t7">{sub}</div>
+      <div className="mt-auto pt-2 text-[12px] text-t6">{sub}</div>
     </div>
   );
 }

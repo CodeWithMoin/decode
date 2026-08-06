@@ -1,6 +1,5 @@
 "use client";
 
-import { Pause, Play } from "lucide-react";
 import { SceneVisual } from "@/components/project/canvas/SceneVisual";
 import { Spinner } from "@/components/ui/primitives";
 import { clamp01, fmt, num, starts, total } from "@/lib/derive";
@@ -26,11 +25,8 @@ export function Canvas() {
   const sc = useStudio((s) => s.sc);
   const sceneIdx = useStudio((s) => s.sceneIdx);
   const playhead = useStudio((s) => s.playhead);
-  const playing = useStudio((s) => s.playing);
   const regen = useStudio((s) => s.regen);
   const visualPick = useStudio((s) => s.visualPick);
-  const setPlaying = useStudio((s) => s.setPlaying);
-  const seek = useStudio((s) => s.seek);
 
   const runtime = total(sc);
   const i = Math.min(Math.max(sceneIdx, 0), sc.length - 1);
@@ -41,16 +37,9 @@ export function Canvas() {
   /** Progress through *this* scene — the same 0…1 the visuals are drawn from. */
   const p = clamp01((playhead - start) / Math.max(1, scene.dur));
 
-  const toggle = () => {
-    // Pressing play on a finished timeline restarts it rather than sitting
-    // still — the transport should never be a dead control.
-    if (!playing && playhead >= runtime) seek(0);
-    setPlaying(!playing);
-  };
-
   return (
     <div
-      className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] bg-canvas"
+      className="scene-surface relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px]"
       style={{ boxShadow: "var(--shadow-canvas)" }}
     >
       {/* Stage — takes whatever the footer leaves, and never more. */}
@@ -92,25 +81,8 @@ export function Canvas() {
         </div>
       </div>
 
-      {/* Trap 1: a real footer row, not an absolute overlay. */}
-      <div className="flex flex-none items-center gap-3 px-4 pb-3.5">
-        <button
-          type="button"
-          onClick={toggle}
-          aria-label={playing ? "Pause" : "Play"}
-          className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-full text-white backdrop-blur-[8px] transition-colors duration-[150ms]"
-          style={{
-            background: "rgba(255,255,255,0.1)",
-            border: "1px solid rgba(255,255,255,0.18)",
-          }}
-        >
-          {playing ? (
-            <Pause size={12} fill="currentColor" strokeWidth={0} aria-hidden />
-          ) : (
-            <Play size={12} fill="currentColor" strokeWidth={0} aria-hidden />
-          )}
-        </button>
-
+      {/* A real footer row, not an absolute overlay. Transport lives once, in the timeline. */}
+      <div className="flex flex-none items-center gap-3 px-5 pb-4">
         <div className="font-mono text-[11.5px] text-canvas-meta">
           {fmt(playhead)} / {fmt(runtime)}
         </div>
@@ -126,8 +98,6 @@ export function Canvas() {
           className="absolute inset-0 flex flex-col items-center justify-center gap-3.5"
           style={{
             background: "rgba(14,14,16,0.82)",
-            backdropFilter: "blur(6px)",
-            WebkitBackdropFilter: "blur(6px)",
           }}
           role="status"
           aria-live="polite"

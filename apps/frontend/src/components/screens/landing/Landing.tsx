@@ -5,6 +5,7 @@ import { useStudio } from "@/store/studio";
 import {
   Accent,
   AppMark,
+  ButtonArrow,
   ChipCTA,
   Graphite,
 } from "@/components/ui/primitives";
@@ -241,27 +242,26 @@ export function Landing() {
 
         {/* ================= proof ================= */}
         <section data-scene="Proof" className="pt-[clamp(88px,12vw,160px)]">
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-x-8 gap-y-12 border-y border-line-input py-[clamp(40px,5vw,64px)]">
-            {(
-              [
-                [11, " pages", "the paper that went in"],
-                [37, " concepts", "mapped before the lesson was planned"],
-                [8, " scenes", "each one you can redo on its own"],
-              ] as const
-            ).map(([n, unit, label]) => (
-              // Each stat centres inside its own column, and the caption's
-              // measure is centred with it — left-aligning the caption under a
-              // centred numeral is what made the row look off-axis.
-              <div key={label} className="flex flex-col items-center text-center">
-                <div className="font-serif text-[clamp(44px,5.4vw,68px)] leading-none font-normal tracking-[-0.02em]">
-                  <span data-stat={n}>{n}</span>
-                  <span className="text-[0.45em] text-t6">{unit}</span>
-                </div>
-                <div className="mt-3 max-w-[24ch] text-[13.5px] leading-[1.5] text-ink-2">
-                  {label}
+          <div className="studio-shell">
+            <div className="studio-surface grid overflow-hidden lg:grid-cols-[minmax(0,1.18fr)_minmax(300px,.82fr)]">
+              <div className="flex min-h-[280px] flex-col justify-between border-b border-line-div p-7 sm:p-9 lg:border-r lg:border-b-0 lg:p-11">
+                <span className="font-mono text-[9px] tracking-[0.14em] text-t8 uppercase">The source</span>
+                <div>
+                  <div className="font-serif text-[clamp(72px,10vw,132px)] leading-[0.8] tracking-[-0.04em] text-ink">
+                    <span data-stat={11}>11</span>
+                  </div>
+                  <div className="mt-5 font-display text-[clamp(24px,3vw,36px)] font-semibold tracking-[-0.035em]">pages in</div>
+                  <p className="mt-3 max-w-[34ch] text-[13.5px] leading-[1.65] text-t6">
+                    One real paper, kept attached to every production decision that follows.
+                  </p>
                 </div>
               </div>
-            ))}
+
+              <div className="grid grid-rows-2">
+                <ProofStat n={37} unit="concepts" label="mapped before the lesson was planned" />
+                <ProofStat n={8} unit="scenes" label="each one editable without rebuilding the other seven" />
+              </div>
+            </div>
           </div>
 
           <div className="mx-auto max-w-[760px] pt-[clamp(56px,7vw,96px)] text-center">
@@ -312,9 +312,10 @@ export function Landing() {
             <div className="flex flex-wrap justify-center gap-3">
               <Accent
                 onClick={toStudio}
-                className="px-8 py-[14px] text-[15px] font-medium"
+                className="group inline-flex items-center gap-4 py-2 pr-2 pl-6 text-[15px] font-medium"
               >
                 Start decoding
+                <ButtonArrow />
               </Accent>
             </div>
           </div>
@@ -359,13 +360,27 @@ export function Landing() {
   );
 }
 
+function ProofStat({ n, unit, label }: { n: number; unit: string; label: string }) {
+  return (
+    <div className="grid grid-cols-[96px_minmax(0,1fr)] items-center gap-5 border-b border-line-div p-6 last:border-b-0 sm:grid-cols-[120px_minmax(0,1fr)] sm:p-8">
+      <span className="font-serif text-[clamp(48px,6vw,76px)] leading-none tracking-[-0.035em] text-ink" data-stat={n}>
+        {n}
+      </span>
+      <span>
+        <span className="block font-display text-[18px] font-semibold tracking-[-0.02em]">{unit}</span>
+        <span className="mt-1 block max-w-[28ch] text-[12.5px] leading-[1.55] text-t6">{label}</span>
+      </span>
+    </div>
+  );
+}
+
 function LandingRuler() {
   return (
     <>
       <aside
         data-page-ruler
         aria-label="Page scenes"
-        className="header-glass fixed top-1/2 left-5 z-30 hidden w-[112px] -translate-y-1/2 rounded-[22px] border border-white/80 p-2.5 shadow-[var(--shadow-nav)] xl:block"
+        className="header-glass fixed top-1/2 left-4 z-30 hidden w-[132px] -translate-y-1/2 rounded-[22px] border border-white/80 p-2.5 shadow-[var(--shadow-nav)] xl:block"
       >
         <div className="relative">
           <span aria-hidden className="absolute top-3 bottom-3 left-[12px] w-px bg-line-input" />
@@ -381,12 +396,12 @@ function LandingRuler() {
                 key={number}
                 data-ruler-item
                 data-ruler-index={index}
-                className="grid min-h-10 grid-cols-[24px_minmax(0,1fr)] items-center gap-2 rounded-[10px] px-1.5 py-1 opacity-40"
+                className="grid min-h-10 grid-cols-[24px_minmax(0,1fr)] items-center gap-2 rounded-[10px] px-1.5 py-1"
               >
                 <span className="relative z-[1] grid h-[13px] w-[13px] place-items-center rounded-full bg-card font-mono text-[7px] text-t7 shadow-xs">
                   {number.slice(1)}
                 </span>
-                <span className="truncate font-mono text-[8px] tracking-[0.08em] text-t6 uppercase">
+                <span className="whitespace-nowrap font-mono text-[8px] tracking-[0.06em] text-t5 uppercase">
                   {label}
                 </span>
               </li>
@@ -413,7 +428,7 @@ function LandingRuler() {
                 key={number}
                 data-ruler-item
                 data-ruler-index={index}
-                className="grid min-h-5 place-items-center opacity-40"
+                className="grid min-h-5 place-items-center"
               >
                 <span className="relative z-[1] grid h-4 w-4 place-items-center rounded-full bg-card font-mono text-[7px] text-t7 shadow-xs">
                   {number.slice(1)}

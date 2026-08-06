@@ -59,6 +59,7 @@ export function ProducerDrawer() {
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const workingLine = useRef("Reworking the plan…");
   const [proposal, setProposal] = useState<QuickAction | null>(null);
+  const replacesInspector = screen === "project" && tab === "edit";
 
   useEffect(() => {
     const pending = timers.current;
@@ -379,8 +380,10 @@ export function ProducerDrawer() {
 
   return (
     <aside
-      aria-label="Production room"
+      aria-label="Project Chat"
       aria-hidden={!open}
+      inert={!open}
+      data-open={open}
       className={cx(
         // A floating panel, not a wall.
         //
@@ -389,27 +392,24 @@ export function ProducerDrawer() {
         // arriving beside your work. Inset and rounded, it sits *over* the
         // studio and the studio stays visible around it — which matters,
         // because the room is commenting on what you are looking at.
-        "fixed right-3 bottom-3 z-80 flex w-[380px] max-w-[calc(100vw-1.5rem)] flex-col",
-        "top-[calc(var(--header-h)+0.75rem)]",
+        "production-room fixed right-3 bottom-3 z-80 flex w-[380px] max-w-[calc(100vw-1.5rem)] flex-col",
+        replacesInspector && "lg:w-[318px]",
+        "top-[calc(var(--header-h)+3.5rem)] lg:top-[calc(var(--header-h)+1.5rem)]",
         "overflow-hidden rounded-[20px] border border-white/70 bg-drawer",
         "shadow-[0_28px_70px_rgb(30_30_28_/_0.22)]",
-        "transition-[translate,opacity,visibility] duration-[250ms] ease-decode",
-        open
-          ? "visible translate-x-0 opacity-100"
-          : "invisible translate-x-[calc(100%+1rem)] opacity-0",
       )}
     >
       {/* header ---------------------------------------------------- */}
       <div className="flex flex-none items-center gap-[9px] border-b border-line-inner px-4 py-3.5">
         <AppMark gradient size={22} radius={7} font={11} />
         <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-semibold">Production room</div>
+          <div className="text-[13px] font-semibold">Project Chat</div>
           <div className="truncate text-[10.5px] text-t8">{context}</div>
         </div>
         <button
           type="button"
           onClick={() => setThreadOpen(false)}
-          aria-label="Close the production room"
+          aria-label="Close Project Chat"
           className="flex-none border-none bg-transparent text-[15px] leading-none text-t10 transition-colors hover:text-ink"
         >
           ×
@@ -444,7 +444,7 @@ export function ProducerDrawer() {
                 <span className="mb-1 flex items-center gap-1.5 pl-0.5">
                   <AppMark gradient size={15} radius={5} font={8} />
                   <span className="font-mono text-[9px] tracking-[0.12em] text-t9 uppercase">
-                    Decode crew
+                    Decode
                   </span>
                 </span>
               )}
@@ -576,8 +576,8 @@ export function ProducerDrawer() {
                 send();
               }
             }}
-            aria-label="Write in the production room"
-            placeholder="Describe a change, or ask why…"
+            aria-label="Write in Project Chat"
+            placeholder="Ask about this project, or describe a change…"
             className="max-h-[112px] min-h-[28px] flex-1 resize-none self-center border-none bg-transparent py-[5px] text-[12.5px] leading-[18px] placeholder:text-t9"
           />
           <Graphite
