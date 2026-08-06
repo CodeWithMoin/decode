@@ -345,6 +345,7 @@
     border: 1px solid rgba(255, 255, 255, 0.9);
   }
 
+
   /* Glass panels — sidebar / inspector / timeline / sticky headers */
   .panel-glass {
     background: rgba(255, 255, 255, 0.42);
@@ -414,6 +415,80 @@
       4px 4px;
     background-repeat: no-repeat;
     padding-right: 24px;
+  }
+
+  /* ============================================================
+     Studio materials
+
+     The application is a workbench on warm paper, not a stack of generic
+     white cards. These primitives create one shallow outer tray and one
+     brighter inner working surface using only the existing token set.
+     ============================================================ */
+  .app-field {
+    background:
+      radial-gradient(circle at 12% 8%, var(--accent-tint), transparent 28%),
+      radial-gradient(circle at 88% 92%, rgba(255, 255, 255, 0.72), transparent 34%),
+      var(--color-page);
+  }
+
+  .app-rail {
+    background: rgba(252, 252, 251, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.88);
+    box-shadow: var(--shadow-lg);
+    backdrop-filter: blur(24px);
+  }
+
+  .studio-shell {
+    border: 1px solid rgba(255, 255, 255, 0.82);
+    background: var(--color-sunken-4);
+    padding: 4px;
+    border-radius: 22px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .studio-surface {
+    background: var(--color-card);
+    border: 1px solid var(--color-line-inner);
+    border-radius: 18px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  }
+
+  .studio-surface-muted {
+    background: var(--color-sunken);
+    border: 1px solid var(--color-line-inner);
+    border-radius: 18px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86);
+  }
+
+  .studio-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 999px;
+    background: var(--color-sunken-3);
+    padding: 6px 10px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-t6);
+  }
+
+  .icon-island {
+    display: inline-grid;
+    flex: none;
+    place-items: center;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  }
+
+  .app-mobile-header {
+    background: rgba(244, 244, 242, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: var(--shadow-nav);
+    backdrop-filter: blur(20px) saturate(1.2);
   }
 }
 

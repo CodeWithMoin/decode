@@ -241,9 +241,9 @@ export function Toggle({
       style={{ background: on ? "#141414" : "#D8D8D2" }}
     >
       <motion.span
-        className="absolute top-[2px] block h-[18px] w-[18px] rounded-full bg-white"
+        className="absolute top-[2px] left-[2px] block h-[18px] w-[18px] rounded-full bg-white"
         style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.15)" }}
-        animate={{ left: on ? 18 : 2 }}
+        animate={{ x: on ? 16 : 0 }}
         transition={{ type: "spring", stiffness: 620, damping: 34 }}
       />
     </button>

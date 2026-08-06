@@ -67,7 +67,7 @@ export function ProjectShell({ children }: { children?: React.ReactNode }) {
 
   return (
     <div
-      className="flex min-h-dvh bg-page"
+      className="app-field flex min-h-dvh gap-3 p-0 lg:p-3"
     >
       {/* The rail runs the full height at the viewport edge, not tucked
           under the header. A shared frame only reads as continuity if the
@@ -78,10 +78,11 @@ export function ProjectShell({ children }: { children?: React.ReactNode }) {
       {/* =========================== left rail =========================== */}
       <nav
         aria-label="Stages"
-        className="panel-glass sticky top-0 hidden h-dvh w-[200px] flex-none flex-col border-r border-line-head p-3 lg:flex"
+        className="app-rail sticky top-3 hidden h-[calc(100dvh-24px)] w-[208px] flex-none flex-col rounded-[22px] p-3 lg:flex"
       >
       <RailFrame footer={
-          <div className="rounded-[14px] border border-line-input bg-card p-3">
+          <div className="studio-shell rounded-[16px] p-[3px]">
+            <div className="studio-surface-muted rounded-[13px] p-3">
             <div className="mb-1.5 flex items-center gap-2">
               <span className="rounded-[5px] border border-line-input bg-sunken px-1.5 py-[3px] font-mono text-[8.5px] text-t6">
                 {source.ext}
@@ -92,6 +93,7 @@ export function ProjectShell({ children }: { children?: React.ReactNode }) {
             </div>
             <div className="truncate text-[12px] font-medium">{source.title}</div>
             <div className="mt-0.5 truncate text-[11px] text-t6">{source.author}</div>
+            </div>
           </div>
       }>
         <StudioNav active="none" />
@@ -111,7 +113,7 @@ export function ProjectShell({ children }: { children?: React.ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
       {/* ============================ header ============================ */}
-      <header className="panel-glass sticky top-0 z-30 border-b border-line-head">
+      <header className="panel-glass sticky top-0 z-30 border-b border-line-head lg:top-3 lg:rounded-t-[18px] lg:border lg:border-white/80 lg:shadow-sm">
         <div className="flex items-center gap-3 px-4 py-2.5">
           {/* Icon-only on phones. The word "Projects" is the single widest
               thing in this row that carries no information the arrow does not,

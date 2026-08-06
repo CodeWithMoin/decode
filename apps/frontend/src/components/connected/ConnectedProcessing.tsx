@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/app/AppShell";
-import { AppMark, Graphite, Spinner, StageKicker, cx } from "@/components/ui/primitives";
+import { AppMark, Graphite, Spinner, cx } from "@/components/ui/primitives";
 import { decodeApi, idempotencyKey, streamProjectEvents } from "@/lib/decode-api";
 import { creatorError } from "@/lib/creator-errors";
 import type { JobDetail, ProjectEvent, StudioSnapshot } from "@/lib/types";
@@ -137,25 +137,28 @@ export function ConnectedProcessing({ projectId, jobId }: { projectId: string; j
 
   return (
     <AppShell active="none" connected>
-      <main className="mx-auto grid min-h-dvh w-full max-w-[980px] gap-8 px-6 py-10 sm:px-8 lg:grid-cols-[minmax(260px,0.72fr)_minmax(480px,1.28fr)] lg:items-center lg:gap-12 lg:py-14">
+      <main className="mx-auto grid min-h-dvh w-full max-w-[1200px] gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[minmax(280px,.72fr)_minmax(500px,1.28fr)] lg:items-center lg:gap-14 lg:px-8 lg:py-14">
         <section className="lg:sticky lg:top-10">
-          <StageKicker>Preparing your project</StageKicker>
-          <h1 className="mt-3 text-balance font-display text-[clamp(28px,3.4vw,40px)] font-semibold leading-[1.04] tracking-[-0.03em] text-ink">
+          <span className="studio-eyebrow">Preparing your project</span>
+          <h1 className="mt-5 text-balance font-display text-[clamp(34px,4.8vw,58px)] font-semibold leading-[0.98] tracking-[-0.045em] text-ink">
             Creating a sample production brief
           </h1>
           <p className="mt-4 max-w-[42ch] text-[13.5px] leading-[1.65] text-t6">
             This preview uses your production choices to show how review and approval work. Source analysis comes next. You can leave this page—we’ll keep working.
           </p>
-          <div className="mt-7 rounded-[16px] border border-line-input bg-card p-4">
+          <div className="studio-shell mt-8">
+            <div className="studio-surface-muted p-4">
             <div className="text-[13px] font-medium text-ink">{studio?.project.title ?? "Loading project…"}</div>
             <div className="mt-3 grid grid-cols-2 gap-3 border-t border-line-div pt-3">
               <Meta label="Sources" value={`${sourceCount} source${sourceCount === 1 ? "" : "s"}`} />
               <Meta label="Status" value={status} />
             </div>
+            </div>
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-[22px] border border-line bg-card shadow-lg">
+        <section className="studio-shell">
+          <div className="studio-surface overflow-hidden">
           <div className="flex items-center gap-3 border-b border-line-div px-5 py-4">
             <AppMark gradient size={28} radius={8} font={13} />
             <div className="min-w-0 flex-1">
@@ -179,11 +182,12 @@ export function ConnectedProcessing({ projectId, jobId }: { projectId: string; j
             })}
           </div>
           <div className="border-t border-line-div bg-sunken px-5 py-4">
-            <div className="h-[3px] overflow-hidden rounded-full bg-line-soft"><div className="h-full rounded-full bg-accent transition-[width]" style={{ width: `${progress}%` }} /></div>
+            <div className="h-[3px] overflow-hidden rounded-full bg-line-soft"><div className="h-full w-full origin-left rounded-full bg-accent transition-transform duration-[var(--t-normal)] ease-decode" style={{ transform: `scaleX(${progress / 100})` }} /></div>
             {error && <p role="alert" className="mt-3 text-[12px] text-[#8E2F19]">{error}</p>}
             <div className="mt-4 flex min-h-9 items-center justify-between gap-4">
               {job?.status === "succeeded" ? <><p className="text-[12px] text-t6">Your sample production brief is ready.</p><Graphite onClick={() => router.push(`/studio/projects/${projectId}/understanding`)} className="px-4 py-2 text-[12.5px] font-medium">Review production brief →</Graphite></> : job?.status === "failed" ? <><p className="text-[12px] text-[#8E2F19]">{job.failure?.retryable ? "We couldn’t finish your production brief." : "We couldn’t finish your production brief right now. Your work is safe—please try again later."}</p>{job.failure?.retryable && <Graphite onClick={() => void retry()} disabled={retrying} className="px-4 py-2 text-[12.5px] font-medium">{retrying ? "Trying again…" : "Try again"}</Graphite>}</> : <p className="text-[12px] text-t7">You can leave this page. We’ll keep working.</p>}
             </div>
+          </div>
           </div>
         </section>
       </main>

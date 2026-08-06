@@ -13,7 +13,7 @@ import {
   TONE_OPTIONS,
 } from "@/lib/api";
 import { useStudio } from "@/store/studio";
-import { Select, StageKicker, cx } from "@/components/ui/primitives";
+import { Select, cx } from "@/components/ui/primitives";
 import { AppShell } from "@/components/app/AppShell";
 import { decodeApi, idempotencyKey } from "@/lib/decode-api";
 import { creatorError } from "@/lib/creator-errors";
@@ -209,7 +209,7 @@ export function NewDecode({ connected = false }: { connected?: boolean }) {
 
   return (
     <AppShell active="none" connected={connected}>
-      <div className="flex min-h-dvh flex-col bg-[linear-gradient(180deg,#F3F3F1,#EBEBE9)]">
+      <div className="min-h-dvh">
         <div className="flex items-center justify-between px-6 py-5 sm:px-8 lg:hidden">
           <button
             type="button"
@@ -221,19 +221,30 @@ export function NewDecode({ connected = false }: { connected?: boolean }) {
           <div className="text-[13px] font-medium text-t7">New decode</div>
         </div>
 
-        <div className="flex flex-1 flex-col items-center gap-7 px-4 pt-7 pb-24 lg:pt-12">
-          <div className="flex w-full max-w-[720px] flex-col items-start gap-3 text-left">
-            <StageKicker>New production</StageKicker>
-            <h1 className="m-0 text-balance font-display text-[clamp(28px,3.4vw,38px)] font-semibold leading-[1.06] tracking-[-0.03em]">
+        <div className="mx-auto grid w-full max-w-[1200px] gap-8 px-4 pt-8 pb-24 sm:px-6 lg:grid-cols-[minmax(260px,.62fr)_minmax(520px,1.38fr)] lg:gap-12 lg:px-8 lg:pt-14">
+          <div className="flex min-w-0 flex-col items-start text-left lg:sticky lg:top-10 lg:self-start">
+            <span className="studio-eyebrow">New production</span>
+            <h1 className="mt-5 text-balance font-display text-[clamp(34px,4.8vw,60px)] font-semibold leading-[0.98] tracking-[-0.045em]">
               What should the crew teach next?
             </h1>
-            <p className="m-0 max-w-[58ch] text-[13.5px] leading-[1.65] text-t6">
+            <p className="mt-5 max-w-[46ch] text-[14px] leading-[1.7] text-t6">
               Add your sources and tell Decode what you want to teach. You’ll
               review each part before production continues.
             </p>
+            <div className="studio-shell mt-8 w-full">
+              <div className="studio-surface-muted p-5">
+                <div className="font-mono text-[9px] tracking-[0.13em] text-t8 uppercase">What happens next</div>
+                <ol className="mt-4 space-y-3 p-0 text-[12.5px] leading-[1.55] text-t6">
+                  <li className="flex list-none gap-3"><span className="font-mono text-accent-deep">01</span><span>The Producer reads the source and drafts the production brief.</span></li>
+                  <li className="flex list-none gap-3"><span className="font-mono text-accent-deep">02</span><span>You review the audience, focus, and learning goal.</span></li>
+                  <li className="flex list-none gap-3"><span className="font-mono text-accent-deep">03</span><span>Nothing moves into production without your approval.</span></li>
+                </ol>
+              </div>
+            </div>
           </div>
 
-          <div className="w-full max-w-[720px] overflow-hidden rounded-[22px] border border-white/80 bg-card shadow-xl">
+          <div className="studio-shell w-full">
+            <div className="studio-surface overflow-hidden">
             {/* ------------------------- 1 · sources ------------------------- */}
             <div className="p-4 sm:p-5">
               <input
@@ -482,7 +493,7 @@ export function NewDecode({ connected = false }: { connected?: boolean }) {
                   />
                   <KitField
                     label="Typeface"
-                    placeholder="Inter, Söhne…"
+                    placeholder="Söhne, Suisse Int’l…"
                     value={brandKit?.fonts ?? ""}
                     onChange={(v) =>
                       setBrandKit({
@@ -552,10 +563,11 @@ export function NewDecode({ connected = false }: { connected?: boolean }) {
                 {submitError} Your draft and selected files are still here.
               </div>
             )}
+            </div>
           </div>
 
           {/* ------------------------ quick starts ------------------------ */}
-          {!connected && <div className="w-full max-w-[720px]">
+          {!connected && <div className="w-full lg:col-start-2">
             <Label>Start from something you have</Label>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               {[...RECENT_FILES.map((f) => f.src), ...EXAMPLES.map((e) => e.src)]
@@ -571,7 +583,7 @@ export function NewDecode({ connected = false }: { connected?: boolean }) {
                       type="button"
                       onClick={() => (on ? detach(src.file) : attach(src))}
                       className={cx(
-                        "flex items-center gap-2.5 rounded-[14px] border px-3 py-2.5 text-left transition-colors duration-[var(--t-fast)]",
+                        "studio-surface flex items-center gap-2.5 px-3 py-2.5 text-left transition-[border-color,transform,box-shadow] duration-[var(--t-fast)] ease-decode hover:-translate-y-px hover:shadow-sm",
                         on
                           ? "border-[var(--accent-line)] bg-[var(--accent-tint)]"
                           : "border-line bg-card hover:border-line-strong",

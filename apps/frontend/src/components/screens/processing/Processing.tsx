@@ -19,7 +19,6 @@ import {
   AppMark,
   Graphite,
   Spinner,
-  StageKicker,
   cx,
 } from "@/components/ui/primitives";
 import { AppShell } from "@/components/app/AppShell";
@@ -78,10 +77,10 @@ export function Processing() {
 
   return (
     <AppShell active="none">
-      <main className="mx-auto grid min-h-dvh w-full max-w-[980px] gap-8 px-6 py-10 sm:px-8 lg:grid-cols-[minmax(260px,0.72fr)_minmax(480px,1.28fr)] lg:items-center lg:gap-12 lg:py-14">
+      <main className="mx-auto grid min-h-dvh w-full max-w-[1200px] gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[minmax(280px,.72fr)_minmax(500px,1.28fr)] lg:items-center lg:gap-14 lg:px-8 lg:py-14">
         <section className="lg:sticky lg:top-10">
-          <StageKicker>Preparing production</StageKicker>
-          <h1 className="mt-3 text-balance font-display text-[clamp(28px,3.4vw,40px)] font-semibold leading-[1.04] tracking-[-0.03em] text-ink">
+          <span className="studio-eyebrow">Preparing production</span>
+          <h1 className="mt-5 text-balance font-display text-[clamp(34px,4.8vw,58px)] font-semibold leading-[0.98] tracking-[-0.045em] text-ink">
             The crew is reading before it starts making.
           </h1>
           <p className="mt-4 max-w-[42ch] text-[13.5px] leading-[1.65] text-t6">
@@ -89,7 +88,8 @@ export function Processing() {
             Decode renders a single frame.
           </p>
 
-          <div className="mt-7 rounded-[16px] border border-line-input bg-card p-4">
+          <div className="studio-shell mt-8">
+            <div className="studio-surface-muted p-4">
             <div className="flex items-center gap-2.5">
               <span className="flex-none rounded-[5px] border border-line-soft bg-sunken px-1.5 py-[3px] font-mono text-[8.5px] tracking-[0.08em] text-t6">
                 {src.ext}
@@ -104,10 +104,12 @@ export function Processing() {
               <ProcessingMeta label="Target" value={runtime} />
               <ProcessingMeta label="Scenes" value={`${sc.length}`} />
             </div>
+            </div>
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-[22px] border border-line bg-card shadow-lg">
+        <section className="studio-shell">
+          <div className="studio-surface overflow-hidden">
           <div className="flex items-center gap-3 border-b border-line-div px-5 py-4">
             <AppMark gradient size={28} radius={8} font={13} />
             <div className="min-w-0 flex-1">
@@ -173,8 +175,8 @@ export function Processing() {
           <div className="border-t border-line-div bg-sunken px-5 py-4">
             <div className="h-[3px] w-full overflow-hidden rounded-full bg-line-soft">
               <div
-                className="h-full rounded-full bg-accent transition-[width] duration-[var(--t-normal)] ease-decode"
-                style={{ width: `${progressPct}%` }}
+                className="h-full w-full origin-left rounded-full bg-accent transition-transform duration-[var(--t-normal)] ease-decode"
+                style={{ transform: `scaleX(${progressPct / 100})` }}
               />
             </div>
             <div className="mt-4 flex min-h-9 items-center justify-between gap-4">
@@ -194,6 +196,7 @@ export function Processing() {
                 </p>
               )}
             </div>
+          </div>
           </div>
         </section>
       </main>

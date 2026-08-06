@@ -48,7 +48,7 @@ export function RailFrame({
           else go("dashboard");
         }}
         aria-label="Decode — back to your studio"
-        className="mb-4 flex items-center gap-2.5 rounded-[10px] px-2 py-1.5 text-left transition-colors duration-[var(--t-fast)] hover:bg-white/55"
+        className="mb-5 flex items-center gap-2.5 rounded-full px-2 py-1.5 text-left transition-[background-color,transform] duration-[var(--t-fast)] ease-decode hover:-translate-y-px hover:bg-white/70"
       >
         <AppMark gradient size={24} radius={7} font={13} />
         <span className="font-display text-[15px] font-semibold tracking-[-0.01em]">
@@ -61,7 +61,8 @@ export function RailFrame({
       <div className="mt-auto flex flex-col gap-2">
         {footer}
 
-        <div className="flex items-center gap-2.5 rounded-[12px] border border-line-input bg-card p-2.5">
+        <div className="studio-shell rounded-[16px] p-[3px]">
+          <div className="studio-surface flex items-center gap-2.5 rounded-[13px] p-2.5">
           <span
             aria-hidden
             className="grid h-[28px] w-[28px] flex-none place-items-center rounded-full font-display text-[11px] font-semibold text-white"
@@ -79,6 +80,7 @@ export function RailFrame({
               Private beta
             </span>
           </span>
+          </div>
         </div>
       </div>
     </>

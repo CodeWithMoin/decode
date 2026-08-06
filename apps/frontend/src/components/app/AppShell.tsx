@@ -56,8 +56,8 @@ export function AppShell({
         onClick={mobile ? () => setMenu(false) : undefined}
         className={
           mobile
-            ? "relative flex h-dvh w-[240px] max-w-[82vw] flex-col border-r border-line-head bg-[#FCFCFB] p-3"
-            : "panel-glass sticky top-0 hidden h-dvh w-[200px] flex-none flex-col border-r border-line-head p-3 lg:flex"
+            ? "app-rail relative flex h-dvh w-[264px] max-w-[86vw] flex-col rounded-r-[22px] p-4"
+            : "app-rail sticky top-3 hidden h-[calc(100dvh-24px)] w-[208px] flex-none flex-col rounded-[22px] p-3 lg:flex"
         }
       >
         <RailFrame onLeave={mobile ? () => setMenu(false) : undefined}>
@@ -79,33 +79,33 @@ export function AppShell({
   );
 
   return (
-    <div className="flex min-h-dvh bg-page">
+    <div className="app-field flex min-h-dvh gap-3 p-0 lg:p-3">
       {rail(false)}
 
       {/* Below lg the rail is hidden, so without this the app had no
           navigation at all on a tablet or a phone — you could open a screen
           and never leave it. */}
       {menu && (
-        <div className="fixed inset-0 z-50 flex lg:hidden">
+        <div className="fixed inset-0 z-40 flex p-2 lg:hidden">
           <div
-            className="absolute inset-0 bg-ink/25"
+            className="absolute inset-0 bg-ink/25 backdrop-blur-sm"
             onClick={() => setMenu(false)}
             aria-hidden
           />
-          <div className="relative shadow-[24px_0_60px_rgb(30_30_28_/_0.16)]">
+          <div className="relative shadow-[var(--shadow-drawer)]">
             {rail(true)}
           </div>
         </div>
       )}
 
       <div className="min-w-0 flex-1">
-        <div className="sticky top-0 z-30 flex items-center gap-2 border-b border-line-head bg-page/85 px-4 py-2.5 backdrop-blur-xl lg:hidden">
+        <div className="app-mobile-header sticky top-2 z-30 mx-2 mt-2 flex items-center gap-2 rounded-full px-2.5 py-2 lg:hidden">
           <button
             type="button"
             onClick={() => setMenu(true)}
             aria-label="Open navigation"
             aria-expanded={menu}
-            className="grid h-9 w-9 place-items-center rounded-[10px] border border-line-input bg-card text-t6 transition-colors hover:border-line-strong hover:text-ink"
+            className="grid h-9 w-9 place-items-center rounded-full bg-card text-t6 shadow-xs transition-[color,transform] duration-[var(--t-fast)] ease-decode hover:-translate-y-px hover:text-ink"
           >
             <Menu size={16} strokeWidth={1.8} aria-hidden />
           </button>
