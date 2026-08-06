@@ -29,20 +29,22 @@ export function SourceStrip() {
   return (
     <div
       data-hero-strip
-      className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2.5"
+      className="studio-shell mt-7"
     >
-      <span className="font-mono text-[9.5px] tracking-[0.14em] text-t6 uppercase">
-        Works with
-      </span>
-
-      {KINDS.map(([ext, label]) => (
-        <span key={ext} className="flex items-center gap-2 whitespace-nowrap">
-          <span className="rounded-[5px] border border-line-input bg-sunken px-1.5 py-[3px] font-mono text-[8.5px] tracking-[0.08em] text-t6">
-            {ext}
-          </span>
-          <span className="text-[12.5px] text-t5">{label}</span>
+      <div className="studio-surface-muted rail-x flex items-center gap-5 overflow-x-auto px-4 py-3.5 sm:px-5">
+        <span className="flex-none font-mono text-[9.5px] tracking-[0.14em] text-t6 uppercase">
+          Works with
         </span>
-      ))}
+
+        {KINDS.map(([ext, label]) => (
+          <span key={ext} className="flex flex-none items-center gap-2 whitespace-nowrap">
+            <span className="rounded-[5px] border border-line-input bg-card px-1.5 py-[3px] font-mono text-[8.5px] tracking-[0.08em] text-t6 shadow-xs">
+              {ext}
+            </span>
+            <span className="text-[12.5px] text-t5">{label}</span>
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

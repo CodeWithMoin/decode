@@ -46,10 +46,10 @@ export function useLandingMotion(scope: RefObject<HTMLDivElement | null>) {
       // Querying the ref directly is scoped by construction, and unlike
       // `self.selector` it cannot quietly return nothing and leave the
       // animation silently disabled.
-      const q = (sel: string): HTMLElement[] => {
-        const root = scope.current;
-        return root ? Array.from(root.querySelectorAll<HTMLElement>(sel)) : [];
-      };
+      const root = scope.current;
+      if (!root) return;
+      const q = (sel: string): HTMLElement[] =>
+        Array.from(root.querySelectorAll<HTMLElement>(sel));
 
       const mm = gsap.matchMedia();
 
@@ -74,29 +74,28 @@ export function useLandingMotion(scope: RefObject<HTMLDivElement | null>) {
               ease: EASE,
               autoAlpha: 0,
               y: 18,
-              filter: "blur(8px)",
-              duration: 0.42,
-              stagger: 0.055,
+              duration: 0.4,
+              stagger: 0.07,
             })
-            .from("[data-hero-sub]", {
+            .from(q("[data-hero-sub]"), {
               ease: EASE,
               autoAlpha: 0,
               y: 12,
               duration: 0.4,
             }, "-=0.22")
             .from(
-              "[data-hero-act]",
+              q("[data-hero-act]"),
               { autoAlpha: 0, y: 10, duration: 0.4, stagger: 0.07, ease: EASE },
               "-=0.25",
             )
             .from(
-              "[data-stage]",
+              q("[data-stage]"),
               { autoAlpha: 0, y: 22, duration: 0.4, ease: EASE },
               "-=0.24",
             )
             .from(
-              "[data-hero-strip] > *",
-              { autoAlpha: 0, y: 6, duration: 0.4, stagger: 0.05, ease: EASE },
+              q("[data-hero-strip] > *"),
+              { autoAlpha: 0, y: 6, duration: 0.4, stagger: 0.07, ease: EASE },
               "-=0.22",
             )
             // The diptych's argument, made once and then left alone: the
@@ -105,14 +104,57 @@ export function useLandingMotion(scope: RefObject<HTMLDivElement | null>) {
             // thing that got called annoying, and rightly.
             .from(
               q("[data-src-hit]"),
-              { scaleX: 0, autoAlpha: 0, duration: 0.45, ease: EASE },
+              { scaleX: 0, autoAlpha: 0, duration: 0.4, ease: EASE },
               "-=0.30",
             )
             .from(
               q("[data-link]"),
-              { drawSVG: 0, duration: 0.5, ease: EASE },
+              { drawSVG: 0, duration: 0.4, ease: EASE },
               "-=0.20",
             );
+
+          /* ---------------- page ruler: scroll is the playhead ---------------- */
+
+          const scenes = q("[data-scene]");
+          const rulerItems = q("[data-ruler-item]");
+          const rulerFills = q("[data-ruler-fill]");
+
+          rulerFills.forEach((rulerFill) => {
+            const horizontal = rulerFill.dataset.axis === "horizontal";
+            gsap.fromTo(
+              rulerFill,
+              horizontal ? { scaleX: 0 } : { scaleY: 0 },
+              {
+                ...(horizontal ? { scaleX: 1 } : { scaleY: 1 }),
+                ease: EASE,
+                scrollTrigger: {
+                  trigger: root,
+                  start: "top top",
+                  end: "bottom bottom",
+                  scrub: true,
+                },
+              },
+            );
+          });
+
+          const activateScene = (index: number) => {
+            gsap.to(rulerItems, { opacity: 0.4, duration: 0.15, ease: EASE });
+            gsap.to(
+              rulerItems.filter((item) => Number(item.dataset.rulerIndex) === index),
+              { opacity: 1, duration: 0.15, ease: EASE },
+            );
+          };
+
+          activateScene(0);
+          scenes.forEach((scene, index) => {
+            ScrollTrigger.create({
+              trigger: scene,
+              start: "top center",
+              end: "bottom center",
+              onEnter: () => activateScene(index),
+              onEnterBack: () => activateScene(index),
+            });
+          });
 
           /* ---------------- section reveals ---------------- */
 
@@ -136,8 +178,8 @@ export function useLandingMotion(scope: RefObject<HTMLDivElement | null>) {
             const counter = { v: 0 };
             gsap.to(counter, {
               v: to,
-              duration: 1.1,
-              ease: "decode",
+              duration: 0.4,
+              ease: EASE,
               snap: { v: 1 },
               onUpdate: () => {
                 el.textContent = String(Math.round(counter.v));
@@ -148,15 +190,17 @@ export function useLandingMotion(scope: RefObject<HTMLDivElement | null>) {
 
           /* ------------- CTA glow brightens on approach ------------- */
 
-          gsap.fromTo(
-            "[data-cta-glow]",
+          const ctaGlow = q("[data-cta-glow]")[0];
+          const cta = q("[data-cta]")[0];
+          if (ctaGlow && cta) gsap.fromTo(
+            ctaGlow,
             { scale: 0.72, autoAlpha: 0.3 },
             {
               scale: 1.12,
               autoAlpha: 1,
-              ease: "none",
+              ease: EASE,
               scrollTrigger: {
-                trigger: "[data-cta]",
+                trigger: cta,
                 start: "top bottom",
                 end: "center center",
                 scrub: true,
@@ -166,15 +210,16 @@ export function useLandingMotion(scope: RefObject<HTMLDivElement | null>) {
 
           /* ------------- footer wordmark settles ------------- */
 
-          gsap.from("[data-wordmark]", {
+          const wordmark = q("[data-wordmark]")[0];
+          if (wordmark) gsap.from(wordmark, {
             y: 34,
             autoAlpha: 0.15,
-            ease: "none",
+            ease: EASE,
             scrollTrigger: {
-              trigger: "[data-wordmark]",
+              trigger: wordmark,
               start: "top bottom",
               end: "bottom bottom",
-              scrub: 0.8,
+              scrub: true,
             },
           });
         },

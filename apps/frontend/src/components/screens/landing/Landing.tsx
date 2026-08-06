@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useStudio } from "@/store/studio";
 import {
   Accent,
@@ -15,10 +15,39 @@ import { StudioDemo } from "./StudioDemo";
 import { WhyItWorks } from "./WhyItWorks";
 import { useLandingMotion } from "./motion";
 
+const LANDING_SCENES = [
+  ["01", "Opening"],
+  ["02", "Your part"],
+  ["03", "One scene"],
+  ["04", "Why Decode"],
+  ["05", "Proof"],
+  ["06", "Start"],
+  ["07", "Decode"],
+] as const;
+
+const NAV_LINKS = [
+  ["Product", "#decode-demo"],
+  ["How it works", "#how-it-works"],
+  ["Why Decode", "#why-decode"],
+] as const;
+
 export function Landing() {
   const root = useRef<HTMLDivElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const go = useStudio((s) => s.go);
-  const toStudio = () => go("dashboard");
+  const toStudio = () => {
+    setMenuOpen(false);
+    go("dashboard");
+  };
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [menuOpen]);
 
   useLandingMotion(root);
 
@@ -26,7 +55,7 @@ export function Landing() {
     <div
       ref={root}
       id="top"
-      className="min-h-dvh overflow-x-clip bg-[linear-gradient(180deg,#F3F3F1,#EBEBE9)]"
+      className="min-h-dvh overflow-x-clip bg-page"
     >
       <a
         href="#main-content"
@@ -42,6 +71,37 @@ export function Landing() {
         className="top-scrim pointer-events-none fixed inset-x-0 top-0 z-30 h-[72px] sm:h-[80px]"
       />
 
+      <LandingRuler />
+
+      <div
+        aria-hidden={!menuOpen}
+        className={[
+          "fixed inset-0 z-30 bg-drawer/90 px-6 pt-28 backdrop-blur-3xl transition-[opacity,transform] duration-[var(--t-normal)] ease-decode md:hidden",
+          menuOpen ? "pointer-events-auto translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0",
+        ].join(" ")}
+      >
+        <nav aria-label="Mobile navigation" className="mx-auto flex max-w-[520px] flex-col">
+          {NAV_LINKS.map(([label, href], index) => (
+            <a
+              key={label}
+              href={href}
+              onClick={() => setMenuOpen(false)}
+              tabIndex={menuOpen ? 0 : -1}
+              className={[
+                "border-b border-line-input py-5 font-serif text-[clamp(36px,11vw,54px)] leading-none transition-[opacity,transform] duration-[var(--t-slow)] ease-decode",
+                menuOpen ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0",
+              ].join(" ")}
+              style={{ transitionDelay: menuOpen ? `${100 + index * 70}ms` : "0ms" }}
+            >
+              {label}
+            </a>
+          ))}
+          <p className="mt-8 max-w-[38ch] text-[13px] leading-[1.7] text-t6">
+            Turn technical source material into a lesson you can direct, scene by scene.
+          </p>
+        </nav>
+      </div>
+
       {/* ================= nav ================= */}
       <nav className="sticky top-3 z-40 px-6 sm:top-4 sm:px-10">
         <div className="header-glass mx-auto max-w-[1100px] rounded-full border border-white/70 shadow-[var(--shadow-nav)]">
@@ -53,11 +113,7 @@ export function Landing() {
               </span>
             </a>
             <div className="hidden items-center gap-8 text-[13.5px] text-ink md:flex">
-              {[
-                ["Product", "#decode-demo"],
-                ["How it works", "#how-it-works"],
-                ["Why Decode", "#why-decode"],
-                              ].map(([label, href]) => (
+              {NAV_LINKS.map(([label, href]) => (
                 <a
                   key={label}
                   href={href}
@@ -68,6 +124,28 @@ export function Landing() {
               ))}
             </div>
             <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => setMenuOpen((open) => !open)}
+                aria-label={menuOpen ? "Close navigation" : "Open navigation"}
+                aria-expanded={menuOpen}
+                className="relative grid h-9 w-9 place-items-center rounded-full bg-white/70 shadow-xs md:hidden"
+              >
+                <span
+                  aria-hidden
+                  className={[
+                    "absolute h-px w-4 bg-ink transition-transform duration-[var(--t-normal)] ease-decode",
+                    menuOpen ? "rotate-45" : "-translate-y-[3px]",
+                  ].join(" ")}
+                />
+                <span
+                  aria-hidden
+                  className={[
+                    "absolute h-px w-4 bg-ink transition-transform duration-[var(--t-normal)] ease-decode",
+                    menuOpen ? "-rotate-45" : "translate-y-[3px]",
+                  ].join(" ")}
+                />
+              </button>
               <Graphite
                 onClick={toStudio}
                 className="px-[18px] py-2 text-[13.5px] font-medium"
@@ -79,7 +157,7 @@ export function Landing() {
         </div>
       </nav>
 
-      <main id="main-content" className="mx-auto max-w-[1180px] px-6 sm:px-10">
+      <main id="main-content" className="mx-auto max-w-[1200px] px-4 sm:px-8 lg:px-10">
         {/* ================= hero ================= */}
         <header
           data-scene="Understand anything"
@@ -93,7 +171,7 @@ export function Landing() {
           <div className="mb-[clamp(44px,6vw,80px)]">
             {/* Line breaks are authored, not left to the browser — the scale
                 is capped where the longest line still fits the measure. */}
-            <h1 className="m-0 font-serif leading-[0.94] font-normal tracking-[-0.02em] [font-size:clamp(44px,7.6vw,96px)]">
+            <h1 className="m-0 font-serif leading-[0.94] font-normal tracking-[-0.02em] [font-size:clamp(46px,8.2vw,104px)]">
               <span className="block">
                 {"Understand anything.".split(" ").map((w, i, all) => (
                   <span key={w} data-hero-word className="inline-block">
@@ -102,7 +180,7 @@ export function Landing() {
                   </span>
                 ))}
               </span>
-              <span className="block text-t6">
+              <span className="block text-t8">
                 {"Not summarised —".split(" ").map((w) => (
                   <span key={w} data-hero-word className="inline-block">
                     {w}
@@ -167,7 +245,7 @@ export function Landing() {
             {(
               [
                 [11, " pages", "the paper that went in"],
-                [5, " minutes", "the video that came out"],
+                [37, " concepts", "mapped before the lesson was planned"],
                 [8, " scenes", "each one you can redo on its own"],
               ] as const
             ).map(([n, unit, label]) => (
@@ -209,6 +287,7 @@ export function Landing() {
         {/* ================= CTA ================= */}
         <section
           data-cta
+          data-scene="Start"
           className="relative mt-[clamp(88px,12vw,160px)] overflow-hidden rounded-[32px] bg-canvas px-8 py-[clamp(64px,9vw,104px)] text-center shadow-[var(--shadow-dark-panel)]"
         >
           <div
@@ -224,7 +303,7 @@ export function Landing() {
             <div className="mb-5 font-mono text-[11px] uppercase tracking-[0.2em] text-accent-lit">
               Ready when you are
             </div>
-            <div className="balance mx-auto mb-5 max-w-[16ch] font-serif text-[clamp(34px,5vw,64px)] font-normal leading-[1.0] tracking-[-0.018em] text-[#F5F5F3]">
+            <div className="balance mx-auto mb-5 max-w-[16ch] font-serif text-[clamp(34px,5vw,64px)] font-normal leading-[1.0] tracking-[-0.018em] text-canvas-cap">
               Bring the source. Leave with a film.
             </div>
             <div className="mb-9 text-[15px] text-canvas-meta">
@@ -242,7 +321,7 @@ export function Landing() {
         </section>
 
         {/* ================= footer ================= */}
-        <footer className="pt-[clamp(64px,8vw,96px)]">
+        <footer data-scene="Decode" className="pt-[clamp(64px,8vw,96px)]">
           <div className="flex flex-wrap justify-between gap-12 pb-14">
             <div className="max-w-[280px]">
               <div className="mb-3 flex items-center gap-[9px]">
@@ -277,5 +356,73 @@ export function Landing() {
         </footer>
       </main>
     </div>
+  );
+}
+
+function LandingRuler() {
+  return (
+    <>
+      <aside
+        data-page-ruler
+        aria-label="Page scenes"
+        className="header-glass fixed top-1/2 left-5 z-30 hidden w-[112px] -translate-y-1/2 rounded-[22px] border border-white/80 p-2.5 shadow-[var(--shadow-nav)] xl:block"
+      >
+        <div className="relative">
+          <span aria-hidden className="absolute top-3 bottom-3 left-[12px] w-px bg-line-input" />
+          <span
+            data-ruler-fill
+            data-axis="vertical"
+            aria-hidden
+            className="absolute top-3 bottom-3 left-[12px] w-px origin-top bg-accent"
+          />
+          <ol className="relative m-0 flex list-none flex-col gap-0.5 p-0">
+            {LANDING_SCENES.map(([number, label], index) => (
+              <li
+                key={number}
+                data-ruler-item
+                data-ruler-index={index}
+                className="grid min-h-10 grid-cols-[24px_minmax(0,1fr)] items-center gap-2 rounded-[10px] px-1.5 py-1 opacity-40"
+              >
+                <span className="relative z-[1] grid h-[13px] w-[13px] place-items-center rounded-full bg-card font-mono text-[7px] text-t7 shadow-xs">
+                  {number.slice(1)}
+                </span>
+                <span className="truncate font-mono text-[8px] tracking-[0.08em] text-t6 uppercase">
+                  {label}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </aside>
+
+      <aside
+        aria-label="Page progress"
+        className="header-glass fixed top-[68px] right-4 left-4 z-30 rounded-full border border-white/80 px-3 py-1.5 shadow-[var(--shadow-nav)] xl:hidden"
+      >
+        <div className="relative">
+          <span aria-hidden className="absolute top-1/2 right-3 left-3 h-px -translate-y-1/2 bg-line-input" />
+          <span
+            data-ruler-fill
+            data-axis="horizontal"
+            aria-hidden
+            className="absolute top-1/2 right-3 left-3 h-px origin-left -translate-y-1/2 bg-accent"
+          />
+          <ol className="relative m-0 grid list-none grid-cols-7 p-0">
+            {LANDING_SCENES.map(([number], index) => (
+              <li
+                key={number}
+                data-ruler-item
+                data-ruler-index={index}
+                className="grid min-h-5 place-items-center opacity-40"
+              >
+                <span className="relative z-[1] grid h-4 w-4 place-items-center rounded-full bg-card font-mono text-[7px] text-t7 shadow-xs">
+                  {number.slice(1)}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </aside>
+    </>
   );
 }

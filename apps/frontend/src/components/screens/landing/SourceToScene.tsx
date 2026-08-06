@@ -36,7 +36,7 @@ export function SourceToScene() {
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "radial-gradient(900px 430px at 68% -8%, rgba(194,65,12,0.22), transparent 68%), radial-gradient(680px 420px at 14% 90%, rgba(76,91,122,0.12), transparent 70%)",
+            "radial-gradient(900px 430px at 68% -8%, var(--accent-glow), transparent 68%)",
         }}
       />
       <div
@@ -69,7 +69,7 @@ function SourcePage() {
   return (
     <figure className="m-0 lg:row-span-2 lg:grid lg:grid-rows-subgrid">
       <Label>Your source</Label>
-      <div className="flex flex-col rounded-[18px] border border-white/10 bg-white/[0.055] p-5 backdrop-blur-sm sm:p-6">
+      <div className="flex flex-col rounded-[18px] border border-white/10 bg-white/[0.055] p-5 sm:p-6">
         <div className="flex items-center gap-3 border-b border-white/[0.07] pb-4">
           <span className="grid h-9 w-9 flex-none place-items-center rounded-[9px] bg-white text-[10px] font-bold text-ink">
             PDF

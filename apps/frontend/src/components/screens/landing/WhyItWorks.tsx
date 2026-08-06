@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { SEED_SCENES } from "@/lib/api";
 import { SceneVisual } from "@/components/project/canvas/SceneVisual";
-import { Kicker } from "@/components/ui/primitives";
+import { StageKicker } from "@/components/ui/primitives";
 
 /**
  * Why it works — built like creative software, not like a chatbot.
@@ -31,13 +31,13 @@ export function WhyItWorks() {
       className="scroll-mt-24 pt-[clamp(88px,10vw,136px)]"
     >
       <div className="mb-[clamp(32px,4vw,52px)] max-w-[620px]">
-        <Kicker className="mb-3 block">why it works</Kicker>
+        <StageKicker className="mb-4">why it works</StageKicker>
         <h2
           data-reveal
           className="balance m-0 font-serif text-[clamp(32px,4.2vw,56px)] leading-[1.02] font-normal tracking-[-0.018em]"
         >
           Built like creative software.
-          <span className="text-t6"> Not like a chatbot.</span>
+          <span className="text-t8"> Not like a chatbot.</span>
         </h2>
       </div>
 
@@ -58,7 +58,7 @@ export function WhyItWorks() {
 
           <p className="m-0 px-6 pt-2.5 pb-4 text-[13.5px] leading-[1.6] text-canvas-meta sm:px-7">
             Every draft keeps its history, source references, quality checks,
-            and AI usage. You can always see what changed and why.
+            and compute receipt. You can always see what changed and why.
           </p>
 
           {/* The real renderer, held at a legible frame. */}
@@ -71,7 +71,7 @@ export function WhyItWorks() {
               ["Made by", "Motion Designer"],
               ["Based on", "Scene script · draft 2"],
               ["Quality check", "Ready"],
-              ["AI time", "6.2 seconds"],
+              ["Compute", "6.2 seconds"],
             ].map(([label, value]) => (
               <span key={label}>
                 <span className="block font-mono text-[8.5px] tracking-[0.12em] text-canvas-meta uppercase">{label}</span>
@@ -91,8 +91,8 @@ export function WhyItWorks() {
               <div className="mb-3 font-mono text-[9px] tracking-[0.14em] text-t6 uppercase">
                 Who hands to whom
               </div>
-              <div className="flex items-center gap-2 font-mono text-[10px] text-t5">
-                <span className="text-ink-2">Production plan</span>
+              <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] text-t5">
+                <span className="text-ink-2">Teaching Plan</span>
                 <span>→</span>
                 <span className="text-accent-deep">Scene script</span>
                 <span>→</span>
@@ -129,17 +129,16 @@ function Claim({
   children: React.ReactNode;
 }) {
   return (
-    <div
-      data-reveal
-      className="flex flex-col gap-3 rounded-[24px] border border-white/90 bg-card p-6 shadow-[var(--shadow-md)] sm:p-7"
-    >
-      <h3 className="m-0 font-display text-[17px] font-medium tracking-[-0.01em]">
-        {title}
-      </h3>
-      <p className="pretty m-0 max-w-[46ch] text-[13.5px] leading-[1.65] text-ink-2">
-        {body}
-      </p>
-      <div className="mt-1">{children}</div>
+    <div data-reveal className="studio-shell">
+      <div className="studio-surface flex h-full flex-col gap-3 p-6 sm:p-7">
+        <h3 className="m-0 font-display text-[17px] font-medium tracking-[-0.01em]">
+          {title}
+        </h3>
+        <p className="pretty m-0 max-w-[46ch] text-[13.5px] leading-[1.65] text-ink-2">
+          {body}
+        </p>
+        <div className="mt-1">{children}</div>
+      </div>
     </div>
   );
 }

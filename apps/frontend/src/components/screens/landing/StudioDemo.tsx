@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Check, RotateCcw } from "lucide-react";
 import { SceneVisual } from "@/components/project/canvas/SceneVisual";
-import { Kicker } from "@/components/ui/primitives";
+import { StageKicker } from "@/components/ui/primitives";
 import { CREW } from "@/lib/crew";
 import { SEED_SCENES } from "@/lib/api";
 import type { CrewId } from "@/lib/types";
@@ -80,15 +80,15 @@ export function StudioDemo() {
     >
       <div className="mb-[clamp(32px,4vw,52px)] grid grid-cols-1 items-end gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
         <div>
-          <Kicker className="mb-3 block">
+          <StageKicker className="mb-4">
             scope, made visible
-          </Kicker>
+          </StageKicker>
           <h2
             data-reveal
             className="balance m-0 max-w-[720px] font-serif text-[clamp(34px,4.6vw,60px)] leading-[1.01] font-normal tracking-[-0.02em]"
           >
             Change one scene,
-            <span className="text-t6"> and only that scene changes.</span>
+            <span className="text-t8"> and only that scene changes.</span>
           </h2>
         </div>
         <p
@@ -102,8 +102,9 @@ export function StudioDemo() {
 
       <div
         data-reveal
-        className="overflow-hidden rounded-[26px] border border-white/90 bg-card shadow-[var(--shadow-2xl)]"
+        className="studio-shell"
       >
+        <div className="studio-surface overflow-hidden">
         <div className="flex items-center justify-between gap-4 border-b border-line-div bg-sunken px-5 py-3.5 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <span className="grid h-7 w-7 flex-none place-items-center rounded-[8px] bg-ink font-display text-[11px] font-semibold text-white">
@@ -119,9 +120,9 @@ export function StudioDemo() {
           <span
             className="flex-none rounded-[8px] border px-2.5 py-1 font-mono text-[9px] tracking-[0.12em] uppercase"
             style={{
-              borderColor: state === "original" ? "var(--color-line-input)" : "var(--accent-line)",
-              background: state === "original" ? "transparent" : "var(--accent-tint)",
-              color: state === "original" ? "var(--color-t7)" : "var(--color-accent-deep)",
+              borderColor: state === "edited" ? "var(--color-stale-line)" : state === "updated" ? "var(--accent-line)" : "var(--color-line-input)",
+              background: state === "edited" ? "var(--color-stale-bg)" : state === "updated" ? "var(--accent-tint)" : "transparent",
+              color: state === "edited" ? "var(--color-stale-fg)" : state === "updated" ? "var(--color-accent-deep)" : "var(--color-t7)",
             }}
           >
             {state === "original" ? "The video now" : state === "edited" ? "Edit pending" : "Updated"}
@@ -193,7 +194,7 @@ export function StudioDemo() {
             <div className="mb-5 flex items-baseline justify-between gap-4">
               <div>
                 <div className="font-display text-[15px] font-semibold">Inside Decode</div>
-                <div className="mt-1 text-[12px] text-t5">Six specialists, each passing work to the next</div>
+                <div className="mt-1 text-[12px] text-t5">Five specialists, each passing work to the next</div>
               </div>
               <span className="font-mono text-[9px] tracking-[0.12em] text-t6 uppercase">
                 Scope receipt
@@ -258,12 +259,13 @@ export function StudioDemo() {
               }}
             >
               {state === "original"
-                ? "Every step keeps its source, history, and AI usage together."
+                ? "Every step keeps its source, history, and compute receipt together."
                 : state === "edited"
                   ? "Producer and Director stay untouched. Scene script changed; scene visuals and the timeline are queued."
                   : "Scene 05 was rebuilt. The other seven scenes were not touched at all."}
             </div>
           </aside>
+        </div>
         </div>
       </div>
     </section>
