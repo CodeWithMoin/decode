@@ -143,7 +143,8 @@ export function Understanding() {
         status={approved ? "Approved" : "Ready for your review"}
         approved={approved}
         handoff="Understanding approved — building the teaching plan next."
-        approveLabel="Approve understanding"
+        nextLabel="Next: Teaching Plan"
+        approveLabel="Approve and plan"
         onApprove={handleApprove}
         onPushBack={handlePushBack}
       />

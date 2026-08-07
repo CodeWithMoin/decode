@@ -8,8 +8,9 @@ BACKEND_PYTHON := $(BACKEND_DIR)/.venv/bin/python
 BACKEND_ALEMBIC := $(BACKEND_DIR)/.venv/bin/alembic
 BACKEND_ARQ := $(BACKEND_DIR)/.venv/bin/arq
 
+
 .PHONY: help setup env backend-install frontend-install docker-ready infra infra-down infra-status \
-	migrate api dispatcher worker frontend dev test check
+	migrate api dispatcher worker frontend dev dev-down test check
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "; printf "Decode development commands\n\n"} /^[a-zA-Z_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -78,6 +79,22 @@ dev: env infra migrate ## Run API, dispatcher, worker, and frontend; stop with C
 	$(MAKE) --no-print-directory frontend & frontend_pid=$$!; \
 	wait
 
+dev-down: ## Stop anything left running from 'make dev'; leaves Postgres and Redis up
+	@# Ctrl-C kills the make subprocesses but their children can outlive them, and
+	@# the survivors then hold 8000 and 3000 so the next 'make dev' half-starts.
+	@# Patterns are absolute so a sibling checkout's dev server is never touched.
+	@pkill -f "$(BACKEND_DIR)/.venv/bin/python -m uvicorn decode.main:app" 2>/dev/null || true
+	@pkill -f "$(BACKEND_DIR)/.venv/bin/python -m decode.execution.dispatcher" 2>/dev/null || true
+	@pkill -f "$(BACKEND_DIR)/.venv/bin/arq decode.execution.worker" 2>/dev/null || true
+	@pkill -f "$(FRONTEND_DIR)/node_modules/.bin/next dev" 2>/dev/null || true
+	@sleep 1
+	@for port in 8000 3000 3001; do \
+		if lsof -nP -iTCP:$$port -sTCP:LISTEN >/dev/null 2>&1; then \
+			echo "port $$port still in use — run: lsof -nP -iTCP:$$port -sTCP:LISTEN"; \
+		fi; \
+	done
+	@echo "dev stopped. Postgres and Redis are still up — 'make infra-down' stops those."
+
 test: ## Run the fast backend and frontend test/typecheck suite
 	@cd $(BACKEND_DIR) && $(BACKEND_PYTHON) -m pytest -q
 	@cd $(FRONTEND_DIR) && npm run lint
@@ -89,4 +106,4 @@ check: ## Run all backend and frontend quality gates, including production build
 	@cd $(BACKEND_DIR) && $(BACKEND_PYTHON) -m pytest -q
 	@cd $(FRONTEND_DIR) && npm run lint
 	@cd $(FRONTEND_DIR) && npx tsc --noEmit
-	@cd $(FRONTEND_DIR) && npm run build
+	@cd $(FRONTEND_DIR) && NEXT_DIST_DIR=.next-check npm run build

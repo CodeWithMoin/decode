@@ -197,10 +197,11 @@ export function TeachingPlan() {
       ))}
       <HandoffBar
         crew="director"
-        status={`${sc.length} beats · ${fmt(runtime)}`}
+        status={approvals.plan ? "Approved" : "Ready for review"}
         approved={approvals.plan}
         handoff="Teaching Plan handed to the Writer."
-        approveLabel="Approve the plan"
+        nextLabel="Next: Script"
+        approveLabel="Approve and write"
         onApprove={() =>
           approve(
             "plan",

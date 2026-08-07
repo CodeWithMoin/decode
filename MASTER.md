@@ -99,6 +99,20 @@ rather than a hunt for `rgba()` literals.
 The accent does exactly two jobs. In marketing it emphasises. In the studio it
 means **approved / active scene / playhead**. It is never decoration.
 
+### Secondary sky accent
+
+| Token | Hex | Use |
+|---|---|---|
+| `sky` | `#4B8EA1` | Global navigation, keyboard focus and neutral selection. |
+| `sky-deep` | `#275F70` | Small sky-coloured text on light surfaces. |
+| `sky-wash` | `#E7F1F3` | Informational surfaces and Home creation-deck light. |
+| `sky-line` | `#D4E6EA` | Edges around sky-tinted selection and information. |
+
+Sky is the secondary interaction accent. It marks global navigation, focus,
+form choice, filtering, source context and informational surfaces. It never
+means approval, production progress, active scene or playhead, and it never
+replaces the primary Create action. Burnt amber keeps those production roles.
+
 ### The dark canvas — the only dark surface
 
 | Token | Hex | Use |
@@ -151,7 +165,7 @@ They are different layers and both are correct; never leak the first into the UI
 | Backend module | Presented as | Stage | Artifact handed off |
 |---|---|---|---|
 | Intake | Producer | Understanding | Production brief |
-| Architect | Director | Teaching Plan | Production plan |
+| Architect | Director | Teaching Plan | Teaching Plan |
 | Author | Writer | Script | Scene script · narration |
 | Visualizer + Renderer | Motion Designer | Edit | Visual spec · rendered assets |
 | Composer + Publisher | Editor | Edit · Export | Timeline · final project |
@@ -376,10 +390,13 @@ timeline automatically. The user never manually syncs anything.
 edit/export 5. Clicking a locked stage opens the Production room with an
 explanation — **never a tooltip.** Approving advances the tab automatically.
 
-**One studio shell.** Home, Recent decodes, Templates and New decode stay in a
-stable global sidebar. Opening a project does not swap shells; it adds a
-"Current project" stage section below that same navigation. The Production room
-is project-scoped and is never mounted on Home, New Decode or Processing.
+**One studio shell, two rail densities.** Home, New decode and Processing use a
+compact 80px global rail anchored to the viewport edge. Opening a project expands
+that same rail to 208px so Understanding, Teaching Plan, Script, Edit and Export
+remain fully labelled. Decode, Create, Home and account access stay in the same
+order; the rail gains the project stage section rather than becoming a different
+navigation system. The Production room is project-scoped and is never mounted on
+Home, New Decode or Processing.
 
 **The Production room is on demand.** It is closed by default, opens for an
 explicit question, pushback or locked-stage explanation, and closes when the

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Plus } from "lucide-react";
 import { motion } from "motion/react";
 import type { ReactNode } from "react";
 import { CREW } from "@/lib/crew";
@@ -32,6 +32,27 @@ export function Accent({ className, children, ...rest }: BtnProps) {
     <button {...rest} className={cx("glass-accent", className)}>
       {children}
     </button>
+  );
+}
+
+/** Shared Create mark used by the compact rail and Home creation CTA. */
+export function CreateMark({
+  className,
+  iconSize = 15,
+  shape = "circle",
+}: {
+  className?: string;
+  iconSize?: number;
+  shape?: "circle" | "square";
+}) {
+  return (
+    <span
+      aria-hidden
+      className={cx("glass-accent grid flex-none place-items-center", className)}
+      style={{ borderRadius: shape === "square" ? 12 : 999 }}
+    >
+      <Plus size={iconSize} strokeWidth={1.8} />
+    </span>
   );
 }
 
@@ -134,17 +155,17 @@ export function AppMark({
   gradient?: boolean;
   className?: string;
 }) {
+  const glyphSize = Math.max(font + 4, Math.round(size * 0.64));
   return (
     <div
       className={cx(
-        "flex flex-none items-center justify-center font-display font-bold text-white",
+        "flex flex-none items-center justify-center text-white",
         className,
       )}
       style={{
         width: size,
         height: size,
         borderRadius: radius,
-        fontSize: font,
         background: gradient
           ? "linear-gradient(180deg,#2E2E2B,#141414)"
           : "#141414",
@@ -155,7 +176,21 @@ export function AppMark({
       }}
       aria-hidden
     >
-      D
+      <svg
+        viewBox="0 0 24 24"
+        width={glyphSize}
+        height={glyphSize}
+        fill="none"
+        aria-hidden
+      >
+        <path
+          fill="currentColor"
+          fillRule="evenodd"
+          d="M5.2 4.6h6.1c5.1 0 8.1 2.8 8.1 7.4s-3 7.4-8.1 7.4H5.2V4.6Zm5.8 11.5c3 0 4.6-1.4 4.6-4.1S14 7.9 11 7.9H9v8.2h2Z"
+          clipRule="evenodd"
+        />
+        <rect x="17.65" y="3.4" width="1.9" height="17.2" rx="0.95" fill="var(--accent)" />
+      </svg>
     </div>
   );
 }
@@ -243,16 +278,16 @@ export function CrewMark({
     ? "var(--accent)"
     : locked
       ? "transparent"
-      : c.color;
+      : "linear-gradient(180deg,#343431,#171717)";
   const ring = approved
     ? "var(--accent)"
     : locked
       ? "var(--color-line-mid)"
-      : c.color;
+      : `color-mix(in srgb, ${c.color} 48%, var(--color-line-input))`;
   return (
     <div
       className={cx(
-        "flex flex-none items-center justify-center font-display font-semibold",
+        "relative flex flex-none items-center justify-center font-display font-semibold",
         className,
       )}
       style={{
@@ -263,10 +298,21 @@ export function CrewMark({
         border: `1px solid ${ring}`,
         color: locked ? "var(--color-t11)" : "#fff",
         fontSize: Math.round(size * 0.42),
+        boxShadow: locked
+          ? "none"
+          : approved
+            ? "inset 0 1px 0 rgba(255,255,255,0.24)"
+            : `inset 0 1px 0 rgba(255,255,255,0.18), 0 0 0 3px color-mix(in srgb, ${c.color} 10%, transparent)`,
       }}
       aria-hidden
     >
       {approved ? "✓" : <CrewGlyph crew={crew} size={Math.round(size * 0.64)} />}
+      {!approved && !locked && (
+        <span
+          className="absolute right-[7%] bottom-[7%] h-[20%] w-[20%] rounded-full border border-white/70"
+          style={{ background: c.color }}
+        />
+      )}
     </div>
   );
 }

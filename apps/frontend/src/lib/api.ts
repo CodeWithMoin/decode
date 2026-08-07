@@ -331,7 +331,7 @@ export const projectCards = (meta: string): ProjectCard[] => [
     pillFg: "#6B6B68",
     sourceKind: "Book chapter",
     currentStage: "Teaching Plan",
-    nextAction: "Approve the production plan",
+    nextAction: "Approve the Teaching Plan",
     progress: 0.28,
   },
   {

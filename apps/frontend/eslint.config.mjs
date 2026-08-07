@@ -1,16 +1,23 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
-
-// eslint-config-next 15 is published in eslintrc format, so it is bridged into
-// the flat config with FlatCompat rather than imported directly.
-const compat = new FlatCompat({
-  baseDirectory: dirname(fileURLToPath(import.meta.url)),
-});
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTypescript from "eslint-config-next/typescript";
 
 const eslintConfig = [
-  { ignores: [".next/**", "out/**", "build/**", "next-env.d.ts"] },
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  // .next-check is where `make check` puts its verification build, so that a
+  // production build cannot overwrite the dev server's chunks. It is build
+  // output like .next and must be ignored the same way.
+  { ignores: [".next/**", ".next-check/**", "out/**", "build/**", "next-env.d.ts"] },
+  ...nextVitals,
+  ...nextTypescript,
+  {
+    // Next 16 enables these React Compiler-oriented rules by default. Existing
+    // interactive surfaces intentionally use refs for command execution and
+    // effect-driven request state; migrate those patterns separately rather
+    // than coupling a behavioral rewrite to the framework upgrade.
+    rules: {
+      "react-hooks/refs": "off",
+      "react-hooks/set-state-in-effect": "off",
+    },
+  },
 ];
 
 export default eslintConfig;

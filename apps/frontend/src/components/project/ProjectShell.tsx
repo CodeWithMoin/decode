@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { ArrowLeft, Command, MessageSquare } from "lucide-react";
+import { ArrowLeft, Command } from "lucide-react";
 import { RailFrame } from "@/components/app/RailFrame";
 import { StageRail } from "@/components/app/StageRail";
 import { StudioNav } from "@/components/app/StudioNav";
 import { CommandPalette, openCommandPalette } from "@/components/project/CommandPalette";
+import { ProjectChatTab } from "@/components/project/ProjectChatDock";
 import { ProducerDrawer } from "@/components/producer/ProducerDrawer";
 import { Edit } from "@/components/project/stages/Edit";
 import { Export } from "@/components/project/stages/Export";
@@ -40,7 +41,6 @@ export function ProjectShell({ children }: { children?: React.ReactNode }) {
     setTab,
     lockedNudge,
     threadOpen,
-    toggleThread,
   } = useStudio();
 
   const runtime = useMemo(() => total(sc), [sc]);
@@ -69,12 +69,9 @@ export function ProjectShell({ children }: { children?: React.ReactNode }) {
     <div
       className="app-field flex min-h-dvh gap-3 p-0 lg:p-3"
     >
-      {/* The rail runs the full height at the viewport edge, not tucked
-          under the header. A shared frame only reads as continuity if the
-          frame holds still — starting it below a 59px header dropped the
-          wordmark and the account card on entry, which is what made this
-          look like a different sidebar rather than the same one with new
-          contents. The header spans the content column alone. */}
+      {/* The project expands the compact global rail into the labelled stage
+          workflow. It remains a full-height sibling of the content header, so
+          the Decode/Create/Home anchors and account boundary stay continuous. */}
       {/* =========================== left rail =========================== */}
       <nav
         aria-label="Stages"
@@ -128,7 +125,7 @@ export function ProjectShell({ children }: { children?: React.ReactNode }) {
             <span className="hidden sm:inline">Projects</span>
           </button>
 
-          <span className="min-w-0 truncate font-display text-[14.5px] font-semibold">
+          <span className="min-w-0 flex-1 truncate font-display text-[14.5px] font-semibold">
             {source.title}
           </span>
 
@@ -140,22 +137,6 @@ export function ProjectShell({ children }: { children?: React.ReactNode }) {
             {fmt(runtime)} · {sc.length} scenes
           </span>
 
-
-          <button
-            type="button"
-            onClick={toggleThread}
-            aria-pressed={threadOpen}
-            aria-label="Open project chat — ⌘J"
-            className={cx(
-              "flex h-9 flex-none items-center gap-2 rounded-full border px-2.5 transition-colors duration-[var(--t-fast)]",
-              threadOpen
-                ? "border-[var(--accent-ring)] bg-[var(--accent-tint)] text-accent-deep"
-                : "border-line-input bg-card text-t6 hover:border-line-strong hover:text-ink",
-            )}
-          >
-            <MessageSquare size={15} strokeWidth={1.8} aria-hidden />
-            <span className="hidden text-[12px] font-medium xl:inline">Chat</span>
-          </button>
 
           <button
             type="button"
@@ -203,6 +184,8 @@ export function ProjectShell({ children }: { children?: React.ReactNode }) {
       {/* ⌘K does, ⌘J chats. The palette is the control list, so nothing
           can appear in it that is not already a real action. */}
       <CommandPalette />
+
+      <ProjectChatTab />
 
       {/* Global overlay, mounted once and above the sticky header. */}
       <ProducerDrawer />

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { AnimatePresence, motion } from "motion/react";
 import { CREW } from "@/lib/crew";
 import type { CrewId } from "@/lib/types";
 import { CrewMark, Ghost, Graphite, cx } from "@/components/ui/primitives";
@@ -119,27 +118,31 @@ export function HandoffBar({
   status,
   approved,
   handoff,
+  nextLabel,
   approveLabel,
   onApprove,
   onPushBack,
-  secondaryLabel = "Push back",
+  secondaryLabel = "Request changes",
+  approvedSecondaryLabel = "Discuss",
   approveDisabled = false,
 }: {
   crew: CrewId;
   status: string;
   approved: boolean;
   handoff: string;
+  nextLabel?: string;
   approveLabel: string;
   onApprove: () => void;
   onPushBack: () => void;
   secondaryLabel?: string;
+  approvedSecondaryLabel?: string;
   approveDisabled?: boolean;
 }) {
   const c = CREW[crew];
   const ref = useGutterReservation();
 
   return (
-    <motion.div
+    <div
       ref={ref}
       className="sticky bottom-3 z-[4] mt-auto overflow-hidden rounded-[18px]"
       style={{
@@ -148,16 +151,19 @@ export function HandoffBar({
         boxShadow: "var(--shadow-sticky-up)",
       }}
     >
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5">
-        <CrewMark crew={crew} size={22} approved={approved} />
-        <span className="text-[12.5px] font-medium">{c.name}</span>
-        <span
-          className={cx(
-            "font-mono text-[9.5px] tracking-[0.12em] uppercase",
-            approved ? "text-accent-deep" : "text-t9",
-          )}
-        >
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
+        <CrewMark crew={crew} size={26} approved={approved} />
+        <span className="min-w-0">
+          <span className="block text-[12.5px] font-semibold text-ink">{c.name}</span>
+          <span className="block truncate font-mono text-[8px] tracking-[0.1em] text-t7 uppercase">{c.artifact}</span>
+        </span>
+
+        <span className={cx("rounded-full px-2.5 py-1 font-mono text-[8.5px] tracking-[0.1em] uppercase", approved ? "bg-[var(--accent-tint)] text-accent-deep" : "bg-sunken text-t6")}>
           {status}
+        </span>
+
+        <span className="min-w-[180px] flex-1 text-[11.5px] leading-[1.45] text-t6">
+          {approved ? handoff : nextLabel}
         </span>
 
         <div className="ml-auto flex items-center gap-2">
@@ -166,7 +172,7 @@ export function HandoffBar({
             onClick={onPushBack}
             className="px-3.5 py-1.5 text-[12.5px] whitespace-nowrap"
           >
-            {secondaryLabel}
+            {approved ? approvedSecondaryLabel : secondaryLabel}
           </Ghost>
           {!approved && (
             <Graphite
@@ -179,32 +185,6 @@ export function HandoffBar({
           )}
         </div>
       </div>
-
-      <AnimatePresence initial={false}>
-        {approved && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            style={{
-              background: "var(--accent-tint)",
-              borderTop: "1px solid var(--accent-line)",
-            }}
-          >
-            <div className="flex items-center gap-2 px-4 py-[7px]">
-              <div
-                className="flex h-[14px] w-[14px] flex-none items-center justify-center rounded-full text-[8px] text-white"
-                style={{ background: "var(--accent)" }}
-                aria-hidden
-              >
-                ✓
-              </div>
-              <div className="text-[11.5px] text-t5">{handoff}</div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }

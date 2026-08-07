@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ChevronDown } from "lucide-react";
+import { ArrowLeft, ChevronDown, RotateCw, TriangleAlert } from "lucide-react";
 import { RailFrame } from "@/components/app/RailFrame";
 import { StageRail } from "@/components/app/StageRail";
 import { StudioNav } from "@/components/app/StudioNav";
@@ -36,6 +36,7 @@ export function ConnectedProject({ projectId }: { projectId: string }) {
   const [draft, setDraft] = useState<ProductionBriefPayload | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const commandKeys = useRef(new Map<string, string>());
   const keyFor = (fingerprint: string) => {
     const existing = commandKeys.current.get(fingerprint);
@@ -72,12 +73,28 @@ export function ConnectedProject({ projectId }: { projectId: string }) {
 
   useEffect(() => {
     let active = true;
+    setInitialLoading(true);
+    setError("");
     load().catch((cause: unknown) => {
       if (active) setError(creatorError(cause, "We couldn’t load this production brief."));
+    }).finally(() => {
+      if (active) setInitialLoading(false);
     });
     return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- route identity owns this fetch
   }, [projectId]);
+
+  const retryInitialLoad = async () => {
+    setInitialLoading(true);
+    setError("");
+    try {
+      await load();
+    } catch (cause) {
+      setError(creatorError(cause, "We couldn’t load this production brief."));
+    } finally {
+      setInitialLoading(false);
+    }
+  };
 
   const openEdit = () => {
     if (!viewed || viewed.version_id !== brief?.latest_version_id) return;
@@ -154,7 +171,7 @@ export function ConnectedProject({ projectId }: { projectId: string }) {
           <div className="studio-shell rounded-[16px] p-[3px]">
             <div className="studio-surface-muted rounded-[13px] p-3">
               <div className="font-mono text-[8.5px] text-t9 uppercase">Sources</div>
-              <div className="mt-1 text-[12px] font-medium">{studio?.sources.length ?? 0} attached</div>
+              <div className="mt-1 text-[12px] font-medium">{studio ? `${studio.sources.length} attached` : "Checking sources"}</div>
             </div>
           </div>
         }>
@@ -170,14 +187,17 @@ export function ConnectedProject({ projectId }: { projectId: string }) {
       <div className="min-w-0 flex-1">
         <header className="panel-glass sticky top-0 z-30 mb-0 flex items-center gap-3 border-b border-line-head px-4 py-2.5 lg:top-3 lg:mb-3 lg:rounded-[18px] lg:border lg:border-white/80 lg:shadow-sm">
           <button onClick={() => router.push("/studio")} aria-label="Back to projects" className="grid h-9 w-9 place-items-center rounded-full border border-line-input bg-card lg:hidden"><ArrowLeft size={14} /></button>
-          <span className="min-w-0 truncate font-display text-[14.5px] font-semibold">{projectTitle}</span>
-          <span className="hidden rounded-full border border-line-input bg-sunken px-2.5 py-1 font-mono text-[9px] tracking-[0.1em] text-t6 uppercase sm:inline">Production brief · saved</span>
-          <button disabled className="ml-auto rounded-full border border-line-input bg-sunken px-3 py-2 text-[12px] text-t9" title="Project Chat is not available yet">Chat · not available yet</button>
-          <Graphite disabled className="px-4 py-2 text-[13px] opacity-50">Export · not available yet</Graphite>
+          <span className="min-w-0 flex-1 truncate font-display text-[14.5px] font-semibold">{studio || payload ? projectTitle : "Opening project"}</span>
+          <span className="hidden rounded-full border border-line-input bg-sunken px-2.5 py-1 font-mono text-[9px] tracking-[0.1em] text-t6 uppercase sm:inline">Production brief · {initialLoading ? "loading" : payload ? "saved" : "unavailable"}</span>
+          <Graphite disabled className="ml-auto px-4 py-2 text-[13px] opacity-50">Export · not available yet</Graphite>
         </header>
         <StageRail variant="strip" active="overview" state={stageState} />
 
-        {!payload ? <div className="mx-auto max-w-[900px] p-8"><StageKicker>Understanding</StageKicker><p className="mt-3 text-[13px] text-t7">{error || "Loading Production Brief…"}</p></div> : (
+        {!payload ? initialLoading ? (
+          <ConnectedProjectSkeleton />
+        ) : (
+          <ProjectLoadFailure message={error || "We couldn’t load this production brief."} onRetry={() => void retryInitialLoad()} onBack={() => router.push("/studio")} />
+        ) : (
           <main className="mx-auto flex w-full max-w-[1200px] flex-col gap-6 p-4 pb-[var(--handoff-h)] sm:p-6 lg:p-8 lg:pb-[var(--handoff-h)]">
             <div className="studio-shell">
               <div className="studio-surface p-6 sm:p-8">
@@ -224,12 +244,120 @@ export function ConnectedProject({ projectId }: { projectId: string }) {
             {panel === "edit" && draft && <EditPanel draft={draft} setDraft={setDraft} onCancel={() => setPanel("none")} onSave={() => void save()} busy={busy} />}
             {panel === "history" && <HistoryPanel versions={history} latestId={brief?.latest_version_id} approvedId={brief?.approved_version_id} selectedId={viewed?.version_id} lineage={lineage} onSelect={(version) => void inspectVersion(version)} onClose={() => setPanel("none")} />}
             {error && <p role="alert" className="rounded-xl border border-[#E7C8BF] bg-[#FFF5F2] p-3 text-[12px] text-[#8E2F19]">{error}</p>}
-            <HandoffBar crew="producer" status={approved ? "Brief approved" : isLatest ? "Ready for your review" : "Viewing an earlier draft"} approved={approved} handoff="Brief approved. Your teaching plan is the next step." approveLabel={busy ? "Saving…" : "Approve brief"} approveDisabled={!canApprove || busy} onApprove={() => void approve()} onPushBack={canEdit ? openEdit : () => void openHistory()} secondaryLabel={canEdit ? "Edit brief" : "View history"} />
+            <HandoffBar crew="producer" status={approved ? "Approved" : isLatest ? "Ready for review" : "Earlier draft"} approved={approved} handoff="Brief approved. Your teaching plan is the next step." nextLabel="Next: Teaching Plan" approveLabel={busy ? "Saving…" : "Approve and plan"} approveDisabled={!canApprove || busy} onApprove={() => void approve()} onPushBack={canEdit ? openEdit : () => void openHistory()} secondaryLabel={canEdit ? "Request changes" : "View history"} approvedSecondaryLabel="View history" />
             {!canApprove && <p className="text-[11px] text-t7">This brief can’t be approved right now. Refresh the page and try again.</p>}
           </main>
         )}
       </div>
     </div>
+  );
+}
+
+function ConnectedProjectSkeleton() {
+  return (
+    <main aria-live="polite" aria-busy="true" className="mx-auto flex w-full max-w-[1200px] flex-col gap-6 p-4 pb-[var(--handoff-h)] sm:p-6 lg:p-8 lg:pb-[var(--handoff-h)]">
+      <div className="studio-shell">
+        <div className="studio-surface p-6 sm:p-8">
+          <span className="studio-eyebrow">Production brief</span>
+          <span className="sr-only">Loading the current draft, sources, and latest review.</span>
+          <div className="mt-5 grid max-w-[880px] gap-2.5" aria-hidden>
+            <span className="h-9 w-[86%] rounded-xl bg-sunken-3 sm:h-11" />
+            <span className="h-9 w-[58%] rounded-xl bg-sunken-3 sm:h-11" />
+          </div>
+          <div className="mt-5 grid max-w-[68ch] gap-2" aria-hidden>
+            <span className="h-3 w-full rounded-full bg-sunken-3" />
+            <span className="h-3 w-[92%] rounded-full bg-sunken-3" />
+            <span className="h-3 w-[72%] rounded-full bg-sunken-3" />
+          </div>
+          <div className="mt-5 flex flex-wrap items-center gap-2" aria-hidden>
+            <span className="h-3 w-12 rounded-full bg-sunken-3" />
+            <span className="h-3 w-16 rounded-full bg-sunken-3" />
+            <span className="h-3 w-20 rounded-full bg-sunken-3" />
+            <span className="ml-2 h-3 w-16 rounded-full bg-sunken-3" />
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(148px, 1fr))" }}>
+        {["Concepts", "Audience", "Target", "Source"].map((label) => (
+          <div key={label} className="flex min-h-[96px] flex-col rounded-2xl border border-line-input bg-card p-4">
+            <Micro>{label}</Micro>
+            <span className="mt-3 h-4 w-2/3 rounded-full bg-sunken-3" />
+            <span className="mt-auto h-3 w-1/2 rounded-full bg-sunken-3" />
+          </div>
+        ))}
+      </div>
+
+      <div className="studio-surface px-5 py-4 shadow-sm">
+        <div className="mb-2.5 flex items-center gap-2.5">
+          <span className="h-[26px] w-[26px] rounded-full bg-sunken-3" />
+          <span className="text-[13px] font-semibold text-ink">Producer</span>
+          <span className="ml-auto font-mono text-[9.5px] tracking-[0.12em] text-t6 uppercase">Production brief</span>
+        </div>
+        <div className="h-3 w-5/6 rounded-full bg-sunken-3" />
+        <div className="mt-2 h-3 w-2/3 rounded-full bg-sunken-3" />
+        <div className="mt-3 rounded-xl bg-sunken-2 px-3 py-2.5">
+          <span className="block h-3 w-3/4 rounded-full bg-sunken-3" />
+        </div>
+      </div>
+
+      <SkeletonListSection title="What learners should take away" />
+      <div className="grid gap-4 md:grid-cols-2">
+        <SkeletonListSection title="What to include" />
+        <SkeletonListSection title="What to leave out" />
+      </div>
+      <SkeletonListSection title="Questions to resolve" />
+
+      <section className="rounded-2xl border border-line bg-card p-5">
+        <h2 className="font-display text-[15px] font-semibold text-ink">Supporting detail</h2>
+      </section>
+
+      <div className="sticky bottom-3 z-[4] rounded-[18px] border border-line-input bg-card px-4 py-3 shadow-sticky-up">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="h-[26px] w-[26px] rounded-full bg-sunken-3" />
+          <span className="min-w-0">
+            <span className="block text-[12.5px] font-semibold text-ink">Producer</span>
+            <span className="block font-mono text-[8px] tracking-[0.1em] text-t6 uppercase">Production brief</span>
+          </span>
+          <span className="h-6 w-24 rounded-full bg-sunken-3" />
+          <span className="min-w-[180px] flex-1 text-[11.5px] text-t6">Next: Teaching Plan</span>
+          <span className="h-8 w-24 rounded-full bg-sunken-3" />
+          <span className="h-8 w-28 rounded-full bg-sunken-3" />
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function SkeletonListSection({ title }: { title: string }) {
+  return (
+    <section className="rounded-2xl border border-line bg-card p-5">
+      <h2 className="font-display text-[15px] font-semibold text-ink">{title}</h2>
+      <div className="mt-4 grid gap-3" aria-hidden>
+        <span className="h-3 w-full rounded-full bg-sunken-3" />
+        <span className="h-3 w-5/6 rounded-full bg-sunken-3" />
+        <span className="h-3 w-2/3 rounded-full bg-sunken-3" />
+      </div>
+    </section>
+  );
+}
+
+function ProjectLoadFailure({ message, onRetry, onBack }: { message: string; onRetry: () => void; onBack: () => void }) {
+  return (
+    <main className="mx-auto w-full max-w-[900px] p-4 sm:p-6 lg:p-8">
+      <div role="alert" className="studio-shell">
+        <div className="studio-surface p-6 sm:p-8">
+          <span className="grid h-10 w-10 place-items-center rounded-full bg-sunken-3 text-accent-deep" aria-hidden><TriangleAlert size={17} strokeWidth={1.8} /></span>
+          <StageKicker className="mt-5">Understanding</StageKicker>
+          <h1 className="mt-3 font-display text-[clamp(26px,4vw,40px)] font-semibold tracking-[-0.035em] text-ink">The production brief didn’t open</h1>
+          <p className="mt-3 max-w-[58ch] text-[13px] leading-[1.65] text-t6">{message}</p>
+          <div className="mt-6 flex flex-wrap gap-2">
+            <Graphite type="button" onClick={onRetry} className="flex min-h-10 items-center gap-2 px-4 text-[12.5px] font-medium"><RotateCw size={13} strokeWidth={1.8} aria-hidden />Retry</Graphite>
+            <button type="button" onClick={onBack} className="min-h-10 rounded-full border border-line-input bg-sunken px-4 text-[12.5px] font-medium text-ink-2 transition-colors duration-[var(--t-fast)] hover:border-line-strong hover:bg-white">Back to studio</button>
+          </div>
+        </div>
+      </div>
+    </main>
   );
 }
 
@@ -294,7 +422,7 @@ function Concepts({ concepts }: { concepts: ProductionBriefPayload["key_concepts
 function MoreDetail({ hint, children }: { hint: string; children: React.ReactNode }) {
   return <details className="group rounded-2xl border border-line bg-card"><summary className="flex cursor-pointer list-none items-center gap-2 p-5 font-display text-[15px] font-semibold [&::-webkit-details-marker]:hidden">Supporting detail<ChevronDown size={14} className="text-t7 transition-transform duration-[var(--t-fast)] group-open:rotate-180" /><span className="ml-auto font-mono text-[9.5px] uppercase text-t8 group-open:hidden">{hint}</span></summary><div className="flex flex-col gap-5 px-5 pb-5 [&_details]:border-0 [&_details]:p-0 [&_section]:border-0 [&_section]:bg-transparent [&_section]:p-0">{children}</div></details>;
 }
-function ListSection({ title, items, empty = "None recorded." }: { title: string; items: string[]; empty?: string }) { return <section className="rounded-2xl border border-line bg-card p-5"><h2 className="font-display text-[15px] font-semibold">{title}</h2>{items.length ? <ol className="mt-3 space-y-2 pl-5 text-[13px] leading-[1.55] text-ink-2">{items.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}</ol> : <p className="mt-3 text-[12px] text-t7">{empty}</p>}</section>; }
+function ListSection({ title, items, empty = "None recorded." }: { title: string; items: string[]; empty?: string }) { return <section className="rounded-2xl border border-line bg-card p-5"><h2 className="font-display text-[15px] font-semibold">{title}</h2>{items.length ? <ul className="mt-3 list-disc space-y-2 pl-5 text-[13px] leading-[1.55] text-ink-2 marker:text-t8">{items.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}</ul> : <p className="mt-3 text-[12px] text-t7">{empty}</p>}</section>; }
 
 const QUALITY_LABELS: Record<string, string> = {
   objectives_present: "Learning goals",

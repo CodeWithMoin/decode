@@ -354,10 +354,16 @@ export function ProducerDrawer() {
     });
   }, [draft, ask, setDraft, setThinking, say, after, screen, sceneIdx]);
 
-  /* Newest message stays in view. Jump, don't animate — the drawer has no
-     entrance motion and a smooth scroll would read as one. */
+  /* Newest message stays in view. Jump, don't animate — a second scroll
+     animation would compete with the panel's own materialization. */
   const scroller = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const frame = window.requestAnimationFrame(() => composer.current?.focus());
+    return () => window.cancelAnimationFrame(frame);
+  }, [open]);
 
   /**
    * Grow the field to fit what is in it, up to a ceiling.

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Check, RotateCcw } from "lucide-react";
 import { SceneVisual } from "@/components/project/canvas/SceneVisual";
-import { Accent, ButtonArrow, CrewGlyph, Ghost, Graphite, StageKicker } from "@/components/ui/primitives";
+import { Accent, ButtonArrow, CrewMark, Ghost, Graphite, StageKicker } from "@/components/ui/primitives";
 import { CREW } from "@/lib/crew";
 import { SEED_SCENES } from "@/lib/api";
 import type { CrewId } from "@/lib/types";
@@ -237,23 +237,8 @@ export function StudioDemo() {
                         }}
                       />
                     )}
-                    <span
-                      className="relative z-[1] grid h-11 w-11 flex-none place-items-center rounded-full border p-[3px] shadow-xs transition-[opacity,transform] duration-[var(--t-fast)] ease-decode"
-                      style={{
-                        background: `color-mix(in srgb, ${member.color} 14%, var(--color-card))`,
-                        borderColor: `color-mix(in srgb, ${member.color} 28%, var(--color-line-input))`,
-                        opacity: queued ? 0.5 : 1,
-                      }}
-                    >
-                      <span
-                        className="grid h-full w-full place-items-center rounded-full text-white"
-                        style={{
-                          background: member.color,
-                          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28)",
-                        }}
-                      >
-                        <CrewGlyph crew={id} size={21} />
-                      </span>
+                    <span className="relative z-[1] flex-none" style={{ opacity: queued ? 0.5 : 1 }}>
+                      <CrewMark crew={id} size={44} />
                       {(finished || editedByYou) && (
                         <span
                           aria-hidden

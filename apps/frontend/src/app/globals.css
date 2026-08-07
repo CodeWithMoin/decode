@@ -51,6 +51,14 @@
   --color-accent-lit: #f2a47b; /* on the dark canvas */
   --color-accent-card: #fdf7f3;
 
+  /* --- secondary sky accent ---
+     Navigation, focus, neutral selection, and informational surfaces. Amber
+     remains the primary production, approval, progress, and playhead colour. */
+  --color-sky: #4b8ea1;
+  --color-sky-deep: #275f70;
+  --color-sky-wash: #e7f1f3;
+  --color-sky-line: #d4e6ea;
+
   /* --- stale ---
      What an edit leaves behind: a scene's visual spec, assets or voice that no
      longer match the words above them. Deliberately NOT the error ramp — stale
@@ -138,6 +146,8 @@
   --accent-ring: rgb(194 65 12 / 0.3);
   --accent-glow: rgb(194 65 12 / 0.35);
   --accent-wash: rgb(194 65 12 / 0.28);
+  --sky-tint: rgb(75 142 161 / 0.1);
+  --sky-ring: rgb(75 142 161 / 0.28);
 
   /* Three durations, nothing between them.
      fast   — hover, toggles, tint changes
@@ -231,7 +241,7 @@
 
   /* Keyboard focus is always visible; mouse clicks stay clean. */
   :focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--color-sky);
     outline-offset: 2px;
     border-radius: 6px;
   }
@@ -431,11 +441,22 @@
       var(--color-page);
   }
 
+  .app-field-global {
+    background: var(--color-sunken-4);
+  }
+
   .app-rail {
     background: rgba(252, 252, 251, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.88);
     box-shadow: var(--shadow-lg);
     backdrop-filter: blur(24px);
+  }
+
+  .app-rail-global {
+    background: var(--color-sunken-4);
+    border: 0;
+    box-shadow: none;
+    backdrop-filter: none;
   }
 
   .studio-shell {
@@ -491,10 +512,21 @@
     backdrop-filter: blur(20px) saturate(1.2);
   }
 
+  .home-creation-deck {
+    background:
+      radial-gradient(circle at 12% -10%, var(--color-sky-wash), transparent 48%),
+      radial-gradient(circle at 88% -18%, var(--accent-line), transparent 50%),
+      linear-gradient(180deg, var(--color-accent-card), var(--color-card));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.94),
+      inset 0 -1px 0 var(--accent-line);
+  }
+
   .production-room {
     opacity: 0;
     pointer-events: none;
-    transform: translate3d(calc(100% + 16px), 0, 0);
+    transform: translate3d(calc(100% + 16px), 0, 0) scale(0.98);
+    transform-origin: right center;
     transition:
       transform var(--t-normal) var(--ease-decode),
       opacity var(--t-normal) var(--ease-decode);

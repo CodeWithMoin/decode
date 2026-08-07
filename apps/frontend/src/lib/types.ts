@@ -145,11 +145,6 @@ export interface KeyConcept {
   importance: "core" | "supporting";
 }
 
-export interface TeachingOpportunity {
-  title: string;
-  rationale: string;
-}
-
 export interface ProductionBriefPayload {
   title: string;
   summary: string;
@@ -159,7 +154,6 @@ export interface ProductionBriefPayload {
   prerequisites: string[];
   scope_in: string[];
   scope_out: string[];
-  teaching_opportunities: TeachingOpportunity[];
   source_findings: Record<string, unknown>;
   open_questions: string[];
 }

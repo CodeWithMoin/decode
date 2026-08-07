@@ -79,6 +79,12 @@ export const decodeApi = {
       body: JSON.stringify({ title: title || null }),
     }),
 
+  deleteProject: (projectId: string, key: string) =>
+    request<{ project_id: string; deleted_at: string }>(`/api/v1/projects/${projectId}`, {
+      method: "DELETE",
+      headers: { "Idempotency-Key": key },
+    }),
+
   uploadSource: (projectId: string, file: File, kind: string, key: string) => {
     const body = new FormData();
     body.append("file", file, file.name);
@@ -137,6 +143,19 @@ export const decodeApi = {
   getBrief: (projectId: string) =>
     request<ProductionBriefProjection>(
       `/api/v1/projects/${projectId}/production-brief`,
+    ),
+
+  /**
+   * The creator's direction, read back.
+   *
+   * There is no dedicated GET for production intent — the versions endpoint is
+   * generic, so the artifact id comes from the studio snapshot and the newest
+   * version is the one that produced the brief. `limit=1` because nothing here
+   * needs the history.
+   */
+  getIntent: (projectId: string, artifactId: string) =>
+    request<{ items: ArtifactVersion<ProductionIntentPayload>[] }>(
+      `/api/v1/projects/${projectId}/artifacts/${artifactId}/versions?limit=1`,
     ),
 
   editBrief: (

@@ -79,7 +79,8 @@ export function Script() {
         status={approved ? "Approved" : "Awaiting approval"}
         approved={approved}
         handoff="Handed to the Motion Designer — scene visuals next."
-        approveLabel="Approve script"
+        nextLabel="Next: Edit"
+        approveLabel="Approve and build scenes"
         onApprove={() =>
           approve(
             "script",

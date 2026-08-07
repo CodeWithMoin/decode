@@ -46,7 +46,7 @@ export const CREW: Record<CrewId, CrewMember> = {
     initial: "D",
     color: "#4C5B7A",
     stage: "plan",
-    artifact: "Production plan",
+    artifact: "Teaching Plan",
   },
   writer: {
     id: "writer",

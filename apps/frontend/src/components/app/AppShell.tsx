@@ -9,12 +9,10 @@ import { AppMark } from "@/components/ui/primitives";
 /**
  * The application shell.
  *
- * Dashboard and New Decode used to be standalone pages with a marketing-style
- * glass header, while the project had a 200px rail — so the app contradicted
- * its own language the moment you opened a decode. This is the same rail,
- * outside a project: identical width, identical 999px pill rows, identical
- * glass. Moving between the studio and a project should feel like changing
- * rooms, not changing products.
+ * Dashboard and New Decode use the compact global form of the studio rail. A
+ * project expands the same anchors into a labelled production-stage rail: the
+ * density changes because the context gains a workflow, not because the user
+ * entered a different product.
  *
  * "New decode" lives here as an ordinary row rather than a hero button. It was
  * `ChipCTA` — the landing page's 51px hero CTA — which made the loudest pixel
@@ -57,10 +55,10 @@ export function AppShell({
         className={
           mobile
             ? "app-rail relative flex h-dvh w-[264px] max-w-[86vw] flex-col rounded-r-[22px] p-4"
-            : "app-rail sticky top-3 hidden h-[calc(100dvh-24px)] w-[208px] flex-none flex-col rounded-[22px] p-3 lg:flex"
+            : "app-rail app-rail-global sticky top-0 hidden h-dvh w-[80px] flex-none flex-col rounded-none border-0 p-2 lg:flex"
         }
       >
-        <RailFrame onLeave={mobile ? () => setMenu(false) : undefined}>
+        <RailFrame connected={connected} compact={!mobile} onLeave={mobile ? () => setMenu(false) : undefined}>
           {mobile && (
             <button
               type="button"
@@ -72,14 +70,14 @@ export function AppShell({
             </button>
           )}
 
-        <StudioNav active={active} connected={connected} />
+        <StudioNav active={active} connected={connected} compact={!mobile} />
 
         </RailFrame>
       </nav>
   );
 
   return (
-    <div className="app-field flex min-h-dvh gap-3 p-0 lg:p-3">
+    <div className="app-field app-field-global flex min-h-dvh gap-0 p-0 lg:h-dvh lg:overflow-hidden">
       {rail(false)}
 
       {/* Below lg the rail is hidden, so without this the app had no
@@ -98,7 +96,7 @@ export function AppShell({
         </div>
       )}
 
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 lg:relative lg:z-[1] lg:mt-2 lg:mr-2 lg:h-[calc(100dvh-8px)] lg:overflow-y-auto lg:rounded-t-[22px] lg:bg-sunken-2 lg:shadow-xl">
         <div className="app-mobile-header sticky top-2 z-30 mx-2 mt-2 flex items-center gap-2 rounded-full px-2.5 py-2 lg:hidden">
           <button
             type="button"

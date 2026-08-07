@@ -1,11 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, FileText, Plus, Type, X } from "lucide-react";
+import { Check, ChevronDown, FileText, Plus, Type, X } from "lucide-react";
 import {
   AUDIENCE_HINTS,
-  AUDIENCE_LEVELS,
   DEPTH_OPTIONS,
   EXAMPLES,
   RECENT_FILES,
@@ -13,7 +12,7 @@ import {
   TONE_OPTIONS,
 } from "@/lib/api";
 import { useStudio } from "@/store/studio";
-import { ButtonArrow, Select, cx } from "@/components/ui/primitives";
+import { ButtonArrow, cx } from "@/components/ui/primitives";
 import { AppShell } from "@/components/app/AppShell";
 import { decodeApi, idempotencyKey } from "@/lib/decode-api";
 import { creatorError } from "@/lib/creator-errors";
@@ -42,10 +41,9 @@ const ACCEPT = ".pdf,.md,.markdown,.txt,.docx,.pptx,.tex,.epub";
  *
  * Three deliberate departures from the previous version:
  *
- * 1. **Segmented rows, not dropdowns.** Four selects cost eight interactions
- *    (open, choose, ×4) and hide their own options until clicked. Four rows of
- *    chips cost four taps and teach the whole system at a glance. That is the
- *    entire friction budget of this screen.
+ * 1. **Product-owned selection menus.** Length, depth, and narration are finite
+ *    choices, but browser-native menus visually leave the studio. Decode owns
+ *    the trigger, option surface, focus treatment, and selected state.
  * 2. **Many sources, not one.** A lesson is often a paper *and* your notes.
  *    Forcing a single file meant merging PDFs by hand to say something simple.
  * 3. **No wizard.** Everything is on one surface, nothing is behind a step, and
@@ -244,7 +242,7 @@ export function NewDecode({ connected = false }: { connected?: boolean }) {
           </div>
 
           <div className="studio-shell w-full">
-            <div className="studio-surface overflow-hidden">
+            <div className="studio-surface">
             {/* ------------------------- 1 · sources ------------------------- */}
             <div className="p-4 sm:p-5">
               <input
@@ -387,7 +385,7 @@ export function NewDecode({ connected = false }: { connected?: boolean }) {
                 value={brief}
                 onChange={(e) => setBrief(e.target.value)}
                 placeholder="Focus on intuition. Skip the proofs. Assume they know transformers."
-                className="w-full resize-none rounded-[11px] border border-line-input bg-white px-3 py-2 text-[13.5px] leading-[1.6] text-ink outline-none transition-colors duration-[var(--t-fast)] placeholder:text-t8 hover:border-line-strong focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-tint)]"
+                  className="w-full resize-none rounded-[11px] border border-line-input bg-white px-3 py-2 text-[13.5px] leading-[1.6] text-ink outline-none transition-colors duration-[var(--t-fast)] placeholder:text-t8 hover:border-line-strong focus:border-sky focus:shadow-[0_0_0_3px_var(--sky-tint)]"
               />
               <p className="m-0 mt-1.5 text-[11.5px] text-t9">
                 Your files supply the knowledge. This supplies the intent.
@@ -406,48 +404,18 @@ export function NewDecode({ connected = false }: { connected?: boolean }) {
               <Field label="Audience">
                 <input
                   type="text"
-                  list="audience-options"
                   value={audience}
                   onChange={(e) => setAudience(e.target.value)}
-                  placeholder="Beginner, or describe them…"
-                  className={FIELD}
-                />
-                <datalist id="audience-options">
-                  {[...AUDIENCE_LEVELS, ...AUDIENCE_HINTS].map((h) => (
-                    <option key={h} value={h} />
-                  ))}
-                </datalist>
-              </Field>
-
-              <Field label="Length">
-                <Select
-                  label="Length"
-                  value={runtime}
-                  onChange={setRuntime}
-                  options={RUNTIME_OPTIONS}
+                  placeholder={`e.g. ${AUDIENCE_HINTS[1]}`}
                   className={FIELD}
                 />
               </Field>
 
-              <Field label="Depth">
-                <Select
-                  label="Depth"
-                  value={depth}
-                  onChange={setDepth}
-                  options={DEPTH_OPTIONS}
-                  className={FIELD}
-                />
-              </Field>
+              <ChoiceSelect label="Length" value={runtime} options={RUNTIME_OPTIONS} onChange={setRuntime} />
 
-              <Field label="Narration style">
-                <Select
-                  label="Narration style"
-                  value={tone}
-                  onChange={setTone}
-                  options={TONE_OPTIONS}
-                  className={FIELD}
-                />
-              </Field>
+              <ChoiceSelect label="Depth" value={depth} options={DEPTH_OPTIONS} onChange={setDepth} />
+
+              <ChoiceSelect label="Narration style" value={tone} options={TONE_OPTIONS} onChange={setTone} />
             </div>
 
             {/* ----------------------- 4 · brand kit ----------------------- */}
@@ -524,7 +492,7 @@ export function NewDecode({ connected = false }: { connected?: boolean }) {
             </div>
 
             {/* -------------------------- 5 · create -------------------------- */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-sunken-3 bg-sunken px-4 py-3 sm:px-5">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-b-[18px] border-t border-sunken-3 bg-sunken px-4 py-3 sm:px-5">
               <span className="min-w-0 text-[11.5px] text-t7">
                 {ready ? (
                   <>
@@ -631,7 +599,7 @@ function toProductionIntent({
   brandKit: ReturnType<typeof useStudio.getState>["brandKit"];
 }): ProductionIntentPayload {
   const seconds: Record<string, 60 | 180 | 300 | 600 | null> = {
-    "1 min": 60,
+    "60 seconds": 60,
     "3 min": 180,
     "5 min": 300,
     "10 min": 600,
@@ -673,7 +641,7 @@ function Label({ children }: { children: React.ReactNode }) {
 }
 
 const FIELD =
-  "w-full min-w-0 rounded-[11px] border border-line-input bg-white px-3 py-2 text-[13px] text-ink outline-none transition-colors duration-[var(--t-fast)] placeholder:font-normal placeholder:text-t8 hover:border-line-strong focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-tint)]";
+  "w-full min-w-0 rounded-[11px] border border-line-input bg-white px-3 py-2 text-[13px] text-ink outline-none transition-colors duration-[var(--t-fast)] placeholder:font-normal placeholder:text-t8 hover:border-line-strong focus:border-sky focus:shadow-[0_0_0_3px_var(--sky-tint)]";
 
 function Field({
   label,
@@ -689,6 +657,82 @@ function Field({
       </span>
       {children}
     </label>
+  );
+}
+
+function ChoiceSelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: readonly string[];
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => event.key === "Escape" && setOpen(false);
+    window.addEventListener("mousedown", close);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", close);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className="relative min-w-0">
+      <span className="mb-1.5 block font-mono text-[9.5px] tracking-[0.12em] text-t9 uppercase">
+        {label}
+      </span>
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={label}
+        className={cx(FIELD, "flex items-center justify-between gap-3 text-left")}
+      >
+        <span className="truncate">{value}</span>
+        <ChevronDown size={13} strokeWidth={1.8} className={cx("flex-none text-t7 transition-transform duration-[var(--t-fast)]", open && "rotate-180")} aria-hidden />
+      </button>
+      {open && (
+        <div className="studio-shell absolute top-[calc(100%+6px)] right-0 left-0 z-20 rounded-[14px] p-[3px] shadow-xl">
+          <div role="listbox" aria-label={label} className="studio-surface grid max-h-56 gap-0.5 overflow-y-auto rounded-[11px] p-1">
+            {options.map((option) => {
+              const selected = value === option;
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  role="option"
+                  aria-selected={selected}
+                  onClick={() => {
+                    onChange(option);
+                    setOpen(false);
+                  }}
+                  className={cx(
+                    "flex min-h-9 w-full items-center gap-2 rounded-[8px] px-2.5 py-2 text-left text-[12px] transition-colors duration-[var(--t-fast)]",
+                selected ? "bg-sky-wash font-medium text-sky-deep" : "text-ink-2 hover:bg-sunken",
+                  )}
+                >
+                  <span className="min-w-0 flex-1 truncate">{option}</span>
+                  {selected && <Check size={13} strokeWidth={2} className="flex-none text-sky-deep" aria-hidden />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
