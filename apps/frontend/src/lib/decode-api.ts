@@ -2,8 +2,10 @@ import type {
   ArtifactHistoryResponse,
   ArtifactLineageResponse,
   ArtifactVersion,
+  ApprovalResult,
   CreatedProject,
   GenerateBriefResult,
+  GenerateTeachingPlanResult,
   JobDetail,
   ProblemResponse,
   ProductionBriefPayload,
@@ -13,6 +15,7 @@ import type {
   ProjectListResponse,
   SourceUploadResult,
   StudioSnapshot,
+  TeachingPlanPayload,
   UsageResponse,
 } from "./types";
 
@@ -60,6 +63,8 @@ async function request<T>(
       field_errors: body.field_errors,
       current_latest_version_id: body.current_latest_version_id,
       active_job_id: body.active_job_id,
+      approved_version_id: body.approved_version_id,
+      approved_intent_version_id: body.approved_intent_version_id,
     });
   }
   if (response.status === 204) return undefined as T;
@@ -77,6 +82,18 @@ export const decodeApi = {
       method: "POST",
       headers: { "Idempotency-Key": key },
       body: JSON.stringify({ title: title || null }),
+    }),
+
+  /**
+   * Turn running the stages back to back on or off.
+   *
+   * No idempotency key: this sets a value rather than starting work, so a
+   * repeat of the same request is the same state and costs nothing.
+   */
+  setAutoContinue: (projectId: string, autoContinue: boolean) =>
+    request<{ project_id: string; auto_continue: boolean }>(`/api/v1/projects/${projectId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ auto_continue: autoContinue }),
     }),
 
   deleteProject: (projectId: string, key: string) =>
@@ -124,6 +141,24 @@ export const decodeApi = {
       },
     ),
 
+  generateTeachingPlan: (
+    projectId: string,
+    briefVersionId: string,
+    intentVersionId: string,
+    key: string,
+  ) =>
+    request<GenerateTeachingPlanResult>(
+      `/api/v1/projects/${projectId}/teaching-plan/generations`,
+      {
+        method: "POST",
+        headers: { "Idempotency-Key": key },
+        body: JSON.stringify({
+          brief_version_id: briefVersionId,
+          intent_version_id: intentVersionId,
+        }),
+      },
+    ),
+
   getStudio: (projectId: string) =>
     request<StudioSnapshot>(`/api/v1/projects/${projectId}/studio`),
 
@@ -154,8 +189,13 @@ export const decodeApi = {
    * needs the history.
    */
   getIntent: (projectId: string, artifactId: string) =>
-    request<{ items: ArtifactVersion<ProductionIntentPayload>[] }>(
+    request<ArtifactHistoryResponse<ProductionIntentPayload>>(
       `/api/v1/projects/${projectId}/artifacts/${artifactId}/versions?limit=1`,
+    ),
+
+  getTeachingPlan: (projectId: string, artifactId: string) =>
+    request<ArtifactHistoryResponse<TeachingPlanPayload>>(
+      `/api/v1/projects/${projectId}/artifacts/${artifactId}/versions?limit=50`,
     ),
 
   editBrief: (
@@ -174,14 +214,14 @@ export const decodeApi = {
       },
     ),
 
-  approveBrief: (
+  approveArtifact: (
     projectId: string,
     artifactId: string,
     versionId: string,
     note: string | null,
     key: string,
   ) =>
-    request<{ approved_version_id: string }>(
+    request<ApprovalResult>(
       `/api/v1/projects/${projectId}/artifacts/${artifactId}/versions/${versionId}/approvals`,
       {
         method: "POST",
@@ -190,8 +230,8 @@ export const decodeApi = {
       },
     ),
 
-  getHistory: (projectId: string, artifactId: string, cursor?: string | number) =>
-    request<ArtifactHistoryResponse>(
+  getHistory: <TPayload = ProductionBriefPayload>(projectId: string, artifactId: string, cursor?: string | number) =>
+    request<ArtifactHistoryResponse<TPayload>>(
       `/api/v1/projects/${projectId}/artifacts/${artifactId}/versions?limit=50${cursor !== undefined ? `&cursor=${encodeURIComponent(String(cursor))}` : ""}`,
     ),
 

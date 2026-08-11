@@ -2,10 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ChevronDown, RotateCw, TriangleAlert } from "lucide-react";
-import { RailFrame } from "@/components/app/RailFrame";
-import { StageRail } from "@/components/app/StageRail";
-import { StudioNav } from "@/components/app/StudioNav";
+import { ChevronDown, RotateCw, TriangleAlert } from "lucide-react";
+import { ConnectedProjectFrame } from "@/components/connected/ConnectedProjectFrame";
 import { HandoffBar, HandoffBrief } from "@/components/crew/HandoffCard";
 import { Graphite, Micro, StageKicker, cx } from "@/components/ui/primitives";
 import { DecodeApiError, decodeApi, idempotencyKey } from "@/lib/decode-api";
@@ -18,16 +16,12 @@ import type {
   ProductionIntentPayload,
   ProductionBriefProjection,
   StudioSnapshot,
-  TabId,
 } from "@/lib/types";
-
-/** Only Understanding is connected in this milestone; the rest stay visible and locked. */
-const stageState = (tab: TabId) => ({ locked: tab !== "overview" });
 
 export function ConnectedProject({ projectId }: { projectId: string }) {
   const router = useRouter();
   const [studio, setStudio] = useState<StudioSnapshot | null>(null);
-  const [intent, setIntent] = useState<ProductionIntentPayload | null>(null);
+  const [intentVersion, setIntentVersion] = useState<ArtifactVersion<ProductionIntentPayload> | null>(null);
   const [brief, setBrief] = useState<ProductionBriefProjection | null>(null);
   const [viewed, setViewed] = useState<ArtifactVersion<ProductionBriefPayload> | null>(null);
   const [history, setHistory] = useState<ArtifactVersion<ProductionBriefPayload>[]>([]);
@@ -65,8 +59,8 @@ export function ConnectedProject({ projectId }: { projectId: string }) {
     if (intentArtifact) {
       decodeApi
         .getIntent(projectId, intentArtifact.artifact_id)
-        .then((response) => setIntent(response.items[0]?.payload ?? null))
-        .catch(() => setIntent(null));
+        .then((response) => setIntentVersion(response.items[0] ?? null))
+        .catch(() => setIntentVersion(null));
     }
     return nextBrief;
   };
@@ -126,14 +120,71 @@ export function ConnectedProject({ projectId }: { projectId: string }) {
     setError("");
     const fingerprint = `approve:${brief.artifact_id}:${viewed.version_id}`;
     try {
-      await decodeApi.approveBrief(projectId, brief.artifact_id, viewed.version_id, null, keyFor(fingerprint));
-      const next = await decodeApi.getBrief(projectId);
+      await decodeApi.approveArtifact(projectId, brief.artifact_id, viewed.version_id, null, keyFor(fingerprint));
+      const lineageResult = await decodeApi.getLineage(
+        projectId,
+        brief.artifact_id,
+        viewed.version_id,
+      );
+      const informedBy = lineageResult.parents.find(
+        (parent) => parent.artifact_type === "production_intent",
+      );
+      const intentVersionId = informedBy?.version_id ?? intentVersion?.version_id;
+      if (!intentVersionId) throw new Error("The production direction for this brief is unavailable.");
+      const planFingerprint = `generate-plan:${viewed.version_id}:${intentVersionId}`;
+      await decodeApi.generateTeachingPlan(
+        projectId,
+        viewed.version_id,
+        intentVersionId,
+        keyFor(planFingerprint),
+      );
       commandKeys.current.delete(fingerprint);
-      setBrief(next);
-      if (viewed.version_id === next.latest_version.version_id) setViewed(next.latest_version);
+      commandKeys.current.delete(planFingerprint);
+      router.push(`/studio/projects/${projectId}/teaching-plan`);
     } catch (cause) {
-      setError(creatorError(cause, "We couldn’t approve this brief. Please try again."));
+      await load().catch(() => undefined);
+      setError(creatorError(cause, "The brief is safe, but we couldn’t start the Teaching Plan."));
     } finally { setBusy(false); }
+  };
+
+  const startPlan = async () => {
+    if (!brief?.approved_version_id || busy) return;
+    const existingJob = studio?.active_job ?? studio?.most_recent_job;
+    if (existingJob?.kind === "generate_teaching_plan" && existingJob.status !== "succeeded") {
+      router.push(
+        existingJob.status === "failed"
+          ? `/studio/projects/${projectId}/jobs/${existingJob.job_id}`
+          : `/studio/projects/${projectId}/teaching-plan`,
+      );
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const lineageResult = await decodeApi.getLineage(
+        projectId,
+        brief.artifact_id,
+        brief.approved_version_id,
+      );
+      const informedBy = lineageResult.parents.find(
+        (parent) => parent.artifact_type === "production_intent",
+      );
+      const intentVersionId = informedBy?.version_id ?? intentVersion?.version_id;
+      if (!intentVersionId) throw new Error("The production direction for this brief is unavailable.");
+      const fingerprint = `generate-plan:${brief.approved_version_id}:${intentVersionId}`;
+      await decodeApi.generateTeachingPlan(
+        projectId,
+        brief.approved_version_id,
+        intentVersionId,
+        keyFor(fingerprint),
+      );
+      commandKeys.current.delete(fingerprint);
+      router.push(`/studio/projects/${projectId}/teaching-plan`);
+    } catch (cause) {
+      setError(creatorError(cause, "We couldn’t start the Teaching Plan. Please try again."));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const openHistory = async () => {
@@ -155,44 +206,24 @@ export function ConnectedProject({ projectId }: { projectId: string }) {
   };
 
   const payload = viewed?.payload;
+  const intent = intentVersion?.payload ?? null;
   const isLatest = viewed?.version_id === brief?.latest_version_id;
   const approved = viewed?.version_id === brief?.approved_version_id;
   const canEdit = Boolean(isLatest && studio?.allowed_actions.can_edit_brief !== false);
   const canApprove = Boolean(studio?.allowed_actions.can_approve_brief !== false);
-  const projectTitle = studio?.project.title ?? payload?.title ?? "Decode project";
+  const planArtifact = studio?.artifacts.find((item) => item.artifact_type === "teaching_plan");
   const isPreview = payload?.source_findings.fixture === true;
   const passingCheck =
     isLatest && brief?.latest_evaluation?.decision === "pass" ? brief.latest_evaluation : null;
 
   return (
-    <div className="app-field flex min-h-dvh gap-3 p-0 lg:p-3">
-      <nav aria-label="Stages" className="app-rail sticky top-3 hidden h-[calc(100dvh-24px)] w-[208px] flex-none flex-col rounded-[22px] p-3 lg:flex">
-        <RailFrame connected footer={
-          <div className="studio-shell rounded-[16px] p-[3px]">
-            <div className="studio-surface-muted rounded-[13px] p-3">
-              <div className="font-mono text-[8.5px] text-t9 uppercase">Sources</div>
-              <div className="mt-1 text-[12px] font-medium">{studio ? `${studio.sources.length} attached` : "Checking sources"}</div>
-            </div>
-          </div>
-        }>
-          <StudioNav active="none" connected />
-
-          <div className="mt-4 border-t border-line-head pt-4">
-            <div className="mb-2 px-2.5 font-mono text-[8.5px] tracking-[0.12em] text-t9 uppercase">Current project</div>
-            <StageRail variant="rail" active="overview" state={stageState} />
-          </div>
-        </RailFrame>
-      </nav>
-
-      <div className="min-w-0 flex-1">
-        <header className="panel-glass sticky top-0 z-30 mb-0 flex items-center gap-3 border-b border-line-head px-4 py-2.5 lg:top-3 lg:mb-3 lg:rounded-[18px] lg:border lg:border-white/80 lg:shadow-sm">
-          <button onClick={() => router.push("/studio")} aria-label="Back to projects" className="grid h-9 w-9 place-items-center rounded-full border border-line-input bg-card lg:hidden"><ArrowLeft size={14} /></button>
-          <span className="min-w-0 flex-1 truncate font-display text-[14.5px] font-semibold">{studio || payload ? projectTitle : "Opening project"}</span>
-          <span className="hidden rounded-full border border-line-input bg-sunken px-2.5 py-1 font-mono text-[9px] tracking-[0.1em] text-t6 uppercase sm:inline">Production brief · {initialLoading ? "loading" : payload ? "saved" : "unavailable"}</span>
-          <Graphite disabled className="ml-auto px-4 py-2 text-[13px] opacity-50">Export · not available yet</Graphite>
-        </header>
-        <StageRail variant="strip" active="overview" state={stageState} />
-
+    <ConnectedProjectFrame
+      projectId={projectId}
+      studio={studio}
+      activeStage="overview"
+      statusLabel={`Production brief · ${initialLoading ? "loading" : payload ? "saved" : "unavailable"}`}
+      loading={initialLoading}
+    >
         {!payload ? initialLoading ? (
           <ConnectedProjectSkeleton />
         ) : (
@@ -206,6 +237,16 @@ export function ConnectedProject({ projectId }: { projectId: string }) {
                 <p className="mt-4 max-w-[68ch] text-[14px] leading-[1.7] text-t6">{payload.summary}</p>
                 {isPreview && <p className="mt-4 max-w-[68ch] rounded-xl bg-sunken px-3 py-2 text-[12px] text-t7">This preview demonstrates editing, approval, and history. It has not analyzed the contents of your source yet.</p>}
                 <div className="mt-5 flex flex-wrap gap-2 font-mono text-[9.5px] uppercase text-t7"><span>Draft {viewed?.sequence}</span><span>· {isLatest ? "current" : "earlier"}</span><span>· {approved ? "approved" : "awaiting approval"}</span><button onClick={() => void openHistory()} className="ml-2 text-accent-deep underline underline-offset-2">Draft history</button></div>
+                {/* An approval nobody clicked has to say so. Otherwise the
+                    studio tells the creator they signed off on a brief they
+                    have not read yet. */}
+                {approved && brief?.approval?.automatic && (
+                  <p className="mt-4 max-w-[68ch] rounded-xl bg-sunken px-3 py-2 text-[12px] leading-[1.6] text-t7">
+                    This brief was approved automatically so the Director could keep going. Edit it
+                    to publish a new draft for review — the Teaching Plan is rebuilt only when you
+                    ask.
+                  </p>
+                )}
               </div>
             </div>
 
@@ -244,12 +285,11 @@ export function ConnectedProject({ projectId }: { projectId: string }) {
             {panel === "edit" && draft && <EditPanel draft={draft} setDraft={setDraft} onCancel={() => setPanel("none")} onSave={() => void save()} busy={busy} />}
             {panel === "history" && <HistoryPanel versions={history} latestId={brief?.latest_version_id} approvedId={brief?.approved_version_id} selectedId={viewed?.version_id} lineage={lineage} onSelect={(version) => void inspectVersion(version)} onClose={() => setPanel("none")} />}
             {error && <p role="alert" className="rounded-xl border border-[#E7C8BF] bg-[#FFF5F2] p-3 text-[12px] text-[#8E2F19]">{error}</p>}
-            <HandoffBar crew="producer" status={approved ? "Approved" : isLatest ? "Ready for review" : "Earlier draft"} approved={approved} handoff="Brief approved. Your teaching plan is the next step." nextLabel="Next: Teaching Plan" approveLabel={busy ? "Saving…" : "Approve and plan"} approveDisabled={!canApprove || busy} onApprove={() => void approve()} onPushBack={canEdit ? openEdit : () => void openHistory()} secondaryLabel={canEdit ? "Request changes" : "View history"} approvedSecondaryLabel="View history" />
+            <HandoffBar crew="producer" status={approved ? "Approved" : isLatest ? "Ready for review" : "Earlier draft"} approved={approved} handoff={planArtifact ? "Brief approved. The Director’s Teaching Plan is ready to review." : "Brief approved. Start the Director when you’re ready."} nextLabel="Next: Teaching Plan" approveLabel={busy ? "Starting…" : "Approve and plan"} approveDisabled={!canApprove || busy} onApprove={() => void approve()} onPushBack={approved ? planArtifact ? () => router.push(`/studio/projects/${projectId}/teaching-plan`) : () => void startPlan() : canEdit ? openEdit : () => void openHistory()} secondaryLabel={canEdit ? "Request changes" : "View history"} approvedSecondaryLabel={planArtifact ? "Open Teaching Plan" : busy ? "Starting…" : "Start Teaching Plan"} />
             {!canApprove && <p className="text-[11px] text-t7">This brief can’t be approved right now. Refresh the page and try again.</p>}
           </main>
         )}
-      </div>
-    </div>
+    </ConnectedProjectFrame>
   );
 }
 

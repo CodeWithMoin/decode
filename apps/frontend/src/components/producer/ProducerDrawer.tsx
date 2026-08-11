@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check } from "lucide-react";
-import { projectCards } from "@/lib/api";
-import { num } from "@/lib/derive";
+import { Check, PaperPlaneTilt } from "@phosphor-icons/react";
+import { num, observations } from "@/lib/derive";
 import { useStudio } from "@/store/studio";
 import { AppMark, Ghost, Graphite, Spinner, cx } from "@/components/ui/primitives";
 
@@ -38,8 +37,6 @@ export function ProducerDrawer() {
   const thinking = useStudio((s) => s.thinking);
   const screen = useStudio((s) => s.screen);
   const tab = useStudio((s) => s.tab);
-  const source = useStudio((s) => s.source);
-  const pstep = useStudio((s) => s.pstep);
   const sceneIdx = useStudio((s) => s.sceneIdx);
   const sc = useStudio((s) => s.sc);
 
@@ -58,8 +55,21 @@ export function ProducerDrawer() {
      into a dead component. */
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const workingLine = useRef("Reworking the plan…");
+  const scroller = useRef<HTMLDivElement>(null);
+  const composer = useRef<HTMLTextAreaElement>(null);
   const [proposal, setProposal] = useState<QuickAction | null>(null);
-  const replacesInspector = screen === "project" && tab === "edit";
+  const docked = screen === "project";
+  const dark = docked && tab === "edit";
+  const turns = useMemo(
+    () =>
+      thread.reduce<Array<{ who: "u" | "p"; messages: typeof thread }>>((groups, message) => {
+        const last = groups.at(-1);
+        if (last?.who === message.who) last.messages.push(message);
+        else groups.push({ who: message.who, messages: [message] });
+        return groups;
+      }, []),
+    [thread],
+  );
 
   useEffect(() => {
     const pending = timers.current;
@@ -70,8 +80,14 @@ export function ProducerDrawer() {
 
   // A proposal belongs to the exact screen, stage and scene where it was
   // scoped. Moving elsewhere invalidates it instead of applying it blindly.
+  //
+  // The functional form matters. Stage changes run through `changeProjectStage`,
+  // which calls `flushSync` inside `startViewTransition` — so this effect fires
+  // during a synchronous render, and an unconditional `setProposal(null)` was
+  // one more nested update on every stage switch even when there was nothing to
+  // clear. Returning the same reference lets React bail out entirely.
   useEffect(() => {
-    setProposal(null);
+    setProposal((current) => (current === null ? current : null));
   }, [screen, tab, sceneIdx]);
 
   const after = useCallback((ms: number, fn: () => void) => {
@@ -86,43 +102,23 @@ export function ProducerDrawer() {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "j") {
         e.preventDefault();
+        if (docked && window.matchMedia("(min-width: 1024px)").matches) {
+          composer.current?.focus();
+          return;
+        }
         toggleThread();
         return;
       }
-      if (e.key === "Escape") setThreadOpen(false);
+      if (
+        e.key === "Escape" &&
+        (!docked || !window.matchMedia("(min-width: 1024px)").matches)
+      ) {
+        setThreadOpen(false);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [toggleThread, setThreadOpen]);
-
-  /* ---------------------------------------------------------------- */
-  /* Live context line — what the Producer is currently looking at     */
-  /* ---------------------------------------------------------------- */
-
-  const context = useMemo(() => {
-    if (screen === "dashboard")
-      return `Looking at your studio · ${projectCards("").length} decodes`;
-    if (screen === "upload") return "Looking at the new decode brief";
-    if (screen === "processing")
-      return `Preparing ${source.title} · step ${Math.min(pstep + 1, 7)} of 7`;
-    if (screen !== "project") return "Knows the source and the plan";
-
-    const cur = sc[sceneIdx];
-    switch (tab) {
-      case "overview":
-        return "Looking at Understanding · 37 concepts";
-      case "plan":
-        return `Looking at the Teaching Plan · ${sc.length} beats`;
-      case "script":
-        return `Looking at Script · scene ${num(sceneIdx)}`;
-      case "edit":
-        return `Looking at Scene ${num(sceneIdx)}${cur ? ` · ${cur.title}` : ""}`;
-      case "export":
-        return "Looking at Export settings";
-      default:
-        return "Knows the source and the plan";
-    }
-  }, [screen, tab, sceneIdx, sc, source.title, pstep]);
+  }, [docked, toggleThread, setThreadOpen]);
 
   /* ---------------------------------------------------------------- */
   /* Quick actions — different per screen, and they really act         */
@@ -285,18 +281,6 @@ export function ProducerDrawer() {
         },
       ];
 
-    if (tab === "export")
-      return [
-        talk(
-          "Which format should I pick?",
-          "MP4 at 1080p for anywhere people actually watch. ProRes only if this goes into another edit afterwards.",
-        ),
-        talk(
-          "Is it ready to render?",
-          "Every beat is approved and the timeline has no gaps. I'd ship it.",
-        ),
-      ];
-
     return [
       talk(
         "What are you looking at?",
@@ -356,14 +340,11 @@ export function ProducerDrawer() {
 
   /* Newest message stays in view. Jump, don't animate — a second scroll
      animation would compete with the panel's own materialization. */
-  const scroller = useRef<HTMLDivElement>(null);
-  const composer = useRef<HTMLTextAreaElement>(null);
-
   useEffect(() => {
-    if (!open) return;
+    if (!open || (docked && window.matchMedia("(min-width: 1024px)").matches)) return;
     const frame = window.requestAnimationFrame(() => composer.current?.focus());
     return () => window.cancelAnimationFrame(frame);
-  }, [open]);
+  }, [docked, open]);
 
   /**
    * Grow the field to fit what is in it, up to a ceiling.
@@ -381,118 +362,90 @@ export function ProducerDrawer() {
   }, [draft]);
   useEffect(() => {
     const el = scroller.current;
-    if (el && open) el.scrollTop = el.scrollHeight;
-  }, [thread.length, thinking, open]);
+    if (el && (open || docked)) el.scrollTop = el.scrollHeight;
+  }, [thread.length, thinking, open, docked]);
 
   return (
     <aside
       aria-label="Project Chat"
-      aria-hidden={!open}
-      inert={!open}
-      data-open={open}
+      aria-hidden={!open && !docked ? true : undefined}
+      inert={!open && !docked}
+      data-open={open || undefined}
+      data-docked={docked || undefined}
       className={cx(
-        // A floating panel, not a wall.
+        // Two shapes, one panel.
         //
-        // It used to be flush to all three edges with square corners, so
-        // opening it read as the app being replaced rather than something
-        // arriving beside your work. Inset and rounded, it sits *over* the
-        // studio and the studio stays visible around it — which matters,
-        // because the room is commenting on what you are looking at.
-        "production-room fixed right-3 bottom-3 z-80 flex w-[380px] max-w-[calc(100vw-1.5rem)] flex-col",
-        replacesInspector && "lg:w-[318px]",
-        "top-[calc(var(--header-h)+3.5rem)] lg:top-[calc(var(--header-h)+1.5rem)]",
-        "overflow-hidden rounded-[20px] border border-white/70 bg-drawer",
-        "shadow-[0_28px_70px_rgb(30_30_28_/_0.22)]",
+        // From lg up it is docked: a column on the left of the work, always
+        // there, because the conversation is how the production is directed
+        // and hunting for it made it feel optional. Below lg there is no room
+        // for a third column, so it stays the floating panel it was — inset
+        // and rounded, sitting *over* the studio with the studio still visible
+        // around it, because the room is commenting on what you are looking at.
+        //
+        // Open/closed is styling, not `inert`: see `.production-room`.
+        "production-room flex flex-col overflow-hidden",
+        "fixed right-3 bottom-3 z-80 w-[380px] max-w-[calc(100vw-1.5rem)]",
+        "top-[calc(var(--header-h)+3.5rem)]",
+        "rounded-[20px] border border-white/70 shadow-[0_28px_70px_rgb(30_30_28_/_0.22)]",
+        docked && "lg:static lg:inset-auto lg:z-auto lg:h-full lg:w-[344px] lg:max-w-none lg:flex-none lg:rounded-none lg:border-0",
+        dark
+          ? "bg-[var(--nle-panel)] text-[var(--nle-text)] lg:shadow-[14px_0_34px_rgb(0_0_0_/_0.2)]"
+          : "bg-drawer lg:shadow-[12px_0_30px_rgb(30_30_28_/_0.08)]",
       )}
     >
-      {/* header ---------------------------------------------------- */}
-      <div className="flex flex-none items-center gap-[9px] border-b border-line-inner px-4 py-3.5">
-        <AppMark gradient size={22} radius={7} font={11} />
-        <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-semibold">Project Chat</div>
-          <div className="truncate text-[10.5px] text-t8">{context}</div>
-        </div>
-        <button
-          type="button"
-          onClick={() => setThreadOpen(false)}
-          aria-label="Close Project Chat"
-          className="flex-none border-none bg-transparent text-[15px] leading-none text-t10 transition-colors hover:text-ink"
-        >
-          ×
-        </button>
-      </div>
-
       {/* thread ---------------------------------------------------- */}
       <div
         ref={scroller}
-        className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-4 py-4"
+        className={cx("flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3", docked && "rail-y")}
       >
-        {/* Pushes a short thread down to meet the composer. Without it two
-            messages sat at the top with 500px of dead panel beneath them. */}
-        <div className="mt-auto" />
+        {/* Bottom-aligned only while the panel floats.
+            The spacer was added when the room was a short overlay, where two
+            messages left 500px of dead panel beneath them. Docked full height
+            the problem inverts — the same spacer strands the conversation at
+            the bottom of the window with the dead space above it — so the
+            thread starts at the top and grows down from there. */}
+        <div className={cx("mt-auto", docked && "hidden")} />
 
-        {thread.map((m, i) => {
-          const mine = m.who === "u";
-          const opensTurn = i === 0 || thread[i - 1].who !== m.who;
+        {turns.map((turn) => {
+          const mine = turn.who === "u";
 
           return (
             <div
-              key={m.id}
+              key={turn.messages[0].id}
               className={cx(
-                "flex max-w-[90%] flex-col",
-                mine ? "self-end items-end" : "self-start",
-                opensTurn && i > 0 && "mt-1.5",
+                "flex w-full flex-col",
+                mine && "items-end",
               )}
             >
-              {/* Attribution only when the speaker changes — repeating it on
-                  every consecutive message is noise, not clarity. */}
-              {opensTurn && !mine && (
-                <span className="mb-1 flex items-center gap-1.5 pl-0.5">
-                  <AppMark gradient size={15} radius={5} font={8} />
-                  <span className="font-mono text-[9px] tracking-[0.12em] text-t9 uppercase">
-                    Decode
-                  </span>
-                </span>
-              )}
-
               <div
                 className={cx(
-                  "overflow-hidden rounded-[13px] text-[12.5px] leading-[1.55]",
-                  mine
-                    ? "bg-ink text-[#F2F2F0]"
-                    : "border border-line-inner bg-card text-ink-2",
+                  "overflow-hidden rounded-[12px] text-[12.5px] leading-[1.65]",
+                  mine ? "w-fit max-w-[88%]" : "w-full",
+                  dark
+                    ? "bg-[var(--nle-panel-raised)] text-[var(--nle-text)] shadow-[inset_0_1px_0_rgb(255_255_255_/_0.04),0_10px_24px_rgb(0_0_0_/_0.14)]"
+                    : "bg-card text-ink-2 shadow-[inset_0_1px_0_rgb(255_255_255_/_0.9),0_8px_22px_rgb(30_30_28_/_0.07)]",
+                  mine && (dark ? "bg-[#242424]" : "bg-sunken-4"),
                 )}
               >
-                <div className="px-3 py-2.5">{m.text}</div>
-
-                {/* The receipt belongs to the message, not beside it. Detached,
-                    it read as a separate item in the thread rather than proof
-                    attached to what was just said. */}
-                {m.receipt ? (
-                  <div
-                    className={cx(
-                      "flex items-center gap-1.5 border-t px-3 py-1.5",
-                      mine
-                        ? "border-white/12 bg-white/5"
-                        : "border-line-inner bg-sunken",
-                    )}
-                  >
-                    <Check
-                      size={10}
-                      strokeWidth={2.6}
-                      aria-hidden
-                      className={mine ? "text-white/70" : "text-accent-deep"}
-                    />
-                    <span
-                      className={cx(
-                        "font-mono text-[9.5px] tracking-[0.06em]",
-                        mine ? "text-white/70" : "text-t7",
-                      )}
-                    >
-                      {m.receipt}
+                <div className="grid gap-3 px-3.5 py-3">
+                  {!mine && (
+                    <span className="flex items-center gap-1.5">
+                      <AppMark gradient size={15} radius={5} font={8} />
+                      <span className={cx("font-mono text-[9px] tracking-[0.12em] uppercase", dark ? "text-[var(--nle-faint)]" : "text-t9")}>Decode</span>
                     </span>
-                  </div>
-                ) : null}
+                  )}
+                  {turn.messages.map((message) => (
+                    <div key={message.id} className="grid gap-2">
+                      <div>{message.text}</div>
+                      {message.receipt ? (
+                        <div className="flex items-center gap-1.5">
+                          <Check size={10} weight="bold" aria-hidden className="text-accent-deep" />
+                          <span className={cx("font-mono text-[9.5px] tracking-[0.06em]", dark ? "text-[var(--nle-muted)]" : "text-t7")}>{message.receipt}</span>
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           );
@@ -508,20 +461,20 @@ export function ProducerDrawer() {
       </div>
 
       {/* quick actions + composer ---------------------------------- */}
-      <div className="flex-none border-t border-line-inner px-4 pt-3 pb-3.5">
+      <div className={cx("flex-none px-4 pt-3 pb-3.5", dark ? "bg-[var(--nle-panel)] shadow-[0_-12px_28px_rgb(0_0_0_/_0.2)]" : "bg-drawer shadow-[0_-10px_24px_rgb(30_30_28_/_0.07)]")}>
         {proposal?.proposal && (
-          <div className="mb-3 overflow-hidden rounded-[14px] border border-[var(--accent-line)] bg-[var(--accent-tint)]">
+          <div className={cx("mb-3 overflow-hidden rounded-[12px] border border-[var(--accent-line)]", dark ? "bg-[var(--nle-panel-raised)]" : "bg-[var(--accent-tint)]")}>
             <div className="border-b border-[var(--accent-line)] px-3 py-2.5">
               <div className="font-mono text-[8.5px] tracking-[0.13em] text-accent-deep uppercase">
                 Proposed change
               </div>
-              <div className="mt-1 text-[12.5px] font-medium text-ink">
+              <div className={cx("mt-1 text-[12.5px] font-medium", dark ? "text-[var(--nle-text)]" : "text-ink")}>
                 {proposal.proposal.title}
               </div>
             </div>
             <div className="grid gap-2 px-3 py-2.5">
-              <ProposalLine label="Changes" value={proposal.proposal.scope} />
-              <ProposalLine label="Keeps" value={proposal.proposal.untouched} />
+              <ProposalLine label="Changes" value={proposal.proposal.scope} dark={dark} />
+              <ProposalLine label="Keeps" value={proposal.proposal.untouched} dark={dark} />
             </div>
             <div className="flex items-center justify-end gap-2 border-t border-[var(--accent-line)] px-3 py-2.5">
               <button
@@ -530,7 +483,7 @@ export function ProducerDrawer() {
                   setProposal(null);
                   say("Kept the current draft. Nothing changed.");
                 }}
-                className="rounded-full px-3 py-1.5 text-[11.5px] font-medium text-t6 transition-colors hover:text-ink"
+                className={cx("rounded-full px-3 py-1.5 text-[11.5px] font-medium transition-colors", dark ? "text-[var(--nle-muted)] hover:text-[var(--nle-text)]" : "text-t6 hover:text-ink")}
               >
                 Keep current
               </button>
@@ -541,7 +494,7 @@ export function ProducerDrawer() {
                   setProposal(null);
                   action.run();
                 }}
-                className="px-3.5 py-1.5 text-[11.5px] font-medium"
+                className={cx("px-3.5 py-1.5 text-[11.5px] font-medium", dark && "bg-[var(--accent)] text-white")}
               >
                 Apply change
               </Graphite>
@@ -549,17 +502,35 @@ export function ProducerDrawer() {
           </div>
         )}
 
-        <div className="rail-x -mx-1 mb-2.5 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
+        <Noticed dark={dark} />
+
+        {/* Wrapped, not a horizontal scroller. Docked, the room is narrower
+            than the floating panel was, and a sideways-scrolling row of two or
+            three suggestions reads as a truncated one — the second action
+            looked broken rather than scrollable. */}
+        <div className="-mx-1 mb-2.5 flex flex-wrap gap-1.5 px-1 pb-0.5">
           {actions.map((a) => (
-            <Ghost
-              key={a.label}
-              type="button"
-              onClick={() => runAction(a)}
-              disabled={thinking || proposal !== null}
-              className="max-w-full flex-none overflow-hidden px-3 py-1.5 text-[11.5px] text-ellipsis whitespace-nowrap disabled:opacity-50"
-            >
-              {a.label}
-            </Ghost>
+            dark ? (
+              <button
+                key={a.label}
+                type="button"
+                onClick={() => runAction(a)}
+                disabled={thinking || proposal !== null}
+                className="max-w-full rounded-lg border border-[var(--nle-line)] bg-[var(--nle-panel-raised)] px-3 py-1.5 text-left text-[11.5px] font-medium text-[var(--nle-muted)] transition-[border-color,color,transform] duration-[var(--t-fast)] hover:border-[var(--nle-line-strong)] hover:text-[var(--nle-text)] active:scale-[0.98] disabled:opacity-50"
+              >
+                {a.label}
+              </button>
+            ) : (
+              <Ghost
+                key={a.label}
+                type="button"
+                onClick={() => runAction(a)}
+                disabled={thinking || proposal !== null}
+                className="max-w-full px-3 py-1.5 text-left text-[11.5px] disabled:opacity-50"
+              >
+                {a.label}
+              </Ghost>
+            )
           ))}
         </div>
 
@@ -570,7 +541,7 @@ export function ProducerDrawer() {
             19px text box against a 24px button, leaving the text sitting a
             couple of pixels low. Both are fixed by giving the field a real
             line box and letting the row centre on it. */}
-        <div className="flex items-center gap-2 rounded-[14px] border border-line-input bg-card px-2.5 py-1.5">
+        <div className={cx("flex items-center gap-2 rounded-[12px] border px-2.5 py-1.5", dark ? "nle-field" : "border-line-input bg-card")}>
           <textarea
             ref={composer}
             rows={1}
@@ -584,7 +555,7 @@ export function ProducerDrawer() {
             }}
             aria-label="Write in Project Chat"
             placeholder="Ask about this project, or describe a change…"
-            className="max-h-[112px] min-h-[28px] flex-1 resize-none self-center border-none bg-transparent py-[5px] text-[12.5px] leading-[18px] placeholder:text-t9"
+            className={cx("max-h-[112px] min-h-[28px] flex-1 resize-none self-center border-none bg-transparent py-[5px] text-[12.5px] leading-[18px]", dark ? "text-[var(--nle-text)] placeholder:text-[var(--nle-faint)]" : "placeholder:text-t9")}
           />
           <Graphite
             type="button"
@@ -592,7 +563,7 @@ export function ProducerDrawer() {
             aria-label="Send production note"
             className="flex h-7 w-7 flex-none items-center justify-center self-end text-[10px]"
           >
-            ↑
+            <PaperPlaneTilt size={13} weight="fill" aria-hidden />
           </Graphite>
         </div>
 
@@ -606,22 +577,92 @@ export function ProducerDrawer() {
             setThreadOpen(false);
             window.dispatchEvent(new Event("decode:palette"));
           }}
-          className="mt-2 w-full text-center font-mono text-[9px] tracking-[0.1em] text-t9 uppercase transition-colors hover:text-t6"
+          className={cx("mt-2 w-full text-center font-mono text-[9px] tracking-[0.1em] uppercase transition-colors", dark ? "text-[var(--nle-faint)] hover:text-[var(--nle-muted)]" : "text-t9 hover:text-t6")}
         >
-          ⌘K to act directly
+          ⌘J to write here
         </button>
       </div>
     </aside>
   );
 }
 
-function ProposalLine({ label, value }: { label: string; value: string }) {
+function ProposalLine({ label, value, dark = false }: { label: string; value: string; dark?: boolean }) {
   return (
     <div className="grid grid-cols-[46px_minmax(0,1fr)] gap-2">
-      <span className="font-mono text-[8.5px] tracking-[0.08em] text-t9 uppercase">
+      <span className={cx("font-mono text-[8.5px] tracking-[0.08em] uppercase", dark ? "text-[var(--nle-faint)]" : "text-t9")}>
         {label}
       </span>
-      <span className="text-[10.5px] leading-[1.45] text-t6">{value}</span>
+      <span className={cx("text-[10.5px] leading-[1.45]", dark ? "text-[var(--nle-muted)]" : "text-t6")}>{value}</span>
+    </div>
+  );
+}
+
+/**
+ * What the room noticed, without being asked.
+ *
+ * Its own component so it can subscribe to the scenes and the runtime target
+ * on its own. The drawer re-renders on every keystroke in the composer, and
+ * recomputing four derived observations on each one would be work nobody asked
+ * for.
+ *
+ * Everything here is derived at render from `dur` and the narration. There is
+ * nothing to invalidate: retime a scene and the next render says something
+ * different about it.
+ */
+function Noticed({ dark }: { dark: boolean }) {
+  const sc = useStudio((s) => s.sc);
+  const runtime = useStudio((s) => s.runtime);
+  const screen = useStudio((s) => s.screen);
+  const tab = useStudio((s) => s.tab);
+  const select = useStudio((s) => s.select);
+
+  const found = useMemo(() => observations(sc, runtime), [sc, runtime]);
+
+  // Only where the cut is the thing on screen. On Understanding the creator is
+  // reading a brief and has not chosen any of this yet.
+  const relevant = screen === "project" && (tab === "plan" || tab === "script" || tab === "edit");
+  if (!relevant || found.length === 0) return null;
+
+  return (
+    <div className="mb-2.5 flex flex-col gap-1.5">
+      {found.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          // Clicking takes you to the scene it is about. The room says where a
+          // thing is; the least it can do is take you there.
+          onClick={() => {
+            const at = /Scene (\d+)/.exec(item.text);
+            if (at) select(Number(at[1]) - 1);
+          }}
+          className={cx(
+            "rounded-xl border px-3 py-2 text-left transition-colors duration-[var(--t-fast)]",
+            dark
+              ? "border-[var(--nle-line)] bg-[var(--nle-panel-raised)] hover:border-[var(--nle-line-strong)]"
+              : "border-line-input bg-sunken hover:border-line-strong",
+          )}
+        >
+          <span
+            className={cx(
+              "block text-[12px] leading-[1.5] font-medium",
+              dark ? "text-[var(--nle-text)]" : "text-ink-2",
+            )}
+          >
+            {item.tone === "attention" && (
+              <span aria-hidden className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-accent align-middle" />
+            )}
+            {item.text}
+          </span>
+          <span
+            className={cx(
+              "mt-0.5 block text-[11.5px] leading-[1.5]",
+              dark ? "text-[var(--nle-muted)]" : "text-t6",
+            )}
+          >
+            {item.detail}
+          </span>
+        </button>
+      ))}
     </div>
   );
 }

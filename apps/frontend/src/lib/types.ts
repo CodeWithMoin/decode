@@ -17,8 +17,7 @@ export type TabId =
   | "overview"
   | "plan"
   | "script"
-  | "edit"
-  | "export";
+  | "edit";
 
 export type CrewId =
   | "producer"
@@ -52,6 +51,35 @@ export type AnimationKind =
   | "Chart reveal"
   | "Zoom out";
 
+export type SceneFont =
+  | "Space Grotesk"
+  | "Inter"
+  | "Bricolage Grotesque"
+  | "Geist Mono";
+
+export interface SceneVisualStyle {
+  font: SceneFont;
+  weight: 400 | 500 | 600 | 700;
+  size: number;
+  textColor: string;
+  secondaryColor: string;
+  accentColor: string;
+  backgroundColor: string;
+  x: number;
+  y: number;
+  scale: number;
+  opacity: number;
+  blur: number;
+}
+
+export type SceneKeyframeProperty = "size" | "x" | "y" | "scale" | "opacity" | "blur";
+
+export interface SceneVisualKeyframe {
+  /** Normalized scene progress, so retiming scales animation without a sync step. */
+  at: number;
+  value: number;
+}
+
 export interface Source {
   ext: string;
   file: string;
@@ -72,6 +100,7 @@ export interface Source {
 
 export type ProjectStatus = "draft" | "processing" | "ready" | "failed" | string;
 export type JobStatus = "queued" | "running" | "succeeded" | "failed";
+export type JobKind = "generate_production_brief" | "generate_teaching_plan" | string;
 
 export interface ValidationFieldError {
   type: string;
@@ -91,6 +120,8 @@ export interface ProblemResponse {
   /** FastAPI/Pydantic returns an error array; the map shape supports older deployments. */
   field_errors?: ValidationFieldError[] | Record<string, string[]>;
   current_latest_version_id?: string;
+  approved_version_id?: string;
+  approved_intent_version_id?: string;
   active_job_id?: string;
 }
 
@@ -98,6 +129,8 @@ export interface ProjectSummary {
   project_id: string;
   title: string;
   status: ProjectStatus;
+  /** Whether finishing one stage starts the next without being asked. */
+  auto_continue?: boolean;
   current_stage?: "processing" | "understanding" | string;
   source_count?: number;
   created_at: string;
@@ -158,6 +191,40 @@ export interface ProductionBriefPayload {
   open_questions: string[];
 }
 
+export interface TeachingPlanBeat {
+  id?: string;
+  title: string;
+  objective: string;
+  target_duration_seconds: number;
+  section_id?: string;
+  key_points?: string[];
+  depends_on?: string[];
+  brief_support?: {
+    learning_objectives?: number[];
+    key_concepts?: string[];
+    scope_in?: number[];
+  };
+  example?: string | null;
+  visual_opportunity?: string | null;
+  /** Schema v1 history compatibility. New plans use section_id. */
+  act?: "problem" | "mechanism" | "payoff";
+}
+
+export interface TeachingPlanSection {
+  id: string;
+  title: string;
+  purpose: string;
+}
+
+export interface TeachingPlanPayload {
+  structure_name?: string;
+  sections?: TeachingPlanSection[];
+  through_line: string;
+  rationale: string;
+  beats: TeachingPlanBeat[];
+  plan_findings: Record<string, unknown>;
+}
+
 export interface EvaluationCheck {
   name: string;
   outcome: string;
@@ -188,6 +255,10 @@ export interface ArtifactVersion<TPayload = Record<string, unknown>> {
   run_id?: string | null;
   supersedes_version_id?: string | null;
   rationale?: string | null;
+  blob_manifest?: Record<string, unknown> | null;
+  is_latest?: boolean;
+  is_approved?: boolean;
+  latest_evaluation?: EvaluationSummary | null;
 }
 
 export interface ProductionBriefProjection {
@@ -197,11 +268,23 @@ export interface ProductionBriefProjection {
   latest_is_approved: boolean;
   latest_version: ArtifactVersion<ProductionBriefPayload>;
   latest_evaluation: EvaluationSummary | null;
+  approval: ApprovalRecord | null;
 }
 
-export interface ArtifactHistoryResponse {
-  items: ArtifactVersion<ProductionBriefPayload>[];
-  latest_version_id: string;
+/** Who approved the current version. `automatic` means the production continued
+ *  on its own and nobody clicked, which the studio has to say out loud. */
+export interface ApprovalRecord {
+  version_id: string;
+  actor_id: string;
+  automatic: boolean;
+  note: string | null;
+  created_at: string;
+}
+
+export interface ArtifactHistoryResponse<TPayload = ProductionBriefPayload> {
+  artifact_id: string;
+  items: ArtifactVersion<TPayload>[];
+  latest_version_id: string | null;
   approved_version_id: string | null;
   next_cursor?: string | number | null;
 }
@@ -231,7 +314,7 @@ export interface JobFailure {
 export interface JobDetail {
   job_id: string;
   project_id?: string;
-  kind: "generate_production_brief";
+  kind: JobKind;
   status: JobStatus;
   active_run_id: string | null;
   requested_input_versions:
@@ -250,8 +333,33 @@ export interface GenerateBriefResult {
   status: JobStatus;
 }
 
+export interface GenerateTeachingPlanResult {
+  job_id: string;
+  run_id: string;
+  status: JobStatus;
+  kind: "generate_teaching_plan";
+  requested_input_versions: {
+    brief_version_id: string;
+    intent_version_id: string;
+    schema: number;
+  };
+}
+
+export interface ApprovalResult {
+  approval_id: string;
+  artifact_id: string;
+  version_id: string;
+  decision: "approved";
+  note: string | null;
+  actor_id: string;
+  created_at: string;
+  latest_version_id: string;
+  approved_version_id: string;
+}
+
 export interface JobSummary {
   job_id: string;
+  kind?: JobKind;
   status: JobStatus;
   active_run_id: string | null;
 }
@@ -272,6 +380,8 @@ export interface StudioSnapshot {
     can_generate_brief?: boolean;
     can_edit_brief?: boolean;
     can_approve_brief?: boolean;
+    can_generate_plan?: boolean;
+    can_approve_plan?: boolean;
     can_retry_job?: boolean;
   };
 }
@@ -283,7 +393,7 @@ export interface UsageRecord {
   input_tokens: number | null;
   output_tokens: number | null;
   duration_ms: number | null;
-  estimated_cost_usd: string;
+  estimated_cost_usd: string | null;
   run_id: string | null;
   artifact_version_id: string | null;
 }
@@ -319,12 +429,31 @@ export interface Scene {
   viz: string[];
   /** Index into `viz` that is emphasised in accent. */
   hot: number;
+  /** Scene-local art direction. Missing values inherit the Decode defaults. */
+  visualStyle?: Partial<SceneVisualStyle>;
+  /** Parameter animation keyed to normalized scene progress. */
+  visualKeyframes?: Partial<Record<SceneKeyframeProperty, SceneVisualKeyframe[]>>;
   narration: string;
   /** A genuinely different second draft. Regeneration swaps between the
    *  two so the change is visibly real. */
   alt: string;
   /** True when `narration` currently holds the alternate draft. */
   altUsed: boolean;
+  /**
+   * Whether this beat is in the video.
+   *
+   * Absent means enabled — every existing scene stays in the cut without a
+   * migration, and only a scene someone deliberately switched off carries the
+   * flag. Disabling is reversible and non-destructive: the beat keeps its
+   * narration, its visuals and its place in the order, it just stops playing
+   * and stops counting toward the runtime.
+   */
+  disabled?: boolean;
+  /** Whether this beat's audio is muted. Muted beats still play visually
+   *  but contribute no sound. Absent means unmuted. */
+  muted?: boolean;
+  /** When true, the beat cannot be selected, moved, split, or deleted. */
+  locked?: boolean;
 }
 
 /**

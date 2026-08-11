@@ -10,10 +10,20 @@ import type { Scene, TabId, Approvals } from "./types";
  * the user never manually syncs.
  */
 
-/** m:ss */
+/** m:ss (compact display for durations). */
 export function fmt(seconds: number): string {
   const s = Math.max(0, Math.round(seconds));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+/** HH:MM:SS:FF — fixed-width NLE timecode. */
+export function timecode(seconds: number, fps = 24): string {
+  const totalFrames = Math.max(0, Math.round(seconds * fps));
+  const h = Math.floor(totalFrames / (60 * 60 * fps));
+  const m = Math.floor((totalFrames % (60 * 60 * fps)) / (60 * fps));
+  const s = Math.floor((totalFrames % (60 * fps)) / fps);
+  const f = totalFrames % fps;
+  return [h, m, s, f].map((part) => String(part).padStart(2, "0")).join(":");
 }
 
 /** Two-digit scene number, 1-indexed. */
@@ -21,12 +31,51 @@ export function num(index: number): string {
   return String(index + 1).padStart(2, "0");
 }
 
+/** The scenes that are actually in the video. */
+export function enabled(scenes: Scene[]): Scene[] {
+  return scenes.filter((scene) => !scene.disabled);
+}
+
+/**
+ * Runtime of the cut, which is the sum of the beats that will play.
+ *
+ * A disabled beat contributes nothing. It keeps its narration, its visuals and
+ * its place in the order — it is simply not in the video, so counting its
+ * seconds would make the header disagree with what exports.
+ */
 export function total(scenes: Scene[]): number {
+  return scenes.reduce((a, s) => (s.disabled ? a : a + s.dur), 0);
+}
+
+/**
+ * Start offset of each scene: starts[i] = Σ durations of enabled scenes before it.
+ *
+ * A disabled scene does not advance the clock, so it reports the offset where
+ * playback resumes — which is also where it would slot back in if switched on.
+ */
+export function starts(scenes: Scene[]): number[] {
+  let acc = 0;
+  return scenes.map((s) => {
+    const v = acc;
+    if (!s.disabled) acc += s.dur;
+    return v;
+  });
+}
+
+/**
+ * Full canvas duration — every scene, enabled or not. Used for visual layout
+ * on the timeline so toggling a scene off never changes chip positions.
+ */
+export function totalAll(scenes: Scene[]): number {
   return scenes.reduce((a, s) => a + s.dur, 0);
 }
 
-/** Start offset of each scene: starts[i] = Σ durations[0..i-1] */
-export function starts(scenes: Scene[]): number[] {
+/**
+ * Start offset of each scene measured against the full canvas. Disabled
+ * scenes keep their visual slot; their duration still counts toward the
+ * ruler, ticks and percentage positions.
+ */
+export function startsAll(scenes: Scene[]): number[] {
   let acc = 0;
   return scenes.map((s) => {
     const v = acc;
@@ -51,7 +100,14 @@ export function pace(scene: Scene): "brisk" | "measured" {
     : "measured";
 }
 
-/** Which scene is on screen at time t. */
+/** Which scene is on screen at time t, including disabled scenes. */
+export function sceneAtAll(scenes: Scene[], t: number): number {
+  const st = startsAll(scenes);
+  for (let i = st.length - 1; i >= 0; i--) if (t >= st[i]) return i;
+  return 0;
+}
+
+/** Which scene is on screen at time t (enabled cut). */
 export function sceneAt(scenes: Scene[], t: number): number {
   const st = starts(scenes);
   for (let i = st.length - 1; i >= 0; i--) if (t >= st[i]) return i;
@@ -134,7 +190,6 @@ export const NAV_LEVEL: Record<TabId, number> = {
   plan: 1,
   script: 2,
   edit: 5,
-  export: 5,
 };
 
 /** A stage unlocks only when the previous one is approved. */
@@ -184,3 +239,113 @@ export const ease = (t: number) => q6(1 - Math.pow(1 - clamp01(t), 3));
 /** Progress inside a sub-window of a larger 0–1 range. */
 export const seg = (p: number, from: number, to: number) =>
   clamp01((p - from) / Math.max(0.0001, to - from));
+
+/* ------------------------------------------------------------------
+   What the room notices
+   ------------------------------------------------------------------ */
+
+/**
+ * The approved runtime target, in seconds.
+ *
+ * The store keeps it as the creator-facing string the brief was written in
+ * ("5 min"), because that is what the Understanding stage shows back. Parsing
+ * it here rather than storing a second number keeps the two from disagreeing.
+ */
+export function targetSeconds(runtime: string): number | null {
+  const match = /^(\d+)\s*min/.exec(runtime.trim());
+  return match ? Number(match[1]) * 60 : null;
+}
+
+export interface Observation {
+  id: string;
+  /** What is true, said plainly and with the numbers in it. */
+  text: string;
+  /** What it costs, or what could be done about it. */
+  detail: string;
+  /** `attention` is something that will bite. `note` is worth knowing. */
+  tone: "note" | "attention";
+}
+
+/** A cut may drift this far from its target before it is worth mentioning. */
+const RUNTIME_TOLERANCE = 0.05;
+
+/**
+ * Thresholds the Director is already held to, reused here so the room and the
+ * department that wrote the plan cannot disagree about what "too short" means.
+ * See `departments/architect/SKILL.md`: under fifteen seconds is usually a
+ * fragment of its neighbour, over ninety is usually two beats.
+ */
+const SHORT_SCENE = 15;
+const LONG_SCENE = 90;
+
+/**
+ * What the Production room can see without being asked.
+ *
+ * Every one of these is derived at call time from `dur` and the narration, the
+ * same inputs the timeline and the header read. Nothing is stored, so retiming
+ * a scene changes what the room says about it on the next render — there is no
+ * staleness to manage and nothing to invalidate.
+ */
+export function observations(scenes: Scene[], runtime: string): Observation[] {
+  const found: Observation[] = [];
+  if (scenes.length === 0) return found;
+
+  const st = starts(scenes);
+  const cut = total(scenes);
+  const target = targetSeconds(runtime);
+
+  if (target !== null) {
+    const drift = cut - target;
+    if (Math.abs(drift) > target * RUNTIME_TOLERANCE) {
+      const over = drift > 0;
+      found.push({
+        id: "runtime",
+        text: over
+          ? `The cut runs ${fmt(cut)} against the ${fmt(target)} you asked for.`
+          : `The cut runs ${fmt(cut)}, ${fmt(-drift)} under the ${fmt(target)} you asked for.`,
+        detail: over
+          ? `${fmt(drift)} over. I can take it out of the longest scenes without touching what they teach.`
+          : "There is room to let a beat breathe, or to add one the plan left out.",
+        tone: over ? "attention" : "note",
+      });
+    }
+  }
+
+  // The scene reading fastest, named with where it is, so it can be found.
+  const brisk = scenes
+    .map((scene, index) => ({ scene, index, rate: wordCount(scene.narration) / (scene.dur / 60) }))
+    .filter((item) => pace(item.scene) === "brisk")
+    .sort((a, b) => b.rate - a.rate)[0];
+  if (brisk) {
+    found.push({
+      id: "pace",
+      text: `Scene ${num(brisk.index)} at ${fmt(st[brisk.index])} reads fast — ${wordCount(
+        brisk.scene.narration,
+      )} words in ${fmt(brisk.scene.dur)}.`,
+      detail: "Either it needs more seconds or the narration needs fewer words.",
+      tone: "attention",
+    });
+  }
+
+  const short = scenes.findIndex((scene) => scene.dur < SHORT_SCENE);
+  if (short >= 0) {
+    found.push({
+      id: "short",
+      text: `Scene ${num(short)} is only ${fmt(scenes[short].dur)} long.`,
+      detail: "Under fifteen seconds a beat usually belongs to the one beside it.",
+      tone: "note",
+    });
+  }
+
+  const long = scenes.findIndex((scene) => scene.dur > LONG_SCENE);
+  if (long >= 0) {
+    found.push({
+      id: "long",
+      text: `Scene ${num(long)} runs ${fmt(scenes[long].dur)}.`,
+      detail: "Past ninety seconds a beat is usually two ideas that could be split.",
+      tone: "note",
+    });
+  }
+
+  return found;
+}

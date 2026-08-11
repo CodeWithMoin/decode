@@ -1,23 +1,22 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
-import { ArrowLeft, Command } from "lucide-react";
-import { RailFrame } from "@/components/app/RailFrame";
+import { useMemo, useState } from "react";
+import { ArrowLeft } from "@phosphor-icons/react";
 import { StageRail } from "@/components/app/StageRail";
-import { StudioNav } from "@/components/app/StudioNav";
-import { CommandPalette, openCommandPalette } from "@/components/project/CommandPalette";
+import { ExportModal } from "@/components/project/ExportModal";
 import { ProjectChatTab } from "@/components/project/ProjectChatDock";
 import { ProducerDrawer } from "@/components/producer/ProducerDrawer";
 import { Edit } from "@/components/project/stages/Edit";
-import { Export } from "@/components/project/stages/Export";
 import { Script } from "@/components/project/stages/Script";
 import { TeachingPlan } from "@/components/project/stages/TeachingPlan";
 import { Understanding } from "@/components/project/stages/Understanding";
 import { CREW, STAGE_OWNER } from "@/lib/crew";
 import { acts, fmt, isLocked, scriptWordCount, total } from "@/lib/derive";
+import { changeProjectStage } from "@/lib/project-theme-transition";
+import { useProjectViewportLock } from "@/lib/use-project-viewport-lock";
 import { useStudio } from "@/store/studio";
 import type { TabId } from "@/lib/types";
-import { Graphite, StageKicker, cx } from "@/components/ui/primitives";
+import { AppMark, StageKicker, cx } from "@/components/ui/primitives";
 
 /**
  * The project shell — header, gated rail, panel routing.
@@ -32,20 +31,19 @@ import { Graphite, StageKicker, cx } from "@/components/ui/primitives";
  */
 
 export function ProjectShell({ children }: { children?: React.ReactNode }) {
-  const {
-    tab,
-    sc,
-    approvals,
-    source,
-    go,
-    setTab,
-    lockedNudge,
-    threadOpen,
-  } = useStudio();
+  useProjectViewportLock();
+  const tab = useStudio((state) => state.tab);
+  const sc = useStudio((state) => state.sc);
+  const approvals = useStudio((state) => state.approvals);
+  const source = useStudio((state) => state.source);
+  const go = useStudio((state) => state.go);
+  const setTab = useStudio((state) => state.setTab);
+  const lockedNudge = useStudio((state) => state.lockedNudge);
 
   const runtime = useMemo(() => total(sc), [sc]);
   const words = useMemo(() => scriptWordCount(sc), [sc]);
-  usePlaybackClock();
+  const editing = tab === "edit";
+  const [exportOpen, setExportOpen] = useState(false);
 
   // One count per stage, each the thing that stage is actually about.
   const counts: Record<TabId, string> = {
@@ -53,7 +51,6 @@ export function ProjectShell({ children }: { children?: React.ReactNode }) {
     plan: `${acts(sc).length}`,
     script: `${words.toLocaleString()}`,
     edit: `${sc.length}`,
-    export: fmt(runtime),
   };
 
   const stageState = (id: TabId) => {
@@ -63,55 +60,31 @@ export function ProjectShell({ children }: { children?: React.ReactNode }) {
 
   // A locked stage is never inert and never a tooltip: it opens the production
   // room and gets explained.
-  const selectStage = (id: TabId, locked: boolean) => (locked ? lockedNudge() : setTab(id));
+  const selectStage = (id: TabId, locked: boolean) =>
+    locked ? lockedNudge() : changeProjectStage(tab, id, () => setTab(id));
 
   return (
     <div
-      className="app-field flex min-h-dvh gap-3 p-0 lg:p-3"
+      data-editing={editing || undefined}
+      className={cx(
+        "project-workspace app-field app-field-global flex min-h-dvh gap-0 p-0 lg:h-dvh lg:overflow-hidden",
+        editing && "bg-[var(--nle-bg)]",
+      )}
     >
-      {/* The project expands the compact global rail into the labelled stage
-          workflow. It remains a full-height sibling of the content header, so
-          the Decode/Create/Home anchors and account boundary stay continuous. */}
-      {/* =========================== left rail =========================== */}
-      <nav
-        aria-label="Stages"
-        className="app-rail sticky top-3 hidden h-[calc(100dvh-24px)] w-[208px] flex-none flex-col rounded-[22px] p-3 lg:flex"
-      >
-      <RailFrame footer={
-          <div className="studio-shell rounded-[16px] p-[3px]">
-            <div className="studio-surface-muted rounded-[13px] p-3">
-            <div className="mb-1.5 flex items-center gap-2">
-              <span className="rounded-[5px] border border-line-input bg-sunken px-1.5 py-[3px] font-mono text-[8.5px] text-t6">
-                {source.ext}
-              </span>
-              <span className="truncate font-mono text-[9px] tracking-[0.08em] text-t9 uppercase">
-                {source.pages}
-              </span>
-            </div>
-            <div className="truncate text-[12px] font-medium">{source.title}</div>
-            <div className="mt-0.5 truncate text-[11px] text-t6">{source.author}</div>
-            </div>
-          </div>
-      }>
-        <StudioNav active="none" />
+      {/* No global rail inside a project. New decode, Home and the account menu
+          are studio-level and off-task here, and the 80px gutter cost the work
+          width it was asking for. Identity and the way out live in the header
+          as one line. The project workflow is the stage bar beneath it.
 
-        <div className="mt-4 border-t border-line-head pt-4">
-          <div className="mb-2 flex items-center justify-between px-2.5">
-            <span className="font-mono text-[8.5px] tracking-[0.12em] text-t9 uppercase">
-              Current project
-            </span>
-            <span className="font-mono text-[8.5px] text-t9">{fmt(runtime)}</span>
-          </div>
-        <StageRail variant="rail" active={tab} state={stageState} onSelect={selectStage} />
-        </div>
-
-      </RailFrame>
-      </nav>
-
-      <div className="flex min-w-0 flex-1 flex-col">
+          The header spans the window — it names the project, and the project
+          is what everything below it belongs to, chat included. The stage bar
+          does not span: it belongs to the stage, so it sits inside the column
+          to the right of the conversation. */}
+      <div className={cx("flex min-w-0 flex-1 flex-col lg:relative lg:z-[1] lg:h-dvh lg:overflow-hidden", editing ? "bg-[var(--nle-bg)]" : "lg:bg-sunken-2")}>
       {/* ============================ header ============================ */}
-      <header className="panel-glass sticky top-0 z-30 border-b border-line-head lg:top-3 lg:mb-3 lg:rounded-[18px] lg:border lg:border-white/80 lg:shadow-sm">
-        <div className="flex items-center gap-3 px-4 py-2.5">
+      <header className={cx("sticky top-0 z-30 border-b", editing ? "border-[var(--nle-line)] bg-[var(--nle-panel)] text-[var(--nle-text)]" : "panel-glass border-line-head")}>
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 px-4 py-2.5">
+          <div className="flex min-w-0 items-center gap-3 justify-self-start">
           {/* Icon-only on phones. The word "Projects" is the single widest
               thing in this row that carries no information the arrow does not,
               and at 390px it was the difference between fitting and scrolling. */}
@@ -119,97 +92,96 @@ export function ProjectShell({ children }: { children?: React.ReactNode }) {
             type="button"
             onClick={() => go("dashboard")}
             aria-label="Back to projects"
-            className="flex min-h-9 min-w-9 flex-none items-center justify-center gap-1.5 rounded-full border border-line-input bg-card px-2.5 text-[12.5px] text-t6 transition-colors duration-[var(--t-fast)] hover:border-line-strong hover:text-ink sm:min-w-0 sm:justify-start sm:px-3 lg:hidden"
+            className={cx(
+              "flex min-h-9 min-w-9 flex-none items-center justify-center gap-1.5 rounded-full border px-2.5 text-[12.5px] transition-colors duration-[var(--t-fast)] sm:min-w-0 sm:justify-start sm:px-3 lg:hidden",
+              editing
+                ? "border-[var(--nle-line)] bg-[var(--nle-panel-raised)] text-[var(--nle-muted)] hover:border-[var(--nle-line-strong)] hover:text-[var(--nle-text)]"
+                : "border-line-input bg-card text-t6 hover:border-line-strong hover:text-ink",
+            )}
           >
-            <ArrowLeft size={14} strokeWidth={1.8} aria-hidden />
+              <ArrowLeft size={14} weight="regular" aria-hidden />
             <span className="hidden sm:inline">Projects</span>
           </button>
 
-          <span className="min-w-0 flex-1 truncate font-display text-[14.5px] font-semibold">
-            {source.title}
+          {/* Identity, the way back, and where you are — one line. */}
+          <nav aria-label="Breadcrumb" className="flex min-w-0 max-w-[300px] items-center gap-2">
+            <button
+              type="button"
+              onClick={() => go("dashboard")}
+              aria-label="Decode — back to your studio"
+              className={cx(
+                "hidden flex-none items-center gap-2 rounded-full px-1 py-0.5 transition-transform duration-[var(--t-fast)] ease-decode hover:-translate-y-px lg:flex",
+                editing && "text-[var(--nle-text)]",
+              )}
+            >
+              <AppMark gradient size={24} radius={7} font={13} />
+              <span className="font-display text-[15px] font-semibold tracking-[-0.01em]">
+                Decode
+              </span>
+            </button>
+            <span aria-hidden className={cx("hidden flex-none text-[13px] lg:inline", editing ? "text-[var(--nle-faint)]" : "text-t8")}>
+              /
+            </span>
+            <span
+              aria-current="page"
+              className="min-w-0 truncate font-display text-[14.5px] font-semibold"
+            >
+              {source.title}
+            </span>
+          </nav>
+          </div>
+
+          <StageRail variant="header" active={tab} state={stageState} onSelect={selectStage} dark={editing} />
+
+          <div className="flex min-w-0 items-center justify-self-end gap-3">
+          <span className={cx("hidden flex-none rounded-full border px-2.5 py-1 font-mono text-[9px] tracking-[0.1em] uppercase 2xl:inline", editing ? "border-[var(--nle-line)] bg-[var(--nle-panel-raised)] text-[var(--nle-muted)]" : "border-line-input bg-sunken text-t6")}>
+            {source.ext} · {source.pages}
           </span>
 
-          <span className="hidden flex-none rounded-full border border-line-input bg-sunken px-2.5 py-1 font-mono text-[9px] tracking-[0.1em] text-t6 uppercase sm:inline">
-            Local session · not synced
-          </span>
-
-          <span className="ml-auto hidden font-mono text-[10px] tracking-[0.1em] text-t6 uppercase md:inline">
+          <span className={cx("hidden font-mono text-[10px] tracking-[0.1em] uppercase 2xl:inline", editing ? "text-[var(--nle-muted)]" : "text-t6")}>
             {fmt(runtime)} · {sc.length} scenes
           </span>
 
 
-          <button
-            type="button"
-            onClick={openCommandPalette}
-            aria-label="Open commands — Command K"
-            className="flex h-9 flex-none items-center gap-2 rounded-full border border-line-input bg-card px-2.5 text-t6 transition-[border-color,color,transform] duration-[var(--t-fast)] ease-decode hover:-translate-y-px hover:border-line-strong hover:text-ink"
-          >
-            <Command size={15} strokeWidth={1.8} aria-hidden />
-            <span className="hidden text-[12px] font-medium 2xl:inline">Commands</span>
-          </button>
 
-          <Graphite
-            type="button"
-            onClick={() =>
-              isLocked("export", approvals) ? lockedNudge() : setTab("export")
-            }
-            aria-label={
-              isLocked("export", approvals)
-                ? "Export is locked until the script is approved"
-                : "Open export settings"
-            }
-            className="flex-none px-4 py-2 text-[13px] font-medium"
-          >
-            Export
-          </Graphite>
+          {editing && (
+            <button
+              type="button"
+              onClick={() => setExportOpen(true)}
+              aria-label="Open export settings"
+              className="flex h-[31px] flex-none items-center rounded-full border border-transparent px-3 text-[11.5px] text-[var(--nle-muted)] transition-[background-color,border-color,color,transform] duration-[var(--t-fast)] hover:border-[var(--nle-line)] hover:bg-[var(--nle-panel-raised)] hover:text-[var(--nle-text)] active:scale-[0.98]"
+            >
+              Export
+            </button>
+          )}
+          </div>
         </div>
       </header>
 
-      <StageRail variant="strip" active={tab} state={stageState} onSelect={selectStage} />
+      <div className="flex min-h-0 flex-1">
+        <ProducerDrawer />
 
-      <div
-        className={cx(
-          "project-room-stage flex min-h-0 flex-1 transition-transform duration-[var(--t-normal)] ease-decode",
-          threadOpen && tab !== "edit" && "lg:-translate-x-8",
-        )}
-      >
-
-        {/* ============================ stage ============================ */}
-        <main className="min-w-0 flex-1">{children ?? <Stage />}</main>
-
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {/* ============================ stage ============================ */}
+          <main
+            className={cx(
+              "min-h-0 min-w-0 flex-1",
+              tab === "edit" ? "overflow-y-auto lg:overflow-hidden" : "overflow-y-auto",
+            )}
+          >
+            {children ?? <Stage />}
+          </main>
+        </div>
       </div>
 
       </div>
 
-      {/* ⌘K does, ⌘J chats. The palette is the control list, so nothing
-          can appear in it that is not already a real action. */}
-      <CommandPalette />
+      <ExportModal open={exportOpen} onClose={() => setExportOpen(false)} />
 
+      {/* Below lg only: the persistent column becomes an on-demand overlay. */}
       <ProjectChatTab />
-
-      {/* Global overlay, mounted once and above the sticky header. */}
-      <ProducerDrawer />
     </div>
   );
-}
-
-/**
- * The playback clock, owned here and nowhere else.
- *
- * `tick()` existed in the store with no caller, so the playhead never advanced.
- * It lives in the shell rather than in Canvas or Timeline because both render
- * during Edit — if each started its own interval the playhead would advance at
- * double speed, and the bug would only appear on one stage.
- */
-function usePlaybackClock() {
-  const playing = useStudio((s) => s.playing);
-  const tick = useStudio((s) => s.tick);
-
-  useEffect(() => {
-    if (!playing) return;
-    const id = window.setInterval(tick, 100);
-    return () => window.clearInterval(id);
-  }, [playing, tick]);
 }
 
 function Stage() {
@@ -224,8 +196,6 @@ function Stage() {
       return <Script />;
     case "edit":
       return <Edit />;
-    case "export":
-      return <Export />;
     default:
       return <StagePlaceholder />;
   }

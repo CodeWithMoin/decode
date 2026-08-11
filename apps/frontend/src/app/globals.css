@@ -44,7 +44,7 @@
 
   /* --- accent (burnt amber) ---
      Warm, to sit with the paper-grey ground rather than fight it, and
-     luminous on the #0E0E10 scene canvas where a cool accent goes muddy. */
+     luminous on the black scene canvas where a cool accent goes muddy. */
   --color-accent: #c2410c;
   --color-accent-top: #d4551c;
   --color-accent-deep: #9a3412; /* AA on white at small sizes */
@@ -72,14 +72,14 @@
   --color-stale-bg: #f2f3f5;
 
   /* --- dark canvas --- */
-  --color-canvas: #0e0e10;
-  --color-canvas-chip: #1d1d22;
-  --color-canvas-line: #2e2e35;
-  --color-canvas-cap: #e8e8ec;
-  --color-canvas-chip-fg: #b9b9c2;
-  --color-canvas-meta: #8a8a92;
-  --color-canvas-label: #6e6e76;
-  --color-canvas-faint: #5c5c64;
+  --color-canvas: #0b0b0b;
+  --color-canvas-chip: #1c1c1c;
+  --color-canvas-line: #303030;
+  --color-canvas-cap: #f2f2f2;
+  --color-canvas-chip-fg: #bdbdbd;
+  --color-canvas-meta: #8e8e8e;
+  --color-canvas-label: #707070;
+  --color-canvas-faint: #5f5f5f;
 
   /* --- waveform --- */
   --color-wave-on: #3a3a38;
@@ -148,6 +148,22 @@
   --accent-wash: rgb(194 65 12 / 0.28);
   --sky-tint: rgb(75 142 161 / 0.1);
   --sky-ring: rgb(75 142 161 / 0.28);
+
+  /* Edit is a focused NLE workspace. These are neutral tool surfaces, not a
+     second product palette; burnt amber remains the only interaction accent. */
+  --nle-bg: #080808;
+  --nle-panel: #111111;
+  --nle-panel-raised: #1b1b1b;
+  --nle-line: #2d2d2d;
+  --nle-line-strong: #484848;
+  --nle-grid-line: rgb(255 255 255 / 0.04);
+  --nle-track: #121212;
+  --nle-track-active: #181818;
+  --nle-clip: #6b351f;
+  --nle-clip-hover: #85482b;
+  --nle-text: #f5f5f5;
+  --nle-muted: #b8b8b8;
+  --nle-faint: #7e7e7e;
 
   /* Three durations, nothing between them.
      fast   — hover, toggles, tint changes
@@ -244,6 +260,49 @@
     outline: 2px solid var(--color-sky);
     outline-offset: 2px;
     border-radius: 6px;
+  }
+
+  /* Edit is a separate dark instrument, not the light studio with dark paint.
+     Native selection, focus, form controls and scrollbars follow that material. */
+  [data-editing] {
+    color-scheme: dark;
+  }
+
+  [data-editing] ::selection {
+    background: rgb(194 65 12 / 0.42);
+    color: #fff;
+  }
+
+  [data-editing] input,
+  [data-editing] textarea {
+    caret-color: var(--accent-lit);
+  }
+
+  [data-editing] :focus-visible {
+    outline-color: var(--nle-line-strong);
+  }
+
+  [data-editing] input:focus-visible,
+  [data-editing] textarea:focus-visible,
+  [data-editing] select:focus-visible {
+    outline: none;
+    border-color: inherit;
+    box-shadow: none;
+  }
+
+  [data-editing] .nle-field:focus-within {
+    border-color: var(--nle-line-strong);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
+  }
+
+  [data-editing] ::-webkit-scrollbar-thumb {
+    background: var(--nle-line);
+  }
+
+  [data-editing] .nle-preview-frame,
+  [data-editing] [aria-label="Scrub the timeline"] {
+    -webkit-user-select: none;
+    user-select: none;
   }
 }
 
@@ -405,6 +464,25 @@
     display: none;
   }
 
+  .stage-header-scroll {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .stage-header-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Vertical scroller with no visible bar. The `.rail-x` mask is deliberately
+     absent: fading the bottom of a track list would read as the last scene
+     being cut off rather than as more below. */
+  .rail-y {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .rail-y::-webkit-scrollbar {
+    display: none;
+  }
+
   .balance {
     text-wrap: balance;
   }
@@ -522,24 +600,120 @@
       inset 0 -1px 0 var(--accent-line);
   }
 
+  .nle-field {
+    background: var(--nle-panel-raised);
+    border: 1px solid var(--nle-line);
+    color: var(--nle-text);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.035);
+  }
+
+  .timeline-scroll {
+    scrollbar-width: none;
+  }
+
+  .timeline-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nle-icon-button {
+    display: grid;
+    place-items: center;
+    color: var(--nle-muted);
+    background: transparent;
+    border: 1px solid transparent;
+    transition:
+      color var(--t-fast) var(--ease-decode),
+      background-color var(--t-fast) var(--ease-decode),
+      border-color var(--t-fast) var(--ease-decode),
+      transform var(--t-fast) var(--ease-decode);
+  }
+
+  .nle-icon-button:hover {
+    color: var(--nle-text);
+    background: var(--nle-panel-raised);
+    border-color: var(--nle-line);
+  }
+
+  .nle-icon-button:active {
+    transform: scale(0.96);
+  }
+
+  .nle-preview-wrap {
+    container-type: size;
+  }
+
+  .nle-preview-frame {
+    width: min(100cqw, calc(100cqh * 16 / 9));
+    aspect-ratio: 16 / 9;
+  }
+
+  .project-workspace {
+    view-transition-name: project-workspace;
+  }
+
+  /* Below lg the room is still a floating panel that arrives beside your work.
+     `visibility` rather than `inert`/`aria-hidden`: it takes the panel out of
+     the tab order and the accessibility tree the same way, but it is a style,
+     so the docked case below can simply override it. A closed panel must not
+     be reachable by keyboard. */
   .production-room {
     opacity: 0;
+    visibility: hidden;
     pointer-events: none;
     transform: translate3d(calc(100% + 16px), 0, 0) scale(0.98);
     transform-origin: right center;
     transition:
       transform var(--t-normal) var(--ease-decode),
-      opacity var(--t-normal) var(--ease-decode);
+      opacity var(--t-normal) var(--ease-decode),
+      visibility var(--t-normal);
   }
 
   .production-room[data-open="true"] {
     opacity: 1;
+    visibility: visible;
     pointer-events: auto;
     transform: translate3d(0, 0, 0);
   }
 
-  .project-room-stage {
-    transform-origin: left center;
+  /* Docked. From lg up the room is a column of the layout rather than
+     something that arrives over it, so it is always there and never animates
+     in — which is also the studio's rule: elements render at settled state. */
+  @media (min-width: 1024px) {
+    .production-room[data-docked="true"],
+    .production-room[data-docked="true"][data-open="true"] {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: none;
+      transition: none;
+    }
+  }
+}
+
+::view-transition-group(project-workspace) {
+  animation-duration: var(--t-normal);
+  animation-timing-function: var(--ease-out);
+}
+
+::view-transition-old(project-workspace) {
+  animation: project-theme-out var(--t-normal) var(--ease-out) both;
+}
+
+::view-transition-new(project-workspace) {
+  animation: project-theme-in var(--t-normal) var(--ease-out) both;
+}
+
+@keyframes project-theme-out {
+  to {
+    opacity: 0;
+    filter: blur(2px);
+  }
+}
+
+@keyframes project-theme-in {
+  from {
+    opacity: 0;
+    filter: blur(2px);
   }
 }
 
@@ -565,6 +739,12 @@
    active, which stage is approved — and snapping those to 0ms removes
    comprehension, not motion. Movement is what gets cut, below. */
 @media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(project-workspace),
+  ::view-transition-new(project-workspace) {
+    animation-duration: var(--t-fast) !important;
+    filter: none !important;
+  }
+
   *,
   *::before,
   *::after {
@@ -591,10 +771,6 @@
   }
 
   .production-room {
-    transform: none !important;
-  }
-
-  .project-room-stage {
     transform: none !important;
   }
 

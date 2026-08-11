@@ -55,7 +55,7 @@ export function AppShell({
         className={
           mobile
             ? "app-rail relative flex h-dvh w-[264px] max-w-[86vw] flex-col rounded-r-[22px] p-4"
-            : "app-rail app-rail-global sticky top-0 hidden h-dvh w-[80px] flex-none flex-col rounded-none border-0 p-2 lg:flex"
+            : "app-rail app-rail-global sticky top-0 z-40 hidden h-dvh w-[80px] flex-none flex-col rounded-none border-0 p-2 lg:flex"
         }
       >
         <RailFrame connected={connected} compact={!mobile} onLeave={mobile ? () => setMenu(false) : undefined}>

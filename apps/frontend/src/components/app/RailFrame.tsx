@@ -16,9 +16,15 @@ import { useStudio } from "@/store/studio";
  * rather than moving within one. A person tracks continuity by what stays put,
  * and nothing stayed put.
  *
- * So the anchors live here, in one component both shells render, rather than in
- * two files that happen to agree today. The compact global rail expands when a
- * project adds its labelled stage workflow; anchor order and behavior stay put.
+ * So the anchors live here, in one component every shell renders, rather than
+ * in files that happen to agree today. Project stages live beneath the project
+ * header; this global rail never changes density or meaning.
+ *
+ * What the anchors *are* is narrower inside a project. The studio's nav — New
+ * decode and Home — is not rendered there: Home duplicated the wordmark, which
+ * already leaves the project, and starting a second video is not something a
+ * person reaches for while directing this one. Continuity is carried by the
+ * mark and the account, which never move. `children` is therefore optional.
  */
 export function RailFrame({
   children,
@@ -27,7 +33,7 @@ export function RailFrame({
   connected = false,
   compact = false,
 }: {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   /** Context-owned block at the base of the rail — a source card, say. */
   footer?: React.ReactNode;
   /** Called when the wordmark is used, so a project can close itself first. */

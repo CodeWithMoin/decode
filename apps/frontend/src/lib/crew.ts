@@ -89,5 +89,4 @@ export const STAGE_OWNER: Record<TabId, CrewMember> = {
   plan: CREW.director,
   script: CREW.writer,
   edit: CREW.editor,
-  export: CREW.editor,
 };

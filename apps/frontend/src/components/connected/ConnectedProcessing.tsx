@@ -6,17 +6,47 @@ import { AppShell } from "@/components/app/AppShell";
 import { AppMark, Graphite, Spinner, cx } from "@/components/ui/primitives";
 import { decodeApi, idempotencyKey, streamProjectEvents } from "@/lib/decode-api";
 import { creatorError } from "@/lib/creator-errors";
-import type { JobDetail, ProjectEvent, StudioSnapshot } from "@/lib/types";
+import type { JobDetail, JobKind, ProjectEvent, StudioSnapshot } from "@/lib/types";
 
-const STEPS = [
+const BRIEF_STEPS = [
   { events: ["job.queued"], label: "Source received", detail: "Your material is ready." },
   { events: ["run.started"], label: "Preparing your project", detail: "Bringing together your source details and creative direction." },
   { events: ["reading_sources"], label: "Confirming your source", detail: "Making sure your upload is available for this project." },
-  { events: ["generating_brief"], label: "Creating a sample production brief", detail: "Using your audience and direction to shape a reviewable draft." },
+  { events: ["generating_brief"], label: "Creating a production brief", detail: "Using your audience and direction to shape a reviewable draft." },
   { events: ["evaluating_brief"], label: "Checking the brief", detail: "Making sure learning goals and key ideas are present." },
   { events: ["artifact.version.created"], label: "Saving your draft", detail: "Preparing it for your review." },
-  { events: ["artifact.ready_for_review", "job.succeeded"], label: "Ready for your review", detail: "Your sample production brief is ready." },
+  { events: ["artifact.ready_for_review", "job.succeeded"], label: "Ready for your review", detail: "Your production brief is ready." },
 ] as const;
+
+const PLAN_STEPS = [
+  { events: ["job.queued"], label: "Direction received", detail: "The approved brief is ready for the Director." },
+  { events: ["run.started"], label: "Preparing the Director’s context", detail: "Bringing together the approved brief and your production direction." },
+  { events: ["reading_sources"], label: "Reviewing the approved brief", detail: "Keeping the plan inside the scope you approved." },
+  { events: ["planning_beats"], label: "Shaping teaching beats", detail: "Ordering the lesson and budgeting time for each idea." },
+  { events: ["artifact.version.created"], label: "Saving the Teaching Plan", detail: "Recording its structure, beats, estimated runtime, and lineage." },
+  { events: ["evaluating_plan"], label: "Reviewing the Teaching Plan", detail: "Checking sequence, scope, dependencies, and the Writer handoff." },
+  { events: ["artifact.ready_for_review", "job.succeeded"], label: "Ready for your review", detail: "The Director’s Teaching Plan is ready." },
+] as const;
+
+const processingConfig = (kind?: JobKind) => kind === "generate_teaching_plan" ? {
+  steps: PLAN_STEPS,
+  eyebrow: "Director at work",
+  title: "Shaping the Teaching Plan",
+  description: "The Director is turning your approved brief into ordered teaching beats. You can leave this page—we’ll keep working.",
+  success: "The Teaching Plan is ready.",
+  action: "Review Teaching Plan →",
+  destination: "teaching-plan",
+  failure: "We couldn’t finish the Teaching Plan.",
+} : {
+  steps: BRIEF_STEPS,
+  eyebrow: "Preparing your project",
+  title: "Creating the production brief",
+  description: "Decode is turning your source and production choices into a reviewable brief. You can leave this page—we’ll keep working.",
+  success: "Your production brief is ready.",
+  action: "Review production brief →",
+  destination: "understanding",
+  failure: "We couldn’t finish your production brief.",
+};
 
 export function ConnectedProcessing({ projectId, jobId }: { projectId: string; jobId: string }) {
   const router = useRouter();
@@ -27,6 +57,8 @@ export function ConnectedProcessing({ projectId, jobId }: { projectId: string; j
   const [retrying, setRetrying] = useState(false);
   const lastEventId = useRef<string | undefined>(undefined);
   const retryKey = useRef<{ runId: string; key: string } | null>(null);
+  const config = processingConfig(job?.kind);
+  const steps = config.steps;
 
   const refresh = useCallback(async () => {
     const [nextJob, nextStudio] = await Promise.all([
@@ -98,13 +130,13 @@ export function ConnectedProcessing({ projectId, jobId }: { projectId: string; j
   }, [jobId, projectId, refresh]);
 
   const completedIndex = useMemo(() => {
-    if (job?.status === "succeeded") return STEPS.length;
+    if (job?.status === "succeeded") return steps.length;
     let furthest = job?.status === "running" ? 1 : 0;
-    STEPS.forEach((step, index) => {
+    steps.forEach((step, index) => {
       if (step.events.some((event) => seen.includes(event))) furthest = Math.max(furthest, index + 1);
     });
     return furthest;
-  }, [job?.status, seen]);
+  }, [job?.status, seen, steps]);
 
   const retry = async () => {
     if (!job?.active_run_id || retrying) return;
@@ -125,7 +157,7 @@ export function ConnectedProcessing({ projectId, jobId }: { projectId: string; j
   };
 
   const sourceCount = studio?.sources.length ?? 0;
-  const progress = (completedIndex / STEPS.length) * 100;
+  const progress = (completedIndex / steps.length) * 100;
   const terminal = job?.status === "succeeded" || job?.status === "failed";
   const status = job?.status === "succeeded"
     ? "Ready to review"
@@ -139,12 +171,12 @@ export function ConnectedProcessing({ projectId, jobId }: { projectId: string; j
     <AppShell active="none" connected>
       <main className="mx-auto grid min-h-dvh w-full max-w-[1200px] gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[minmax(280px,.72fr)_minmax(500px,1.28fr)] lg:items-center lg:gap-14 lg:px-8 lg:py-14">
         <section className="lg:sticky lg:top-10">
-          <span className="studio-eyebrow">Preparing your project</span>
+          <span className="studio-eyebrow">{config.eyebrow}</span>
           <h1 className="mt-5 text-balance font-display text-[clamp(34px,4.8vw,58px)] font-semibold leading-[0.98] tracking-[-0.045em] text-ink">
-            Creating a sample production brief
+            {config.title}
           </h1>
           <p className="mt-4 max-w-[42ch] text-[13.5px] leading-[1.65] text-t6">
-            This preview uses your production choices to show how review and approval work. Source analysis comes next. You can leave this page—we’ll keep working.
+            {config.description}
           </p>
           <div className="studio-shell mt-8">
             <div className="studio-surface-muted p-4">
@@ -165,10 +197,10 @@ export function ConnectedProcessing({ projectId, jobId }: { projectId: string; j
               <div className="text-[13px] font-medium text-ink">Production progress</div>
               <div className="mt-0.5 truncate text-[10.5px] text-t8">{studio?.project.title ?? "Your project"}</div>
             </div>
-            <span className="font-mono text-[10px] text-t8 tabular-nums">{completedIndex}/{STEPS.length}</span>
+            <span className="font-mono text-[10px] text-t8 tabular-nums">{completedIndex}/{steps.length}</span>
           </div>
           <div role="list" aria-live="polite" className="flex flex-col px-5 py-3">
-            {STEPS.map((step, index) => {
+            {steps.map((step, index) => {
               const done = index < completedIndex;
               const active = index === completedIndex && !terminal;
               return (
@@ -185,7 +217,7 @@ export function ConnectedProcessing({ projectId, jobId }: { projectId: string; j
             <div className="h-[3px] overflow-hidden rounded-full bg-line-soft"><div className="h-full w-full origin-left rounded-full bg-accent transition-transform duration-[var(--t-normal)] ease-decode" style={{ transform: `scaleX(${progress / 100})` }} /></div>
             {error && <p role="alert" className="mt-3 text-[12px] text-[#8E2F19]">{error}</p>}
             <div className="mt-4 flex min-h-9 items-center justify-between gap-4">
-              {job?.status === "succeeded" ? <><p className="text-[12px] text-t6">Your sample production brief is ready.</p><Graphite onClick={() => router.push(`/studio/projects/${projectId}/understanding`)} className="px-4 py-2 text-[12.5px] font-medium">Review production brief →</Graphite></> : job?.status === "failed" ? <><p className="text-[12px] text-[#8E2F19]">{job.failure?.retryable ? "We couldn’t finish your production brief." : "We couldn’t finish your production brief right now. Your work is safe—please try again later."}</p>{job.failure?.retryable && <Graphite onClick={() => void retry()} disabled={retrying} className="px-4 py-2 text-[12.5px] font-medium">{retrying ? "Trying again…" : "Try again"}</Graphite>}</> : <p className="text-[12px] text-t7">You can leave this page. We’ll keep working.</p>}
+              {job?.status === "succeeded" ? <><p className="text-[12px] text-t6">{config.success}</p><Graphite onClick={() => router.push(`/studio/projects/${projectId}/${config.destination}`)} className="px-4 py-2 text-[12.5px] font-medium">{config.action}</Graphite></> : job?.status === "failed" ? <><p className="text-[12px] text-[#8E2F19]">{job.failure?.retryable ? config.failure : `${config.failure} Your work is safe—please try again later.`}</p>{job.failure?.retryable && <Graphite onClick={() => void retry()} disabled={retrying} className="px-4 py-2 text-[12.5px] font-medium">{retrying ? "Trying again…" : "Try again"}</Graphite>}</> : <p className="text-[12px] text-t7">You can leave this page. We’ll keep working.</p>}
             </div>
           </div>
           </div>

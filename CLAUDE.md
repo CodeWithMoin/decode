@@ -54,7 +54,7 @@ before you edit.
 | Entry | `/` → `components/Studio.tsx` | `/studio/*` App Router pages |
 | Navigation | `useStudio.screen` switch | real URLs |
 | Data | `lib/api.ts` — seeded, synchronous | `lib/decode-api.ts` — fetch + SSE |
-| Project screen | `project/ProjectShell.tsx`, five live stages | `connected/ConnectedProject.tsx`, Understanding only |
+| Project screen | `project/ProjectShell.tsx`, four live stages | `connected/ConnectedProject.tsx`, Understanding only |
 
 `Dashboard` and `NewDecode` serve both through a `connected` prop. Everything else
 belongs to one side. The prototype is the full product, faked; the connected app is
@@ -78,7 +78,7 @@ Load-bearing product decisions, not styling preferences.
 
 **The crew.** Five specialists in `lib/crew.ts` — Producer (Understanding),
 Director (Teaching Plan), Writer (Script), Motion Designer (Edit · visuals),
-Editor (Edit · Export). One source drives rail marks, handoff cards, receipts and
+Editor (Edit · publishing). One source drives rail marks, handoff cards, receipts and
 scene notes. Never label the AI "Assistant" or "AI". Crew identity belongs to the
 work — handoffs, proposals, receipts — not to global chrome; the Production room
 speaks as Decode, not as one all-purpose Producer. All generated copy is first
@@ -91,7 +91,8 @@ their own. There is no sync step and there must never be one. Get this right
 before touching the timeline.
 
 **Stage gating.** `unlockLevel()`: `script → 5`, `plan → 2`, `understanding → 1`,
-else `0`. Nav levels: overview 0, plan 1, script 2, edit 5, export 5. A locked
+else `0`. Nav levels: overview 0, plan 1, script 2, edit 5. Export is an Edit
+action, not a stage. A locked
 stage calls `lockedNudge()` — the Production room opens and explains. Never a
 tooltip. Approving advances the tab.
 
@@ -108,11 +109,31 @@ not the error ramp: it is the expected result of an edit, not a fault.
 the Script stage, in place. Edit links back to Script. Never two editable copies of
 the same text.
 
-**⌘K does, ⌘J discusses.** The command palette is the control list, so nothing can
-appear in it that is not already a real action on the store. A natural-language
-request never silently mutates the project — it returns a proposal naming what
-changes and what stays, and only runs on **Apply change**. Every applied change
-posts a receipt.
+**Everything the room can do, a hand can do.** Nothing the chat can act on may
+exist without a direct control that does the same thing. This used to be enforced
+by the ⌘K palette *being* the control list; the palette is gone, because Edit grew
+real controls — a timeline toolbar for split, merge, duplicate, add, delete and
+reorder, an Inspector for naming, retiming and the three regenerate scopes, a
+transport for play and seek. The guarantee now sits on the chat's tool registry:
+every tool the model may call maps to a store action, which is a list a test can
+assert rather than a convention someone must remember.
+
+**A natural-language request never silently mutates the project.** It returns a
+proposal naming what changes and what stays, and only runs on **Apply change**.
+Every applied change posts a receipt. ⌘J focuses the composer — the room is a
+docked column and is always open, so the shortcut puts your cursor in it rather
+than opening it.
+
+**One owner per piece of state, and sync runs one direction at a time.** Every
+"Maximum update depth exceeded" in this codebase has been the same bug: something
+external holds its own copy of state the store also owns, and the two were wired
+together with two-way sync and a float tolerance. The Remotion player counts
+integer frames while the store keeps seconds, so `seekTo` → `frameupdate` →
+`seek` → `seekTo` never converges no matter how tight the tolerance. The fix is
+never a smaller epsilon. Decide which side owns the value *at this moment* —
+while playing the player drives and the store follows, while paused the reverse —
+and compare in the integer unit, not the float one. `react-hooks/set-state-in-effect`
+is on as a warning and exists to catch this; do not switch it off again.
 
 **Nothing is a bare loading state.** No unexplained spinner, no "Generating…", no
 "Thinking…". Progress is a named checklist with per-step detail lines.
@@ -168,8 +189,9 @@ Re-introducing one of these is a regression, not a preference.
 - **The Understanding "Audience" stat is user free text** — step the size down at
   16 and 26 characters, never line-clamp.
 - **Concept pills are `white-space: nowrap`** and must never break mid-label.
-- **Diagram surfaces are not chip surfaces.** Scene visuals use `#212129`/`#3C3C48`;
-  `#1D1D22` on `#0E0E10` is ~1.1:1 and adjacent shapes collapse into one slab.
+- **Diagram surfaces are not chip surfaces.** Scene visuals use `#232323`/`#484848`;
+  `#1C1C1C` on `#0B0B0B` is intentionally quiet and adjacent diagram shapes
+  still need the brighter pair to remain distinct.
 - **The hero is one cinematic stage** — no floating cards layered over it.
 - **Use `--header-h`**, never a hardcoded `top-[57px]`.
 
@@ -177,9 +199,9 @@ Re-introducing one of these is a regression, not a preference.
 
 Fix opportunistically; do not treat as intended.
 
-- `APP-STRUCTURE.md` lists an Assets stage, `app/preview/`, an Inspector Transcript
-  tab and six crew members. None exist. It omits `CommandPalette`, `components/app/*`,
-  `components/connected/*`, `lib/decode-api.ts` and `lib/creator-errors.ts`.
+- `APP-STRUCTURE.md` remains a prototype-oriented map and does not fully document
+  `components/app/*`, `components/connected/*`, `lib/decode-api.ts` or
+  `lib/creator-errors.ts`.
 - `ConnectedProject` re-declares its stage list, rail and header instead of reusing
   `ProjectShell` / `RailFrame` / `StudioNav`. This is the duplication that will hurt
   when Teaching Plan is connected.

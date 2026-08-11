@@ -20,7 +20,7 @@ import { useStudio } from "@/store/studio";
  * here calls `say()` as well; a second call would post the change twice.
  */
 
-export function SpecialistNote({ pos }: { pos: number }) {
+export function SpecialistNote({ pos, dark = false }: { pos: number; dark?: boolean }) {
   const note = SCENE_NOTES[pos];
   const picked = useStudio((s) => s.visualPick[pos]);
   const pickVisual = useStudio((s) => s.pickVisual);
@@ -32,8 +32,14 @@ export function SpecialistNote({ pos }: { pos: number }) {
   if (picked) {
     return (
       <div
-        className="flex items-start gap-[9px] rounded-[14px] px-3 py-2.5"
-        style={{ border: "1px solid var(--accent-line)", background: "var(--color-accent-card)" }}
+        className={cx(
+          "flex items-start gap-[9px] rounded-[12px] px-3 py-2.5",
+          dark && "text-[var(--nle-text)]",
+        )}
+        style={{
+          border: "1px solid var(--accent-line)",
+          background: dark ? "rgb(194 65 12 / 0.08)" : "var(--color-accent-card)",
+        }}
       >
         <div
           className="mt-px flex h-4 w-4 flex-none items-center justify-center rounded-full text-[8px] text-white"
@@ -42,7 +48,7 @@ export function SpecialistNote({ pos }: { pos: number }) {
         >
           ✓
         </div>
-        <div className="text-[11.5px] leading-[1.5] text-t5">
+        <div className={cx("text-[11.5px] leading-[1.5]", dark ? "text-[var(--nle-muted)]" : "text-t5")}>
           {c.name} is rebuilding this visual as option {picked}. Nothing else in
           the timeline changes.
         </div>
@@ -52,7 +58,10 @@ export function SpecialistNote({ pos }: { pos: number }) {
 
   return (
     <div
-      className="rounded-[14px] bg-card p-[13px] pt-3 shadow-sm"
+      className={cx(
+        "rounded-[12px] p-[13px] pt-3",
+        dark ? "bg-[var(--nle-panel-raised)] text-[var(--nle-text)]" : "bg-card shadow-sm",
+      )}
       style={{
         border: `1px solid ${c.color}59`,
         // Consumed by the option cards' hover border, so the specialist's own
@@ -64,7 +73,7 @@ export function SpecialistNote({ pos }: { pos: number }) {
         <CrewMark crew={note.crew} size={22} />
         <div className="min-w-0 flex-1">
           <div className="mb-[3px] text-xs font-semibold">{c.name}</div>
-          <p className="m-0 text-xs leading-[1.5] text-t5 pretty">{note.text}</p>
+          <p className={cx("m-0 text-xs leading-[1.5] pretty", dark ? "text-[var(--nle-muted)]" : "text-t5")}>{note.text}</p>
         </div>
       </div>
 
@@ -80,11 +89,13 @@ export function SpecialistNote({ pos }: { pos: number }) {
             className={cx(
               "mt-1.5 flex w-full items-start gap-[9px] rounded-[11px] border px-[11px] py-[9px] text-left",
               "transition-[border-color,background-color] duration-[150ms]",
-              "hover:border-[var(--note-ring)] hover:bg-sunken",
-              isPick ? "border-line-soft" : "border-line-inner",
+              dark
+                ? "border-[var(--nle-line)] bg-[var(--nle-panel)] hover:border-[var(--note-ring)] hover:bg-white/[0.035]"
+                : "hover:border-[var(--note-ring)] hover:bg-sunken",
+              !dark && (isPick ? "border-line-soft" : "border-line-inner"),
             )}
           >
-            <div className="flex-none pt-0.5 font-mono text-[9.5px] text-t10">
+            <div className={cx("flex-none pt-0.5 font-mono text-[9.5px]", dark ? "text-[var(--nle-faint)]" : "text-t10")}>
               {o.key}
             </div>
             <div className="min-w-0 flex-1">
@@ -101,7 +112,7 @@ export function SpecialistNote({ pos }: { pos: number }) {
                   </div>
                 )}
               </div>
-              <div className="text-[11.5px] leading-[1.45] text-t8">
+              <div className={cx("text-[11.5px] leading-[1.45]", dark ? "text-[var(--nle-muted)]" : "text-t8")}>
                 {o.desc}
               </div>
             </div>

@@ -10,15 +10,17 @@ import {
 import {
   actTwoRange,
   num,
-  sceneAt,
-  starts,
-  total,
+  sceneAtAll,
+  startsAll,
+  totalAll,
 } from "@/lib/derive";
+import { DEFAULT_SCENE_VISUAL_STYLE, keyframedValue, sceneVisualStyle } from "@/lib/scene-style";
 import type {
   BrandKit,
   Approvals,
   RenderState,
   Scene,
+  SceneKeyframeProperty,
   ScreenId,
   Source,
   StaleKind,
@@ -47,10 +49,15 @@ interface StudioState {
   sceneIdx: number;
   playhead: number;
   playing: boolean;
+  /** Signed shuttle speed. Negative values play backward. */
+  playbackRate: number;
   /** Resolved Motion Designer questions, keyed by scene index. */
   visualPick: Record<number, "A" | "B">;
   /** Artifact drift, persisted at project level so it survives panel changes. */
   staleByScene: Record<string, StaleKind[]>;
+  /** Undo/redo history. Each entry snapshots scene data before a mutation. */
+  _history: HistorySnapshot[];
+  _future: HistorySnapshot[];
 
   /* interaction */
   dragPos: number | null;
@@ -88,12 +95,21 @@ interface StudioState {
   startDecode: () => void;
 
   patch: (i: number, fields: Partial<Scene>) => void;
+  setVisualParameter: (i: number, property: SceneKeyframeProperty, value: number) => void;
+  toggleVisualKeyframe: (i: number, property: SceneKeyframeProperty) => void;
+  resetVisualParameter: (i: number, property: SceneKeyframeProperty) => void;
   nudgeDur: (i: number, delta: number) => void;
   select: (i: number, opts?: { openCanvas?: boolean }) => void;
+  /** Take a beat out of the video, or put it back. Reversible, never destructive. */
+  toggleScene: (i: number) => void;
+  toggleMute: (i: number) => void;
+  toggleLock: (i: number) => void;
+  undo: () => void;
+  redo: () => void;
+  _pushHistory: () => void;
   seek: (t: number) => void;
   setPlaying: (p: boolean) => void;
-  tick: () => void;
-  stop: () => void;
+  setPlaybackRate: (rate: number) => void;
 
   approve: (
     stage: keyof Approvals,
@@ -110,7 +126,7 @@ interface StudioState {
   mergeScene: (i: number) => void;
   dupScene: (i: number) => void;
   removeScene: (i: number) => void;
-  addScene: () => void;
+  addScene: (after?: number) => void;
 
   setRegen: (label: string | null) => void;
   applyRegen: (i: number, kind: "scene" | "visuals" | "voice") => void;
@@ -144,10 +160,31 @@ const initialApprovals = (): Approvals => ({
   script: false,
 });
 
+interface HistorySnapshot {
+  sc: Scene[];
+  sceneIdx: number;
+  playhead: number;
+  visualPick: Record<number, "A" | "B">;
+  staleByScene: Record<string, StaleKind[]>;
+}
+
 const addStale = (
   current: StaleKind[] | undefined,
   next: StaleKind[],
 ): StaleKind[] => Array.from(new Set([...(current ?? []), ...next]));
+
+const visualProgressAt = (scenes: Scene[], index: number, playhead: number) => {
+  const scene = scenes[index];
+  if (!scene) return 0;
+  const local = Math.max(0, Math.min(scene.dur, playhead - startsAll(scenes)[index]));
+  const frameCount = Math.max(1, Math.round(scene.dur * 24));
+  return Math.round((local / scene.dur) * frameCount) / frameCount;
+};
+
+const upsertVisualKeyframe = (points: { at: number; value: number }[], at: number, value: number) => [
+  ...points.filter((point) => Math.abs(point.at - at) >= 0.000001),
+  { at, value },
+].sort((a, b) => a.at - b.at);
 
 export const useStudio = create<StudioState>((set, get) => ({
   screen: "landing",
@@ -168,8 +205,11 @@ export const useStudio = create<StudioState>((set, get) => ({
   sceneIdx: 0,
   playhead: 0,
   playing: false,
+  playbackRate: 0,
   visualPick: {},
   staleByScene: {},
+  _history: [],
+  _future: [],
 
   dragPos: null,
   dragOverPos: null,
@@ -192,7 +232,7 @@ export const useStudio = create<StudioState>((set, get) => ({
 
   // The room is contextual, never permanent chrome. Leaving a screen closes
   // it so Home and the next project stage always regain the full workspace.
-  go: (screen) => set({ screen, playing: false, threadOpen: false }),
+  go: (screen) => set({ screen, playing: false, playbackRate: 0, threadOpen: false }),
   newDecode: () =>
     set({
       screen: "upload",
@@ -204,9 +244,10 @@ export const useStudio = create<StudioState>((set, get) => ({
       depth: "Balanced",
       tone: "Professional",
       playing: false,
+      playbackRate: 0,
       threadOpen: false,
     }),
-  setTab: (tab) => set({ tab, playing: false, threadOpen: false }),
+  setTab: (tab) => set({ tab, playing: false, playbackRate: 0, threadOpen: false }),
 
   // Multi-source: a lesson is often a paper plus your own notes, and forcing
   // one file meant re-uploading a merged PDF to say something that simple.
@@ -236,21 +277,29 @@ export const useStudio = create<StudioState>((set, get) => ({
       pstep: 0,
       approvals: initialApprovals(),
       playing: false,
+      playbackRate: 0,
       threadOpen: false,
       staleByScene: {},
     })),
 
-  patch: (i, fields) =>
+  patch: (i, fields) => {
+    get()._pushHistory();
     set((s) => {
       const current = s.sc[i];
       if (!current) return s;
       const narrationChanged =
         fields.narration !== undefined && fields.narration !== current.narration;
-      const promptChanged =
-        fields.prompt !== undefined && fields.prompt !== current.prompt;
+      const visualChanged =
+        (fields.prompt !== undefined && fields.prompt !== current.prompt) ||
+        (fields.title !== undefined && fields.title !== current.title) ||
+        (fields.caption !== undefined && fields.caption !== current.caption) ||
+         (fields.viz !== undefined && fields.viz !== current.viz) ||
+         (fields.anim !== undefined && fields.anim !== current.anim) ||
+         (fields.visualStyle !== undefined && fields.visualStyle !== current.visualStyle) ||
+         (fields.visualKeyframes !== undefined && fields.visualKeyframes !== current.visualKeyframes);
       const stale = narrationChanged
         ? addStale(s.staleByScene[current.id], ["visual", "assets", "voice"])
-        : promptChanged
+        : visualChanged
           ? addStale(s.staleByScene[current.id], ["visual", "assets"])
           : s.staleByScene[current.id];
       return {
@@ -262,9 +311,67 @@ export const useStudio = create<StudioState>((set, get) => ({
             ? s.staleByScene
             : { ...s.staleByScene, [current.id]: stale },
       };
-    }),
+      });
+  },
 
-  nudgeDur: (i, delta) =>
+  setVisualParameter: (i, property, value) => {
+    const { sc, playhead } = get();
+    const scene = sc[i];
+    if (!scene) return;
+    const points = scene.visualKeyframes?.[property] ?? [];
+    let updated: Scene;
+    if (points.length === 0) {
+      updated = { ...scene, visualStyle: { ...scene.visualStyle, [property]: value } };
+    } else {
+      const at = visualProgressAt(sc, i, playhead);
+      updated = {
+        ...scene,
+        visualKeyframes: {
+          ...scene.visualKeyframes,
+          [property]: upsertVisualKeyframe(points, at, value),
+        },
+      };
+    }
+    set((state) => ({
+      sc: state.sc.map((item, index) => index === i ? updated : item),
+      staleByScene: {
+        ...state.staleByScene,
+        [scene.id]: addStale(state.staleByScene[scene.id], ["visual", "assets"]),
+      },
+    }));
+  },
+
+  toggleVisualKeyframe: (i, property) => {
+    const { sc, playhead } = get();
+    const scene = sc[i];
+    if (!scene) return;
+    const at = visualProgressAt(sc, i, playhead);
+    const points = scene.visualKeyframes?.[property] ?? [];
+    const existing = points.find((point) => Math.abs(point.at - at) < 0.000001);
+    const nextPoints = existing
+      ? points.filter((point) => point !== existing)
+      : upsertVisualKeyframe(points, at, keyframedValue(scene, property, sceneVisualStyle(scene)[property], at));
+    get().patch(i, {
+      visualKeyframes: {
+        ...scene.visualKeyframes,
+        [property]: nextPoints,
+      },
+    });
+  },
+
+  resetVisualParameter: (i, property) => {
+    const scene = get().sc[i];
+    if (!scene) return;
+    const visualKeyframes = { ...scene.visualKeyframes };
+    delete visualKeyframes[property];
+    get().patch(i, {
+      visualStyle: { ...scene.visualStyle, [property]: DEFAULT_SCENE_VISUAL_STYLE[property] },
+      visualKeyframes,
+    });
+  },
+
+  nudgeDur: (i, delta) => {
+    get()._pushHistory();
     set((s) => {
       const current = s.sc[i];
       if (!current) return s;
@@ -279,33 +386,150 @@ export const useStudio = create<StudioState>((set, get) => ({
           [current.id]: addStale(s.staleByScene[current.id], ["voice"]),
         },
       };
-    }),
+    });
+  },
+
+  toggleScene: (i) => {
+    get()._pushHistory();
+    return set((s) => {
+      const scene = s.sc[i];
+      if (!scene) return s;
+      const sc = s.sc.map((item, index) =>
+        index === i ? { ...item, disabled: !item.disabled } : item,
+      );
+      // Playhead is on the full visual canvas — toggling a scene never
+      // changes where it sits, so no clamping is needed.
+      return { sc };
+    });
+  },
+
+  toggleMute: (i) => {
+    get()._pushHistory();
+    return set((s) => {
+      const scene = s.sc[i];
+      if (!scene) return s;
+      return {
+        sc: s.sc.map((item, index) =>
+          index === i ? { ...item, muted: !item.muted } : item,
+        ),
+      };
+    });
+  },
+
+  toggleLock: (i) => {
+    get()._pushHistory();
+    return set((s) => {
+      const scene = s.sc[i];
+      if (!scene) return s;
+      return {
+        sc: s.sc.map((item, index) =>
+          index === i ? { ...item, locked: !item.locked } : item,
+        ),
+      };
+    });
+  },
+
+
+
+
 
   select: (i, opts) =>
-    set((s) => ({
-      sceneIdx: i,
-      playhead: starts(s.sc)[i] ?? 0,
-      playing: false,
-      ...(opts?.openCanvas ? { tab: "edit" as TabId } : {}),
-    })),
+    set((s) => {
+      const playhead = startsAll(s.sc)[i] ?? 0;
+      // Selecting the scene that is already selected is a no-op, the same way
+      // `seek` guards itself. Without this, anything that re-selects on a
+      // render — a timeline click, an observation, a keyboard step — publishes
+      // a fresh state object and re-renders the whole project shell for
+      // nothing.
+      if (
+        s.sceneIdx === i &&
+        s.playhead === playhead &&
+        !s.playing &&
+        !(opts?.openCanvas && s.tab !== "edit")
+      ) {
+        return s;
+      }
+      return {
+        sceneIdx: i,
+        playhead,
+        playing: false,
+        playbackRate: 0,
+        ...(opts?.openCanvas ? { tab: "edit" as TabId } : {}),
+      };
+    }),
 
   seek: (t) =>
     set((s) => {
-      const tt = Math.max(0, Math.min(total(s.sc), t));
-      return { playhead: tt, sceneIdx: sceneAt(s.sc, tt) };
+      const tt = Math.max(0, Math.min(totalAll(s.sc), t));
+      const sceneIdx = sceneAtAll(s.sc, tt);
+      if (Math.abs(s.playhead - tt) < 0.0001 && s.sceneIdx === sceneIdx) return s;
+      return { playhead: tt, sceneIdx };
     }),
 
-  setPlaying: (playing) => set({ playing }),
-  stop: () => set({ playing: false }),
+  setPlaying: (playing) => set({ playing, playbackRate: playing ? 1 : 0 }),
+  setPlaybackRate: (playbackRate) => set({ playbackRate, playing: playbackRate !== 0 }),
 
-  tick: () =>
-    set((s) => {
-      const t = s.playhead + 0.1;
-      const cap = total(s.sc);
-      if (t >= cap) return { playhead: cap, playing: false };
-      return { playhead: t, sceneIdx: sceneAt(s.sc, t) };
-    }),
+  _pushHistory: () => {
+    const s = get();
+    const snap: HistorySnapshot = {
+      sc: JSON.parse(JSON.stringify(s.sc)),
+      sceneIdx: s.sceneIdx,
+      playhead: s.playhead,
+      visualPick: { ...s.visualPick },
+      staleByScene: { ...s.staleByScene },
+    };
+    const history = s._history.slice();
+    if (history.length >= 50) history.shift();
+    set({ _history: [...history, snap], _future: [] });
+  },
 
+  undo: () => {
+    const s = get();
+    const snap = s._history.at(-1);
+    if (!snap) return;
+    const current: HistorySnapshot = {
+      sc: JSON.parse(JSON.stringify(s.sc)),
+      sceneIdx: s.sceneIdx,
+      playhead: s.playhead,
+      visualPick: { ...s.visualPick },
+      staleByScene: { ...s.staleByScene },
+    };
+    set({
+      sc: JSON.parse(JSON.stringify(snap.sc)),
+      sceneIdx: snap.sceneIdx,
+      playhead: snap.playhead,
+      visualPick: { ...snap.visualPick },
+      staleByScene: { ...snap.staleByScene },
+      _history: s._history.slice(0, -1),
+      _future: [current, ...s._future].slice(0, 50),
+      playing: false,
+      playbackRate: 0,
+    });
+  },
+
+  redo: () => {
+    const s = get();
+    const snap = s._future[0];
+    if (!snap) return;
+    const current: HistorySnapshot = {
+      sc: JSON.parse(JSON.stringify(s.sc)),
+      sceneIdx: s.sceneIdx,
+      playhead: s.playhead,
+      visualPick: { ...s.visualPick },
+      staleByScene: { ...s.staleByScene },
+    };
+    set({
+      sc: JSON.parse(JSON.stringify(snap.sc)),
+      sceneIdx: snap.sceneIdx,
+      playhead: snap.playhead,
+      visualPick: { ...snap.visualPick },
+      staleByScene: { ...snap.staleByScene },
+      _history: [...s._history, current].slice(-50),
+      _future: s._future.slice(1),
+      playing: false,
+      playbackRate: 0,
+    });
+  },
   approve: (stage, msg, receipt, nextTab) => {
     set((s) => ({
       approvals: { ...s.approvals, [stage]: true },
@@ -321,6 +545,7 @@ export const useStudio = create<StudioState>((set, get) => ({
 
   /** True splice-insert, not a swap. Selection follows the moved beat. */
   reorder: (from, to) => {
+    get()._pushHistory();
     if (from === to) {
       set({ dragPos: null, dragOverPos: null });
       return;
@@ -338,6 +563,9 @@ export const useStudio = create<StudioState>((set, get) => ({
       return {
         sc,
         sceneIdx: sel,
+        playhead: startsAll(sc)[sel] ?? 0,
+        playing: false,
+        playbackRate: 0,
         dragPos: null,
         dragOverPos: null,
         // Plan-level edits reset plan *and* script approval.
@@ -345,14 +573,15 @@ export const useStudio = create<StudioState>((set, get) => ({
       };
     });
     get().say(
-      "Reordered the plan. Everything downstream re-timed — nothing else changed.",
-      "Beat order changed",
+      "Reordered the scenes and re-timed everything downstream. The plan and script are ready for review again.",
+      "Scene order changed",
     );
   },
 
   /* --- scene ops: none of these reset an approval --- */
 
   splitScene: (i) => {
+    get()._pushHistory();
     const s = get().sc[i];
     if (!s) return;
     const toks = s.narration.trim().split(/\s+/);
@@ -377,7 +606,13 @@ export const useStudio = create<StudioState>((set, get) => ({
     set((st) => {
       const sc = st.sc.slice();
       sc.splice(i, 1, a, b);
-      return { sc };
+      return {
+        sc,
+        sceneIdx: i,
+        playhead: startsAll(sc)[i] ?? 0,
+        playing: false,
+        playbackRate: 0,
+      };
     });
     get().say(
       `Split scene ${num(i)} in two — the concept was too dense to land in one beat. Timing divided between them.`,
@@ -386,6 +621,7 @@ export const useStudio = create<StudioState>((set, get) => ({
   },
 
   mergeScene: (i) => {
+    get()._pushHistory();
     const { sc } = get();
     if (i >= sc.length - 1) {
       get().say("That’s the last scene — nothing after it to merge into.");
@@ -402,7 +638,14 @@ export const useStudio = create<StudioState>((set, get) => ({
     set((st) => {
       const next = st.sc.slice();
       next.splice(i, 2, merged);
-      return { sc: next, sceneIdx: Math.min(i, next.length - 1) };
+      const sceneIdx = Math.min(i, next.length - 1);
+      return {
+        sc: next,
+        sceneIdx,
+        playhead: startsAll(next)[sceneIdx] ?? 0,
+        playing: false,
+        playbackRate: 0,
+      };
     });
     get().say(
       `Merged scenes ${num(i)} and ${num(i + 1)}. They were circling the same idea.`,
@@ -410,7 +653,8 @@ export const useStudio = create<StudioState>((set, get) => ({
     );
   },
 
-  dupScene: (i) =>
+  dupScene: (i) => {
+    get()._pushHistory();
     set((s) => {
       const sc = s.sc.slice();
       sc.splice(i + 1, 0, {
@@ -418,32 +662,50 @@ export const useStudio = create<StudioState>((set, get) => ({
         id: uid("sc"),
         reason: "Duplicated by you — edit freely, the original is untouched.",
       });
-      return { sc, sceneIdx: i + 1 };
-    }),
+      return {
+        sc,
+        sceneIdx: i + 1,
+        playhead: startsAll(sc)[i + 1] ?? 0,
+        playing: false,
+        playbackRate: 0,
+      };
+    });
+    get().say(
+      `Duplicated scene ${num(i)} beside the original. Timing after it updated automatically.`,
+      "1 scene duplicated",
+    );
+  },
 
   /* --- plan-level ops: these do reset approvals --- */
 
   removeScene: (i) => {
+    get()._pushHistory();
     if (get().sc.length <= 2) return;
     set((s) => {
       const sc = s.sc.slice();
       sc.splice(i, 1);
+      const sceneIdx = Math.min(s.sceneIdx, sc.length - 1);
       return {
         sc,
-        sceneIdx: Math.min(s.sceneIdx, sc.length - 1),
+        sceneIdx,
+        playhead: startsAll(sc)[sceneIdx] ?? 0,
+        playing: false,
+        playbackRate: 0,
         approvals: { ...s.approvals, plan: false, script: false },
       };
     });
     get().say(
-      "Cut that beat and re-timed the rest. Say the word if you want it back.",
-      "1 beat removed",
+      "Removed that scene and re-timed everything after it. The plan and script are ready for review again.",
+      "1 scene removed",
     );
   },
 
-  addScene: () =>
+  addScene: (after) => {
+    get()._pushHistory();
     set((s) => {
       const sc = s.sc.slice();
-      sc.push({
+      const insertAt = Math.min(sc.length, Math.max(0, (after ?? sc.length - 1) + 1));
+      sc.splice(insertAt, 0, {
         id: uid("sc"),
         title: "New beat",
         dur: 30,
@@ -455,16 +717,24 @@ export const useStudio = create<StudioState>((set, get) => ({
         viz: ["?"],
         hot: 0,
         narration:
-          "Narration for this beat hasn’t been written yet. Give the producer a note, or write it here yourself.",
+          "Narration for this scene hasn’t been written yet. Give Decode a note, or write it in Script.",
         alt: "",
         altUsed: false,
       });
       return {
         sc,
-        sceneIdx: sc.length - 1,
+        sceneIdx: insertAt,
+        playhead: startsAll(sc)[insertAt] ?? 0,
+        playing: false,
+        playbackRate: 0,
         approvals: { ...s.approvals, plan: false, script: false },
       };
-    }),
+    });
+    get().say(
+      "Added a new scene and re-timed everything after it. The plan and script are ready for review again.",
+      "1 scene added",
+    );
+  },
 
   setRegen: (regen) => set({ regen }),
 
@@ -474,6 +744,7 @@ export const useStudio = create<StudioState>((set, get) => ({
    * `visuals` skips the text swap entirely.
    */
   applyRegen: (i, kind) => {
+    get()._pushHistory();
     set((s) => {
       const current = s.sc[i];
       if (!current) return { regen: null };
@@ -507,6 +778,7 @@ export const useStudio = create<StudioState>((set, get) => ({
   },
 
   pickVisual: (pos, key) => {
+    get()._pushHistory();
     set((s) => ({ visualPick: { ...s.visualPick, [pos]: key } }));
     get().say(
       `Option ${key} it is — rebuilding scene ${num(pos)} only.`,
@@ -539,6 +811,7 @@ export const useStudio = create<StudioState>((set, get) => ({
   },
 
   tightenActTwo: () => {
+    get()._pushHistory();
     const [from, to] = actTwoRange(get().sc);
     set((s) => {
       const staleByScene = { ...s.staleByScene };
@@ -564,6 +837,7 @@ export const useStudio = create<StudioState>((set, get) => ({
   },
 
   shortenCurrent: () => {
+    get()._pushHistory();
     const i = get().sceneIdx;
     get().nudgeDur(i, -8);
     get().say(
@@ -587,6 +861,7 @@ export const useStudio = create<StudioState>((set, get) => ({
       sceneIdx: 0,
       playhead: 0,
       playing: false,
+      playbackRate: 0,
       visualPick: {},
       staleByScene: {},
       thread: SEED_THREAD(),
@@ -594,5 +869,7 @@ export const useStudio = create<StudioState>((set, get) => ({
       renderState: "idle",
       renderPct: 0,
       pstep: 0,
+      _history: [],
+      _future: [],
     }),
 }));

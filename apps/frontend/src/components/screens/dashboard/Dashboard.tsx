@@ -540,7 +540,7 @@ function SearchEmpty({ query, filtered, onReset }: { query: string; filtered: bo
  * flight, or has one to read. Labelling all three "Understanding" told the
  * creator a draft with no sources had reached a stage it never started.
  *
- * `reached` is how many of the five stages actually have work behind them, so
+ * `reached` is how many of the four stages actually have work behind them, so
  * the progress bar reports something. The old 0.08 / 0.02 / 0.2 were three
  * constants chosen to look like movement.
  */
@@ -548,6 +548,7 @@ const STAGE_VIEW: Record<string, { label: string; reached: number; status: strin
   draft: { label: "Not started", reached: 0, status: "Draft", next: "Finish setting the direction" },
   processing: { label: "Understanding", reached: 0, status: "Working", next: "Follow production progress" },
   understanding: { label: "Understanding", reached: 1, status: "Brief review", next: "Review the production brief" },
+  teaching_plan: { label: "Teaching Plan", reached: 2, status: "Plan review", next: "Review the Teaching Plan" },
 };
 
 function projectToCard(project: ProjectSummary, snapshot?: StudioSnapshot): DashboardCard {
@@ -555,29 +556,36 @@ function projectToCard(project: ProjectSummary, snapshot?: StudioSnapshot): Dash
   const jobStatus = snapshot?.most_recent_job?.status;
   const failed = jobStatus === "failed" || project.status === "failed";
   const working = jobStatus === "queued" || jobStatus === "running" || currentStage === "processing";
+  const planning = working && snapshot?.most_recent_job?.kind === "generate_teaching_plan";
   const brief = snapshot?.artifacts.find((artifact) => artifact.artifact_type === "production_brief");
+  const plan = snapshot?.artifacts.find((artifact) => artifact.artifact_type === "teaching_plan");
   const awaitingBriefReview = currentStage === "understanding" && brief?.latest_version_id !== brief?.approved_version_id;
+  const awaitingPlanReview = currentStage === "teaching_plan" && plan?.latest_version_id !== plan?.approved_version_id;
   const needsSetup = currentStage === "draft" || !currentStage;
-  const view = STAGE_VIEW[currentStage ?? "draft"] ?? STAGE_VIEW.draft;
+  const view = planning
+    ? { label: "Teaching Plan", reached: 1, status: "Working", next: "Follow the Director’s progress" }
+    : STAGE_VIEW[currentStage ?? "draft"] ?? STAGE_VIEW.draft;
   const when = new Date(project.updated_at).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  const attention: AttentionKind = failed ? "failed" : awaitingBriefReview ? "review" : needsSetup ? "setup" : null;
+  const attention: AttentionKind = failed ? "failed" : awaitingBriefReview || awaitingPlanReview ? "review" : needsSetup ? "setup" : null;
   return {
     id: project.project_id,
     title: project.title || "Untitled decode",
     meta: `${project.source_count ?? 0} source${project.source_count === 1 ? "" : "s"} · updated ${when}`,
-    status: failed ? "Needs attention" : awaitingBriefReview ? "Brief review" : needsSetup ? "Setup needed" : working ? "Working" : "Approved",
+    status: failed ? "Needs attention" : awaitingBriefReview ? "Brief review" : awaitingPlanReview ? "Plan review" : needsSetup ? "Setup needed" : working ? "Working" : "Approved",
     pillBg: "#F1F1EE",
     pillFg: failed ? "#8E2F19" : "#C2410C",
     sourceKind: "Sources",
     currentStage: view.label,
     // A failed run is not progress to follow; it is a thing to look at.
-    nextAction: failed ? "See what went wrong" : awaitingBriefReview ? "Review the production brief" : view.next,
+    nextAction: failed ? "See what went wrong" : awaitingBriefReview ? "Review the production brief" : awaitingPlanReview ? "Review the Teaching Plan" : view.next,
     progress: view.reached / STAGES.length,
     attention,
     attentionDetail: failed
       ? "The latest production run stopped and needs a recovery decision."
       : awaitingBriefReview
         ? "The production brief is ready for your review before the crew continues."
+        : awaitingPlanReview
+          ? "The Director’s Teaching Plan is ready for your review before writing begins."
         : needsSetup
           ? "Finish the source and direction so the crew can begin production."
           : "",
@@ -642,6 +650,8 @@ function openProject(
     push(`/studio/projects/${card.id}/jobs/${job.job_id}`);
   } else if (snapshot?.current_stage === "draft") {
     push("/studio/new");
+  } else if (snapshot?.current_stage === "teaching_plan") {
+    push(`/studio/projects/${card.id}/teaching-plan`);
   } else {
     push(`/studio/projects/${card.id}/understanding`);
   }

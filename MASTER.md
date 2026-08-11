@@ -22,8 +22,8 @@ these two sentences.
 with a single burnt-amber accent, high-contrast Instrument Serif display against
 humanist Plus Jakarta Sans, generously spaced on an 8px rhythm that stays airy
 in marketing and tightens to 4px in the tool, with softly-rounded,
-hairline-bordered, barely-elevated components, and one deep cinematic `#0E0E10`
-stage as the sole dark surface.
+hairline-bordered, barely-elevated components, and one deep cinematic black
+stage that expands into a neutral dark cutting-room shell only inside Edit.
 
 **Interaction** *(amended — see below)* — The marketing page behaves like the
 instrument it is selling: **scroll is a playhead**, the page is a timeline, and
@@ -113,22 +113,69 @@ form choice, filtering, source context and informational surfaces. It never
 means approval, production progress, active scene or playhead, and it never
 replaces the primary Create action. Burnt amber keeps those production roles.
 
-### The dark canvas — the only dark surface
+### The dark canvas
 
 | Token | Hex | Use |
 |---|---|---|
-| `canvas` | `#0E0E10` | The scene stage. |
-| `canvas-chip` | `#1D1D22` | Small labelled pills on the canvas. |
-| `canvas-line` | `#2E2E35` | Hairlines on the canvas. |
-| `canvas-cap` | `#E8E8EC` | Captions. |
-| `canvas-chip-fg` | `#B9B9C2` | Chip labels. |
-| `canvas-meta` / `label` / `faint` | `#8A8A92` / `#6E6E76` / `#5C5C64` | Descending metadata. |
+| `canvas` | `#0B0B0B` | The scene stage. |
+| `canvas-chip` | `#1C1C1C` | Small labelled pills on the canvas. |
+| `canvas-line` | `#303030` | Hairlines on the canvas. |
+| `canvas-cap` | `#F2F2F2` | Captions. |
+| `canvas-chip-fg` | `#BDBDBD` | Chip labels. |
+| `canvas-meta` / `label` / `faint` | `#8E8E8E` / `#707070` / `#5F5F5F` | Descending metadata. |
 
-**Diagram surfaces are not chip surfaces.** Scene visuals use `#212129` (fill)
-and `#3C3C48` (edge). `canvas-chip` at `#1D1D22` on `#0E0E10` is ≈1.1:1 — fine
-for a small pill with a bright label, invisible for eight adjacent shapes. This
+**Diagram surfaces are not chip surfaces.** Scene visuals use `#232323` (fill)
+and `#484848` (edge). `canvas-chip` at `#1C1C1C` on `#0B0B0B` is intentionally
+quiet — fine for a small pill with a bright label, invisible for eight adjacent
+shapes. This
 already caused one regression where the attention heads collapsed into a single
 slab.
+
+### Edit workstation
+
+Edit expands the cinematic surface into a focused laptop NLE. It uses neutral
+tool surfaces only; burnt amber remains the sole interaction accent.
+
+Scene settings is a real properties inspector, not a regeneration menu. The
+selected scene exposes its name, caption, visual labels, motion treatment,
+typography, colours, layout, timing and effects; every control updates the frame
+immediately and stays scoped to that scene. Regenerate is one secondary visual-
+design action and never rewrites narration or voice.
+
+The Edit preview is a Decode-owned Player and composition boundary, implemented
+internally with `@remotion/player`. Remotion never appears in creator-facing UI,
+events or API names. The internal Player owns frame playback and scene
+sequencing; Decode owns the scene model, timeline, approvals and Inspector.
+Frame events update Decode's playhead, and external seeks or edits update the
+Player. There is one clock, never a React interval running beside it. Server
+rendering remains behind Decode's renderer port until a deployment target is
+selected.
+
+Edit also owns its native interaction material. The preview and timeline cannot
+be text-selected; Chat and Inspector content can. Text selection uses translucent
+burnt amber with white text, input carets use `accent-lit`, native controls use
+`color-scheme: dark`, and keyboard focus is neutral unless a field is actively
+being edited, where the amber border takes over. Browser-blue light-mode states
+must not leak into the workstation.
+
+Generated scene code imports authored-animation primitives from
+`@decode/animation-api`, never from Remotion directly. The Decode SDK owns frame
+hooks, interpolation, font CSS, paths, easing presets and typed control schemas;
+its implementation may delegate to Remotion without exposing that dependency to
+generated code or public APIs. The import is currently resolved by the frontend
+SDK alias and can move into a workspace package later without changing generated
+scene modules.
+
+| Token | Hex | Use |
+|---|---|---|
+| `nle-bg` | `#080808` | Preview surround and timeline ground. |
+| `nle-panel` | `#111111` | Chat, Inspector and tool bars. |
+| `nle-panel-raised` | `#1B1B1B` | Inputs and pressed tool surfaces. |
+| `nle-line` / `nle-line-strong` | `#2D2D2D` / `#484848` | Major structural separators and selected edges. |
+| `nle-grid-line` | `rgb(255 255 255 / 0.04)` | Timeline row and gutter rules; visible only as low-opacity separation. |
+| `nle-track` / `nle-track-active` | `#121212` / `#181818` | Timeline depth without bright outlines. |
+| `nle-clip` / `nle-clip-hover` | `#6B351F` / `#85482B` | Inactive scene clips, derived from the amber family. |
+| `nle-text` / `nle-muted` / `nle-faint` | `#F5F5F5` / `#B8B8B8` / `#7E7E7E` | Tool hierarchy. |
 
 ### Crew
 
@@ -141,7 +188,7 @@ handoff cards, approval receipts and scene notes.
 | Director | D | `#4C5B7A` | Teaching Plan |
 | Writer | W | `#7A5B4C` | Script |
 | Motion Designer | M | `#6B4F6B` | Edit · scene visuals |
-| Editor | E | `#4A6472` | Edit · Export |
+| Editor | E | `#4A6472` | Edit · publishing |
 
 All five are desaturated to sit under the amber rather than compete with it. The
 Producer shares the accent because the Producer *is* the through-line — the
@@ -168,7 +215,7 @@ They are different layers and both are correct; never leak the first into the UI
 | Architect | Director | Teaching Plan | Teaching Plan |
 | Author | Writer | Script | Scene script · narration |
 | Visualizer + Renderer | Motion Designer | Edit | Visual spec · rendered assets |
-| Composer + Publisher | Editor | Edit · Export | Timeline · final project |
+| Composer + Publisher | Editor | Edit | Timeline · final project |
 | Reviewer | *(cross-cutting)* | — | Review report |
 
 **The crew is a chain, and the UI must show it as one.** Modules never talk to
@@ -300,6 +347,10 @@ Named elevations for specific jobs: `hover`, `canvas`, `dark-panel`, `drawer`,
 Studio elements render at their settled state. If a timeline never advances,
 nothing is invisible. This is load-bearing, not stylistic.
 
+The light workspace and dark Edit workstation may dissolve between their
+settled states when the user changes stages. This is a short theme transition,
+not an element entrance; reduced motion removes the blur and shortens it.
+
 The landing page is the one exception, and even there no hidden state is
 authored in CSS — a `<noscript>` override settles the blur-in text if JS never
 runs.
@@ -385,23 +436,35 @@ word timings distribute a scene's duration evenly across its tokens. Nothing is
 stored. Reordering or retiming recomputes the arc bar, timecodes and
 timeline automatically. The user never manually syncs anything.
 
+**Edit playback shortcuts.** `Space` toggles normal-speed play/pause. `J` plays
+backward and repeated presses step through −1×, −2× and −4×. `K` stops at the
+current position. `L` plays forward and repeated presses step through 1×, 2×
+and 4×. They never fire from an input, textarea, select or editable narration.
+
+**Timeline editing is direct.** The selected scene can be split, merged,
+reordered earlier or later, dragged to a new position, duplicated, removed with
+a confirmation press, or followed by a new scene. Every operation recomputes
+starts, runtime, selection and playhead from scene durations; no sync step exists.
+
 **Stage gating.** `unlockLevel()`: `approvals.script → 5`, `plan → 2`,
 `understanding → 1`, else `0`. Nav levels: overview 0, plan 1, script 2,
-edit/export 5. Clicking a locked stage opens the Production room with an
+edit 5. Export is an action inside Edit, not a stage. Clicking a locked stage opens the Production room with an
 explanation — **never a tooltip.** Approving advances the tab automatically.
 
-**One studio shell, two rail densities.** Home, New decode and Processing use a
-compact 80px global rail anchored to the viewport edge. Opening a project expands
-that same rail to 208px so Understanding, Teaching Plan, Script, Edit and Export
-remain fully labelled. Decode, Create, Home and account access stay in the same
-order; the rail gains the project stage section rather than becoming a different
-navigation system. The Production room is project-scoped and is never mounted on
-Home, New Decode or Processing.
+**A focused project shell.** Home, New decode and Processing use the compact
+global rail. Opening a project enters a focused production workspace with Decode,
+the project breadcrumb, the four production stages and the way back in one top
+bar; the global rail does not consume editing width or a second navigation row.
+The Production room is
+project-scoped and is never mounted on Home, New Decode or Processing.
 
-**The Production room is on demand.** It is closed by default, opens for an
-explicit question, pushback or locked-stage explanation, and closes when the
-user changes stage or returns Home. In Edit it replaces Scene settings. It must
-never become permanent chrome or a third simultaneous column.
+**The Production room persists throughout a project.** At laptop widths it is a
+344px left column across Understanding, Teaching Plan, Script and Edit,
+so the conversation and its receipts never disappear between stages. Below
+1024px it becomes an on-demand overlay. Edit is a laptop NLE: the room keeps the
+344px left column, the 16:9 preview owns the centre, and Scene settings owns a
+344px right column.
+It closes only when the user leaves the project.
 
 **Conversation scopes; controls execute.** The Production room is where the
 user gives direction, asks why and negotiates scope with the crew. A natural-
@@ -410,6 +473,11 @@ answered directly; any change is returned as a proposal naming what changes and
 what stays untouched, and only runs after **Apply change**. `⌘K` remains the
 direct action surface for users who already know the exact operation. Every
 applied change posts a receipt back into the Production room.
+
+The persistent conversation uses one full-width surface per Decode turn and a
+compact right-aligned surface for the user's direction. Consecutive messages
+from the same speaker stay in one turn; repeated headings and separator lines do
+not create hierarchy. Tonal planes and shallow elevation provide the depth.
 
 **Re-approval asymmetry.** Plan-level edits (reorder, cut, add a beat) reset
 `plan` *and* `script` approval. Scene-level operations in Edit (split, merge,
@@ -435,13 +503,14 @@ always states *why*.
 
 ## Responsive
 
-**No media queries.** Every fixed-column grid is
-`repeat(auto-fit, minmax(Xpx, 1fr))`; all display type uses `clamp()`.
+The production editor is laptop-only and targets 1280px and wider. Non-editor
+surfaces still use responsive grids and `clamp()` typography.
 
 The crew is an ordered call sheet, not a card grid. Responsive layouts preserve
 that sequence as a vertical chain rather than reflowing specialists into rows.
 
-Verify at 375 / 768 / 1024 / 1440. No horizontal overflow at any width.
+Verify the general studio at 375 / 768 / 1024 / 1440. Verify Edit at 1280 / 1440 /
+1728 with no document scrolling and no clipped timeline controls.
 
 ---
 
@@ -475,8 +544,8 @@ preference.
 ## Build order
 
 Design tokens + glass primitives → crew model → project shell → **derived
-timing** → stages in order (Understanding → Teaching Plan → Script → Edit →
-Export) → Production room → Landing / Dashboard / New Decode /
+timing** → stages in order (Understanding → Teaching Plan → Script → Edit,
+including export) → Production room → Landing / Dashboard / New Decode /
 Processing.
 
 Get derived timing right before building the timeline. Everything downstream

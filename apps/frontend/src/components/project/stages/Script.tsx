@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { fmt, num, pace, scriptWordCount, starts, total, wordCount } from "@/lib/derive";
+import { changeProjectStage } from "@/lib/project-theme-transition";
 import type { Scene } from "@/lib/types";
 import { useStudio } from "@/store/studio";
 import { HandoffBar, HandoffBrief } from "@/components/crew/HandoffCard";
@@ -68,7 +69,7 @@ export function Script() {
             onSelect={() => select(i)}
             onPatch={(fields) => patch(i, fields)}
             onNudge={(delta) => nudgeDur(i, delta)}
-            onOpenCanvas={() => select(i, { openCanvas: true })}
+            onOpenCanvas={() => changeProjectStage("script", "edit", () => select(i, { openCanvas: true }))}
             onReRecord={() => applyRegen(i, "voice")}
           />
         ))}
@@ -82,11 +83,13 @@ export function Script() {
         nextLabel="Next: Edit"
         approveLabel="Approve and build scenes"
         onApprove={() =>
-          approve(
-            "script",
-            "Approved the script. Handing off to the Motion Designer to build the scene visuals.",
-            "Script approved",
-            "edit",
+          changeProjectStage("script", "edit", () =>
+            approve(
+              "script",
+              "Approved the script. Handing off to the Motion Designer to build the scene visuals.",
+              "Script approved",
+              "edit",
+            ),
           )
         }
         onPushBack={() => setThreadOpen(true)}

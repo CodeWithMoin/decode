@@ -17,9 +17,9 @@ import type { Scene } from "@/lib/types";
  * Nothing here animates on mount.
  */
 
-const INK = "#B9B9C2";
-const DIM = "#8A8A92";
-const CAP = "#E8E8EC";
+const INK = "var(--scene-ink, #BDBDBD)";
+const DIM = "var(--scene-dim, #8E8E8E)";
+const CAP = "var(--scene-cap, #F2F2F2)";
 
 /**
  * Diagram surfaces sit a step brighter than the spec's canvas chips.
@@ -27,12 +27,12 @@ const CAP = "#E8E8EC";
  * where the text carries the meaning; at diagram scale that pairing is a
  * ~1.1:1 contrast ratio and whole shapes disappear into the background.
  */
-const SURF = "#212129";
-const EDGE = "#3C3C48";
+const SURF = "#232323";
+const EDGE = "#484848";
 
 /** The original chip tokens, still correct for the small labelled pills. */
-const CHIP = "#1D1D22";
-const FAINT = "#2E2E35";
+const CHIP = "#1C1C1C";
+const FAINT = "#303030";
 
 export function SceneVisual({
   scene,

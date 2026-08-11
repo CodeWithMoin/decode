@@ -3,8 +3,10 @@ import {
   Bricolage_Grotesque,
   Caveat,
   Geist_Mono,
+  Inter,
   Instrument_Serif,
   Plus_Jakarta_Sans,
+  Space_Grotesk,
 } from "next/font/google";
 import "./globals.css";
 
@@ -39,6 +41,18 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
   weight: ["400", "500"],
+  display: "swap",
+});
+
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
   display: "swap",
 });
 
@@ -87,7 +101,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${bricolage.variable} ${serif.variable} ${sans.variable} ${geistMono.variable} ${caveat.variable}`}
+      className={`${bricolage.variable} ${serif.variable} ${sans.variable} ${geistMono.variable} ${spaceGrotesk.variable} ${inter.variable} ${caveat.variable}`}
     >
       <head>
         {/* Motion serialises its `initial` state into the SSR markup, so if

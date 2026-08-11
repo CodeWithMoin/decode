@@ -382,18 +382,23 @@ export function Stepper({
   onPlus,
   size = "sm",
   label,
+  dark = false,
 }: {
   value: string;
   onMinus: () => void;
   onPlus: () => void;
   size?: "sm" | "lg";
   label: string;
+  dark?: boolean;
 }) {
   const pad = size === "lg" ? "px-3.5 py-[9px] text-sm" : "px-[9px] py-[3px] text-[13px]";
   return (
     <div
       className={cx(
-        "flex flex-none items-center overflow-hidden border border-line bg-card",
+        "flex flex-none items-center overflow-hidden border",
+        dark
+          ? "border-[var(--nle-line)] bg-[var(--nle-panel-raised)] text-[var(--nle-text)]"
+          : "border-line bg-card",
         size === "lg" ? "w-full rounded-xl" : "rounded-full",
       )}
     >
@@ -405,7 +410,10 @@ export function Stepper({
         }}
         aria-label={`${label}: shorter`}
         className={cx(
-          "border-none bg-transparent leading-none text-t7 transition-colors hover:bg-sunken-3 hover:text-ink",
+          "border-none bg-transparent leading-none transition-colors",
+          dark
+            ? "text-[var(--nle-muted)] hover:bg-white/[0.05] hover:text-[var(--nle-text)]"
+            : "text-t7 hover:bg-sunken-3 hover:text-ink",
           pad,
         )}
       >
@@ -427,7 +435,10 @@ export function Stepper({
         }}
         aria-label={`${label}: longer`}
         className={cx(
-          "border-none bg-transparent leading-none text-t7 transition-colors hover:bg-sunken-3 hover:text-ink",
+          "border-none bg-transparent leading-none transition-colors",
+          dark
+            ? "text-[var(--nle-muted)] hover:bg-white/[0.05] hover:text-[var(--nle-text)]"
+            : "text-t7 hover:bg-sunken-3 hover:text-ink",
           pad,
         )}
       >

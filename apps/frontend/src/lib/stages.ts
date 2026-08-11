@@ -1,7 +1,7 @@
 import type { TabId } from "@/lib/types";
 
 /**
- * The five stages, declared once.
+ * The four creative stages, declared once. Export is an action from Edit.
  *
  * Both shells render this list — the prototype's `ProjectShell` and the
  * connected `ConnectedProject`. They used to hold a copy each, one typed as
@@ -13,5 +13,4 @@ export const STAGES: { tab: TabId; label: string }[] = [
   { tab: "plan", label: "Teaching Plan" },
   { tab: "script", label: "Script" },
   { tab: "edit", label: "Edit" },
-  { tab: "export", label: "Export" },
 ];
