@@ -99,6 +99,9 @@ export function DecodePlayer() {
     <div className="relative h-full w-full overflow-hidden bg-[#0B0B0B]">
       <Player
         ref={playerRef}
+        // Silences Remotion's console license notice — the terms have been
+        // reviewed (see decisions.md / the ADR-007 renderer-port discussion).
+        acknowledgeRemotionLicense
         component={DecodeComposition}
         inputProps={inputProps}
         durationInFrames={durationInFrames}
