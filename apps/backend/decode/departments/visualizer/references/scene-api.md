@@ -189,3 +189,51 @@ export default function Scene(props) {
 No `CONTROLS` block. `props.background`, `props.label` and `props.labelSize` are
 declared as structured controls alongside the component, and Decode writes the
 manifest from them.
+
+The example above shows the *mechanics* — a single label. It is not the quality
+bar. Aim for the one below.
+
+## The quality bar — a relationship, composed
+
+This is the standard: real surfaces with edges, a drawn relationship rather than a
+list, spring choreography in reading order, type hierarchy, and one accent on the
+single thing that matters. A scene should look like this, not like a fading title.
+
+```tsx
+import { AbsoluteFill, Interactive, useSpring, SPRING_PRESETS, fontCss } from "@decode/animation-api";
+
+export default function Scene(props) {
+  const query = useSpring({ config: SPRING_PRESETS.smooth, duration: 0.35 });
+  const link = useSpring({ config: SPRING_PRESETS.gentle, delay: 0.35, duration: 0.4 });
+  const surface = { background: "#232323", border: "1px solid #484848", borderRadius: 16, padding: "22px 28px" };
+  const label = { ...fontCss({ family: "Geist Mono" }), fontSize: 14, letterSpacing: 1 };
+
+  return (
+    <AbsoluteFill style={{ background: "#0B0B0B", padding: 96, justifyContent: "center", color: "#F3F0EA", ...fontCss({ family: "Bricolage Grotesque" }) }}>
+      <Interactive.Div name="Eyebrow" style={{ ...label, color: "#98A0B3", marginBottom: 40, opacity: query }}>
+        {props.eyebrow}
+      </Interactive.Div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 40 }}>
+        <Interactive.Div name="Query" style={{ ...surface, opacity: query, translate: `${(1 - query) * -28}px 0px` }}>
+          <div style={{ ...label, color: "#98A0B3" }}>QUERY</div>
+          <div style={{ fontSize: 56, marginTop: 8 }}>{props.query}</div>
+        </Interactive.Div>
+
+        <Interactive.Div name="Link" style={{ fontSize: 52, color: "#F2A47B", opacity: link, scale: 0.6 + link * 0.4 }}>→</Interactive.Div>
+
+        <Interactive.Div name="Target" style={{ ...surface, borderColor: "#F2A47B", opacity: link, translate: `${(1 - link) * 28}px 0px` }}>
+          <div style={{ ...label, color: "#F2A47B" }}>ATTENDS TO</div>
+          <div style={{ fontSize: 56, marginTop: 8 }}>{props.target}</div>
+        </Interactive.Div>
+      </div>
+    </AbsoluteFill>
+  );
+}
+```
+
+What makes it the bar: two real surfaces (`#232323`/`#484848`) instead of flat
+chips; the accent on the *target* alone — the one thing the beat is about; a
+`useSpring` sequence that brings the query in, then draws the link and the target,
+so the motion *is* the explanation; and mono labels against large display values
+for hierarchy. The relationship is drawn, not written.
