@@ -1,13 +1,19 @@
+from pathlib import Path
+
 import httpx
 import pytest
 
 from decode.config import Settings
 from decode.departments.registry import voice as build_voice
-from decode.departments.voice import prompt
+from decode.departments.voice import _mp3_duration_seconds, prompt
 from decode.execution.pipeline import STAGES
 from decode.models import ArtifactType
 from decode.providers.storage import object_store
 from decode.schemas import BeatNarration, ProductionIntent, Script
+
+# A real 2s mp3, committed so the test needs no ffmpeg. ~2.04s once encoded.
+_MP3_2S = (Path(__file__).parent / "fixtures" / "silence-2s.mp3").read_bytes()
+_MP3_2S_SECONDS = 2.04
 
 INTENT = ProductionIntent(
     audience="Curious beginners",
@@ -115,6 +121,37 @@ async def test_fish_audio_propagates_provider_failure(monkeypatch):
     # than storing a broken clip and reporting success.
     with pytest.raises(httpx.HTTPStatusError):
         await narrator.generate(INTENT, SCRIPT)
+
+
+def test_mp3_duration_reads_real_length():
+    assert _mp3_duration_seconds(_MP3_2S) == pytest.approx(2.04, abs=0.1)
+    # Garbage is unmeasurable, not an exception — the caller falls back.
+    assert _mp3_duration_seconds(b"ID3-not-a-real-mp3") is None
+
+
+async def test_voice_clip_length_is_the_measured_audio(monkeypatch):
+    # Fish returns a real 2s mp3 for every beat; both clips must come back 2.04s.
+    # The two beats have different text, so if length were estimated from words
+    # they would differ — identical measured lengths prove measurement is used.
+    monkeypatch.setattr(httpx.AsyncClient, "post", _fake_post(200, _MP3_2S, []))
+    narrator = build_voice(FISH_SETTINGS)
+    voice = await narrator.generate(INTENT, SCRIPT)
+
+    assert [clip.duration_seconds for clip in voice.clips] == [
+        pytest.approx(_MP3_2S_SECONDS, abs=0.1),
+        pytest.approx(_MP3_2S_SECONDS, abs=0.1),
+    ]
+    estimates = {round(len(beat.narration) / 14.0, 2) for beat in SCRIPT.beats}
+    assert len(estimates) == 2  # the estimates really would have differed
+
+
+async def test_voice_falls_back_to_estimate_when_audio_is_unreadable(monkeypatch):
+    monkeypatch.setattr(httpx.AsyncClient, "post", _fake_post(200, b"ID3-not-mp3", []))
+    narrator = build_voice(FISH_SETTINGS)
+    voice = await narrator.generate(INTENT, SCRIPT)
+    by_beat = {clip.beat_id: clip.duration_seconds for clip in voice.clips}
+    for beat in SCRIPT.beats:
+        assert by_beat[beat.beat_id] == round(max(1.0, len(beat.narration) / 14.0), 2)
 
 
 async def test_voice_endpoint_is_seekable(client):

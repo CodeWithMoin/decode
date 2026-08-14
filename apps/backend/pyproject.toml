@@ -16,7 +16,11 @@ dependencies = [
   "langfuse>=4.10,<5",
   "httpx>=0.28,<1",
   # Department manifests are YAML frontmatter in SKILL.md.
-  "pyyaml>=6,<7"
+  "pyyaml>=6,<7",
+  # Real narration duration from the mp3 itself — audio is the timing authority
+  # (ADR-005), so a clip's length is measured, not estimated. Pure-python, no
+  # ffmpeg binary needed at runtime.
+  "mutagen>=1.47,<2"
 ]
 
 [project.optional-dependencies]

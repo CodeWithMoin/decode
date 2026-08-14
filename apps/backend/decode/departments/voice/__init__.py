@@ -12,6 +12,7 @@ durable and fetchable by the preview and the renderer.
 from __future__ import annotations
 
 import uuid
+from io import BytesIO
 
 import httpx
 
@@ -21,10 +22,28 @@ from ...schemas import ProductionIntent, Script, Voice, VoiceNarration
 from ..contracts import ProviderUsage
 from .prompt import SKILLS
 
-# Rough spoken rate, chars per second, used only to estimate clip duration when
-# the provider does not report one. English narration averages ~14 characters
-# per second across the voices we render.
+# Fallback spoken rate, chars per second, used only when the real audio cannot be
+# measured. English narration averages ~14 characters per second across the
+# voices we render. The measured mp3 length is always preferred (ADR-005).
 _CHARS_PER_SECOND = 14.0
+
+
+def _mp3_duration_seconds(data: bytes) -> float | None:
+    """The real length of an mp3, or None if it cannot be read.
+
+    Audio is the timing authority, so a clip's duration is measured from the
+    bytes the provider returned rather than guessed from the text. Never raises —
+    a clip that cannot be parsed falls back to the character estimate rather than
+    failing the whole narration run.
+    """
+    try:
+        from mutagen.mp3 import MP3
+
+        info = MP3(BytesIO(data)).info
+        length = info.length if info is not None else None
+        return round(length, 2) if length and length > 0 else None
+    except Exception:
+        return None
 
 
 class FishAudioNarrator:
@@ -74,12 +93,13 @@ class FishAudioNarrator:
                 yield data
 
             await store.put(key, chunks(), max_bytes=20 * 1024 * 1024)
-            duration = max(1.0, len(beat.narration) / _CHARS_PER_SECOND)
+            measured = _mp3_duration_seconds(audio)
+            duration = measured if measured is not None else len(beat.narration) / _CHARS_PER_SECOND
             clips.append(
                 VoiceNarration(
                     beat_id=beat.beat_id,
                     audio_key=key,
-                    duration_seconds=round(duration, 2),
+                    duration_seconds=round(max(1.0, duration), 2),
                 )
             )
 
@@ -88,7 +108,8 @@ class FishAudioNarrator:
         return Voice(
             rationale=(
                 f"I read all {len(clips)} passages aloud with the chosen voice. "
-                "Durations are estimated from the words; the timeline is the authority."
+                "Each scene's length is the measured length of its narration — the audio is "
+                "the timing authority."
             ),
             clips=clips,
             voice_findings={
