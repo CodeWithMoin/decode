@@ -378,6 +378,11 @@ CHAIN: dict[str, str] = {
     "generate_production_brief": "generate_teaching_plan",
     "generate_teaching_plan": "generate_script",
     "generate_script": "generate_scene_visuals",
+    # Voice needs only the script and intent, both already carried through the
+    # visuals job, so narration is reached without the creator choosing inputs.
+    # Audio is the timing authority (ADR-005); a chain that stopped at visuals
+    # left the scene with no runtime to derive.
+    "generate_scene_visuals": "generate_voice",
 }
 
 # The actor a chained approval is recorded under. Deliberately not the server's

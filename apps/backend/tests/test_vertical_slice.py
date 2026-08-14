@@ -799,7 +799,7 @@ async def test_a_chaining_project_starts_the_next_stage_itself(client):
 
     assert (await execute_run(None, script_run_id))["status"] == "succeeded"
 
-    # And on to the visuals. Four departments, one request.
+    # The visuals follow, then the narration — five departments, one request.
     async with SessionLocal() as session:
         visuals_job = await session.scalar(
             select(Job).where(Job.project_id == pid, Job.kind == "generate_scene_visuals")
@@ -808,9 +808,45 @@ async def test_a_chaining_project_starts_the_next_stage_itself(client):
         visuals_run_id = visuals_job.active_run_id
 
     assert (await execute_run(None, visuals_run_id))["status"] == "succeeded"
+    # Visuals are done, but the chain has already queued the narration, so the
+    # project is still processing rather than resting on Edit.
+    studio = (await client.get(f"/api/v1/projects/{pid}/studio")).json()
+    assert studio["current_stage"] == "processing"
+    assert studio["project"]["auto_continue"] is True
+
+    # Voice consumes only the carried script and intent, so the chain reaches it
+    # without the creator choosing new inputs.
+    async with SessionLocal() as session:
+        voice_job = await session.scalar(
+            select(Job).where(Job.project_id == pid, Job.kind == "generate_voice")
+        )
+        assert voice_job is not None
+        voice_roles = {
+            item.role
+            for item in (
+                await session.scalars(select(JobInput).where(JobInput.job_id == voice_job.id))
+            ).all()
+        }
+        assert voice_roles == {"script", "production_intent"}
+        voice_run_id = voice_job.active_run_id
+
+    assert (await execute_run(None, voice_run_id))["status"] == "succeeded"
+
+    # With narration rendered, the whole chain has landed on Edit.
     studio = (await client.get(f"/api/v1/projects/{pid}/studio")).json()
     assert studio["current_stage"] == "edit"
-    assert studio["project"]["auto_continue"] is True
+
+    async with SessionLocal() as session:
+        voice_artifact = await session.scalar(
+            select(Artifact).where(
+                Artifact.project_id == pid, Artifact.artifact_type == ArtifactType.VOICE
+            )
+        )
+        assert voice_artifact is not None
+        voice_version = await session.get(ArtifactVersion, voice_artifact.latest_version_id)
+        assert voice_version is not None
+        # One narration clip per approved beat, keyed by the same beat ids.
+        assert {clip["beat_id"] for clip in voice_version.payload["clips"]} == set(plan_beats)
 
     async with SessionLocal() as session:
         script_artifact = await session.scalar(
