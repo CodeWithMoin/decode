@@ -28,6 +28,9 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["Content-Type", "Idempotency-Key", "Last-Event-ID", "X-Request-ID"],
+    # The Remotion player seeks narration audio cross-origin; it must be able to
+    # read the range headers to know the clip is seekable.
+    expose_headers=["Accept-Ranges", "Content-Range", "Content-Length"],
 )
 app.add_exception_handler(AppProblem, problem_handler)  # type: ignore[arg-type]
 

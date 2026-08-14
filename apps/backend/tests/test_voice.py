@@ -115,3 +115,34 @@ async def test_fish_audio_propagates_provider_failure(monkeypatch):
     # than storing a broken clip and reporting success.
     with pytest.raises(httpx.HTTPStatusError):
         await narrator.generate(INTENT, SCRIPT)
+
+
+async def test_voice_endpoint_is_seekable(client):
+    """The Remotion player seeks narration audio, so the clip route must honour
+    Range requests — a plain 200 is non-seekable and errors the player."""
+    from decode.config import get_settings
+    from decode.providers.storage import object_store
+
+    store = object_store(get_settings())
+    key, body = "narration/seek-test.mp3", b"0123456789" * 5  # 50 bytes
+
+    async def chunks():
+        yield body
+
+    await store.put(key, chunks(), max_bytes=1024)
+
+    full = await client.get(f"/api/v1/voice/{key}")
+    assert full.status_code == 200
+    assert full.headers["accept-ranges"] == "bytes"
+    assert full.content == body
+
+    part = await client.get(f"/api/v1/voice/{key}", headers={"Range": "bytes=10-19"})
+    assert part.status_code == 206
+    assert part.headers["content-range"] == f"bytes 10-19/{len(body)}"
+    assert part.content == body[10:20]
+
+    tail = await client.get(f"/api/v1/voice/{key}", headers={"Range": "bytes=40-"})
+    assert tail.status_code == 206 and tail.content == body[40:]
+
+    unsatisfiable = await client.get(f"/api/v1/voice/{key}", headers={"Range": "bytes=999-"})
+    assert unsatisfiable.status_code == 416
