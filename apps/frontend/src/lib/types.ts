@@ -65,6 +65,7 @@ export interface SceneVisualStyle {
   secondaryColor: string;
   accentColor: string;
   backgroundColor: string;
+  /** Centered composition offset in 1920×1080 canvas pixels. */
   x: number;
   y: number;
   scale: number;
@@ -225,6 +226,53 @@ export interface TeachingPlanPayload {
   plan_findings: Record<string, unknown>;
 }
 
+/** One beat's narration — the only editable copy of those words. */
+export interface ScriptBeat {
+  beat_id: string;
+  narration: string;
+}
+
+export interface ScriptPayload {
+  rationale: string;
+  beats: ScriptBeat[];
+  script_findings: Record<string, unknown>;
+}
+
+/** One knob the settings panel may offer on a scene, as the module declares it. */
+export interface SceneControl {
+  name: string;
+  type: "string" | "number" | "color" | "boolean";
+  label: string;
+  default: string | number | boolean;
+  minimum?: number | null;
+  maximum?: number | null;
+  step?: number | null;
+}
+
+export interface SceneModule {
+  beat_id: string;
+  controls: SceneControl[];
+  component_source: string;
+}
+
+export interface SceneVisualsPayload {
+  rationale: string;
+  scenes: SceneModule[];
+  visual_findings: Record<string, unknown>;
+}
+
+export interface VoiceClip {
+  beat_id: string;
+  audio_key: string;
+  duration_seconds: number;
+}
+
+export interface VoicePayload {
+  rationale: string;
+  clips: VoiceClip[];
+  voice_findings: Record<string, unknown>;
+}
+
 export interface EvaluationCheck {
   name: string;
   outcome: string;
@@ -345,6 +393,30 @@ export interface GenerateTeachingPlanResult {
   };
 }
 
+export interface GenerateScriptResult {
+  job_id: string;
+  run_id: string;
+  status: JobStatus;
+  kind: "generate_script";
+  requested_input_versions: {
+    plan_version_id: string;
+    intent_version_id: string;
+    schema: number;
+  };
+}
+
+export interface GenerateSceneVisualsResult {
+  job_id: string;
+  run_id: string;
+  status: JobStatus;
+  kind: "generate_scene_visuals";
+  requested_input_versions: {
+    script_version_id: string;
+    intent_version_id: string;
+    schema: number;
+  };
+}
+
 export interface ApprovalResult {
   approval_id: string;
   artifact_id: string;
@@ -416,8 +488,11 @@ export interface Scene {
   /** Stable id — survives reorder, split, merge and duplicate. */
   id: string;
   title: string;
-  /** Seconds. The only stored timing value; everything else is derived. */
+  /** Clip duration in seconds; runtime and displayed timing remain derived. */
   dur: number;
+  /** Clip-level visual fades in seconds. Applied by the Remotion host. */
+  fadeIn?: number;
+  fadeOut?: number;
   anim: AnimationKind;
   /** Why the crew made this call. Never empty — a handoff without a
    *  rationale is not finished. */
@@ -454,6 +529,19 @@ export interface Scene {
   muted?: boolean;
   /** When true, the beat cannot be selected, moved, split, or deleted. */
   locked?: boolean;
+  /**
+   * The Motion Designer's generated animation for this beat, as source.
+   *
+   * Present only on a connected project. When it is here the player compiles
+   * and renders it instead of drawing the prototype's chip stand-in — which is
+   * what `viz` and `hot` are, and why they stay: a seeded scene has no module
+   * and still has to render something.
+   */
+  componentSource?: string;
+  /** The knobs that module declares, read from its manifest — never executed. */
+  controls?: SceneControl[];
+  /** URL of this beat's narration audio, present only once voice is generated. */
+  audioUrl?: string;
 }
 
 /**

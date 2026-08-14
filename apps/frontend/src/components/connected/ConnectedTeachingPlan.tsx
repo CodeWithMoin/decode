@@ -155,7 +155,7 @@ export function ConnectedTeachingPlan({ projectId }: { projectId: string }) {
         keyFor(fingerprint),
       );
       commandKeys.current.delete(fingerprint);
-      await load();
+      router.push(`/studio/projects/${projectId}/script`);
     } catch (cause) {
       setError(creatorError(cause, "We couldn’t start the Teaching Plan."));
     } finally {

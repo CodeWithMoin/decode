@@ -12,7 +12,9 @@
     "@gsap/react": "^2.1.2",
     "@hookform/resolvers": "^5.5.7",
     "@phosphor-icons/react": "^2.1.10",
+    "@remotion/bundler": "^4.0.508",
     "@remotion/player": "4.0.508",
+    "@remotion/renderer": "^4.0.508",
     "gsap": "^3.15.0",
     "lucide-react": "^1.28.0",
     "motion": "^12.43.0",
@@ -32,6 +34,7 @@
     "eslint": "^9",
     "eslint-config-next": "^16.3.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.12",
     "typescript": "^5"
   }
 }

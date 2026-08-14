@@ -6,10 +6,6 @@ import {
   ArrowUp,
   ArrowsInLineHorizontal,
   Copy,
-  Eye,
-  EyeSlash,
-  LockSimple,
-  LockSimpleOpen,
   Minus,
   Pause,
   Play,
@@ -17,11 +13,8 @@ import {
   Scissors,
   SkipBack,
   SkipForward,
-  SpeakerSimpleHigh,
-  SpeakerSimpleSlash,
   Trash,
 } from "@phosphor-icons/react";
-import { WAVE_BARS } from "@/lib/api";
 import { fmt, num, startsAll, timecode, totalAll } from "@/lib/derive";
 import { cx } from "@/components/ui/primitives";
 import { usePlayerRef } from "@/components/player/player-ref";
@@ -32,11 +25,9 @@ import { useStudio } from "@/store/studio";
 /**
  * Timeline — the bottom bar of the Edit workspace.
  *
- * Every measurement on screen is derived at render from one input, `scene.dur`:
- * the runtime, the adaptive ruler, each lane block's width, the playhead offset and
- * both timecodes. Nothing is stored, so retiming or reordering a scene moves
- * both lanes, every tick and both timecodes together. There is no sync
- * step and there must never be one.
+ * A single gapless track: each scene is a clip laid out in order, with its
+ * fades editable in place. Runtime, clip geometry, playhead offset and
+ * timecodes are all derived from scene durations. There is no sync step.
  *
  * "Script writes, Timeline navigates" — this component never edits narration.
  * It seeks and it selects.
@@ -51,31 +42,6 @@ const GUTTER = 160;
 /** Pixels per second at 1x zoom. */
 const PPS = 3;
 
-const WAVEFORM_POINTS = (() => {
-  const width = 1000;
-  const center = 16;
-  const amplitude = 12;
-  const top = WAVE_BARS.map((height, index) => {
-    const x = (index / Math.max(1, WAVE_BARS.length - 1)) * width;
-    const y = center - (height / 40) * amplitude;
-    return `${x.toFixed(2)},${y.toFixed(2)}`;
-  });
-  const bottom = WAVE_BARS.map((height, index) => {
-    const reverseIndex = WAVE_BARS.length - 1 - index;
-    const x = (reverseIndex / Math.max(1, WAVE_BARS.length - 1)) * width;
-    const y = center + (WAVE_BARS[reverseIndex] / 40) * amplitude;
-    return `${x.toFixed(2)},${y.toFixed(2)}`;
-  });
-  return [...top, ...bottom].join(" ");
-})();
-
-/**
- * Waveform bar heights are stringified through `toFixed` before they
- * reach the DOM. `WAVE_BARS` is generated with `Math.sin`, which is not
- * bit-identical between Node's libm and the browser's — without quantising,
- * the server and client render styles that differ in the last decimal and
- * React reports a hydration mismatch.
- */
 const minorStepFor = (major: number) => {
   if (major >= 300) return 60;
   if (major >= 120) return 30;
@@ -109,25 +75,17 @@ export function Timeline() {
   const splitScene = useStudio((s) => s.splitScene);
   const mergeScene = useStudio((s) => s.mergeScene);
   const reorder = useStudio((s) => s.reorder);
-  const toggleScene = useStudio((s) => s.toggleScene);
+  const setClipFade = useStudio((s) => s.setClipFade);
+  const checkpoint = useStudio((s) => s._pushHistory);
   const dupScene = useStudio((s) => s.dupScene);
   const removeScene = useStudio((s) => s.removeScene);
   const addScene = useStudio((s) => s.addScene);
-  const toggleMute = useStudio((s) => s.toggleMute);
-  const toggleLock = useStudio((s) => s.toggleLock);
   const playing = useStudio((s) => s.playing);
   const playbackRate = useStudio((s) => s.playbackRate);
   const [deleteArmed, setDeleteArmed] = useState(false);
-  const [draggingScene, setDraggingScene] = useState<number | null>(null);
-  const [dragOverScene, setDragOverScene] = useState<number | null>(null);
-  const [rowHeights, setRowHeights] = useState<Record<string, number>>({});
-  const getRowHeight = useCallback((id: string) => rowHeights[id] ?? 48, [rowHeights]);
   const [zoom, setZoom] = useState(1);
   const zoomProgress = (zoom - 0.25) / 3.75;
 
-  // Two runtime measures: the cut (what exports) and the canvas (what you see).
-  // Visual layout never changes when a scene is toggled off — disabled beats
-  // keep their slot so the timeline never drifts.
   const fullDur = totalAll(sc) || 1;
   const zoomPx = fullDur * PPS * zoom;
   const st = startsAll(sc);
@@ -149,16 +107,9 @@ export function Timeline() {
     return { major, minor };
   }, [fullDur, zoom]);
 
-  /* ---------------------------------------------------------------- *
-   * Drag-scrub
-   *
-   * The pointer leaves this element almost immediately in any real drag, so
-   * move/end are bound on `document`, not here. `detach` is held in a ref so
-   * unmount mid-drag tears the listeners down too.
-   * ---------------------------------------------------------------- */
-
   const trackRef = useRef<HTMLDivElement>(null);
   const detachRef = useRef<(() => void) | null>(null);
+  const fadeDetachRef = useRef<(() => void) | null>(null);
 
   /** Map a viewport x to a time, measuring fresh so mid-drag scroll is honoured. */
   const seekAtX = useCallback(
@@ -176,7 +127,6 @@ export function Timeline() {
 
   const startScrub = useCallback(
     (clientX: number, touch: boolean) => {
-      // Any navigation stops playback.
       setPlaying(false);
       seekAtX(clientX);
       detachRef.current?.();
@@ -185,7 +135,6 @@ export function Timeline() {
       const onTouchMove = (e: TouchEvent) => {
         const t = e.touches[0];
         if (!t) return;
-        // Non-passive, so this actually suppresses the page rubber-band.
         e.preventDefault();
         seekAtX(t.clientX);
       };
@@ -213,12 +162,50 @@ export function Timeline() {
     [seekAtX, setPlaying],
   );
 
+  const startFadeDrag = useCallback((event: React.MouseEvent, sceneIndex: number, edge: "in" | "out") => {
+    if (event.button !== 0) return;
+    const scene = useStudio.getState().sc[sceneIndex];
+    if (!scene || scene.locked) return;
+    event.preventDefault();
+    event.stopPropagation();
+    select(sceneIndex, { preservePlayhead: true });
+    setPlaying(false);
+    const startX = event.clientX;
+    const startValue = edge === "in" ? (scene.fadeIn ?? 0) : (scene.fadeOut ?? 0);
+    let checkpointed = false;
+
+    const onMove = (moveEvent: MouseEvent) => {
+      if (!checkpointed && Math.abs(moveEvent.clientX - startX) >= 2) {
+        checkpoint();
+        checkpointed = true;
+      }
+      if (!checkpointed) return;
+      const direction = edge === "in" ? 1 : -1;
+      const delta = ((moveEvent.clientX - startX) / (PPS * zoom)) * direction;
+      const frames = Math.round((startValue + delta) * DECODE_FPS);
+      setClipFade(sceneIndex, edge, frames / DECODE_FPS);
+    };
+    const cleanup = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", cleanup);
+      fadeDetachRef.current = null;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    fadeDetachRef.current?.();
+    fadeDetachRef.current = cleanup;
+    document.body.style.cursor = "ew-resize";
+    document.body.style.userSelect = "none";
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", cleanup);
+  }, [checkpoint, select, setClipFade, setPlaying, zoom]);
+
   useEffect(() => () => detachRef.current?.(), []);
+  useEffect(() => () => fadeDetachRef.current?.(), []);
   useEffect(() => setDeleteArmed(false), [sceneIdx]);
 
   useEffect(() => {
     const onPlayerKey = (event: KeyboardEvent) => {
-      // Undo/Redo and zoom shortcuts must fire before the modifier guard
       if ((event.metaKey || event.ctrlKey) && (event.code === "KeyZ" || event.code === "KeyY")) {
         event.preventDefault();
         const state = useStudio.getState();
@@ -265,7 +252,6 @@ export function Timeline() {
         if (event.repeat) return;
         event.preventDefault();
         state.setPlaybackRate(0);
-
       } else if (event.code === "KeyL") {
         if (event.repeat) return;
         event.preventDefault();
@@ -295,12 +281,19 @@ export function Timeline() {
   const atStart = sceneIdx <= 0;
   const atEnd = sceneIdx >= sc.length - 1;
 
+  const startClipDrag = (event: React.MouseEvent, sceneIndex: number) => {
+    if (event.button !== 0) return;
+    const scene = useStudio.getState().sc[sceneIndex];
+    if (!scene) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setPlaying(false);
+    select(sceneIndex, { preservePlayhead: true });
+  };
+
   return (
     <div className="flex min-h-0 w-full select-none flex-col overflow-hidden bg-[#141414] text-[var(--nle-text)]">
-      {/* Transport — the controls that act on time, above the axis they act on.
-          Only real actions appear here. An NLE puts loop, volume and zoom in
-          this row; Decode has no loop model, no mixer and no zoom model, and a
-          control that does nothing is worse than an absent one. */}
+      {/* Transport — the controls that act on time, above the axis they act on. */}
       <div className="flex h-11 flex-none items-center gap-1 border-b border-[var(--nle-grid-line)] bg-[var(--nle-panel)] px-2.5">
         <button type="button" onClick={() => splitScene(sceneIdx)} aria-label="Split selected scene" title="Split selected scene" className="nle-icon-button h-8 w-8 rounded-md">
           <Scissors size={16} weight="regular" aria-hidden />
@@ -369,8 +362,6 @@ export function Timeline() {
         <button
           type="button"
           onClick={() => {
-            // Pressing play on a finished cut restarts it rather than doing
-            // nothing. Moved here with the rest of the transport.
             if (!playing && playhead >= fullDur) seek(0);
             setPlaying(!playing);
           }}
@@ -396,8 +387,6 @@ export function Timeline() {
           </span>
         )}
 
-
-                {/* Zoom slider */}
         <div className="ml-auto mr-3 flex items-center gap-1" onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}>
           <button
             type="button"
@@ -464,154 +453,103 @@ export function Timeline() {
         </span>
       </div>
 
-      {/* Scrub track — one time axis, two lanes hung off it. Animation labels
-          and voice metadata live in Scene settings, where they can be acted on;
-          repeating them here made the timeline taller but no more capable. */}
+      {/* Scrub track — one time axis, one track hung off it. */}
       <div
         ref={trackRef}
-        className="timeline-scroll relative flex min-h-0 flex-1 flex-col overflow-auto bg-[#121212] outline-none"
+        className="timeline-scroll relative flex min-h-0 flex-1 flex-col overflow-auto bg-[var(--nle-track)] outline-none"
       >
         <div className="relative" style={{ width: zoomPx, minWidth: "100%" }}>
-        {/* Ruler — sticky so it stays on screen while you scroll tracks */}
-        <div className="sticky top-0 z-10 flex h-8 flex-none border-b border-[#2B2B2B] bg-[#171717]" style={{ minWidth: "100%" }}>
-          <div className="flex flex-none items-center justify-center border-r border-[#2B2B2B] bg-[#141414] px-2" style={{ width: GUTTER }}>
-            <span className="font-mono text-[17px] font-semibold tabular-nums tracking-[-0.035em] text-[var(--nle-text)]">
-              <PlayheadTime fallback={playhead} />
-            </span>
-          </div>
-          <div
-            role="slider"
-            tabIndex={0}
-            aria-label="Scrub the timeline"
-            aria-valuemin={0}
-            aria-valuemax={Math.round(fullDur)}
-            aria-valuenow={Math.round(playhead)}
-            aria-valuetext={`${fmt(playhead)} of ${fmt(fullDur)}`}
-            onKeyDown={onKeyDown}
-            onMouseDown={(e) => {
-              if (e.button !== 0) return;
-              startScrub(e.clientX, false);
-            }}
-            onTouchStart={(e) => {
-              const t = e.touches[0];
-              if (t) startScrub(t.clientX, true);
-            }}
-            className="relative h-8 flex-1 cursor-col-resize touch-none select-none outline-none focus:outline-none focus-visible:outline-none focus-visible:shadow-none"
-          >
-            {ruler.minor.map((tick) => (
-              <div
-                key={`minor-${tick.t}`}
-                className="absolute bottom-0 w-px bg-[#3C3C3C]"
-                style={{ left: tick.left, height: tick.middle ? 9 : 5 }}
-              />
-            ))}
-            {ruler.major.map((tick) => (
-              <div
-                key={tick.t}
-                className="absolute inset-y-0"
-                style={{
-                  left: `${tick.left}px`,
-                }}
-              >
-                <span className="absolute bottom-0 h-3 w-px bg-[#737373]" />
-                <span
-                  className="absolute top-1 font-mono text-[9.5px] tabular-nums tracking-[0.015em] text-[#A4A4A4]"
-                  style={{ transform: tick.t / fullDur > 0.96 ? "translateX(-100%)" : tick.t === 0 ? undefined : "translateX(8px)" }}
-                >
-                  {rulerLabel(tick.t, fullDur)}
-                </span>
-              </div>
-            ))}
-            <LivePlayhead fallback={playhead} pixelsPerSecond={PPS * zoom} flag />
-          </div>
-        </div>
-
-        {/* One row per scene, each at its own derived offset.
-            A cutting-room timeline gives every clip its own track, and that is
-            worth copying: the staircase shows the order and the relative
-            lengths at once, and each row has somewhere to put per-scene detail
-            later. What is *not* copied is free positioning — a row's offset and
-            width are Σ dur and dur, so a scene cannot be dragged out of
-            sequence or leave a hole. There is no sync step. */}
-        <div className="rail-y relative flex flex-col">
-          {sc.slice().reverse().map((s) => {
-            const i = sc.indexOf(s);
-            const active = i === sceneIdx;
-            return (
-              <TimelineRow
-                key={s.id}
-                label={num(i)}
-                active={active}
-                disabled={s.disabled}
-                muted={s.muted}
-                locked={s.locked}
-                height={getRowHeight(s.id)}
-                onResize={(px) => setRowHeights((prev) => ({ ...prev, [s.id]: px }))}
-                onToggle={() => toggleScene(i)}
-                onToggleMute={() => toggleMute(i)}
-                onToggleLock={() => toggleLock(i)}
-              >
-                <button
-                  type="button"
-                  draggable={!s.locked}
-                  onClick={() => { if (!s.locked) select(i); }}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onDragStart={(event) => {
-                    event.dataTransfer.effectAllowed = "move";
-                    event.dataTransfer.setData("text/plain", String(i));
-                    setDraggingScene(i);
-                    setDragOverScene(i);
-                  }}
-                  onDragEnter={() => setDragOverScene(i)}
-                  onDragOver={(event) => {
-                    event.preventDefault();
-                    event.dataTransfer.dropEffect = "move";
-                  }}
-                  onDragLeave={() => { if (dragOverScene === i) setDragOverScene(null); }}
-                  onDrop={(event) => {
-                    event.preventDefault();
-                    if (draggingScene !== null && draggingScene !== i) reorder(draggingScene, i);
-                    setDraggingScene(null);
-                    setDragOverScene(null);
-                  }}
-                  onDragEnd={() => {
-                    setDraggingScene(null);
-                    setDragOverScene(null);
-                  }}
-                  title={`${num(i)} ${s.title} · ${fmt(s.dur)}`}
-                  aria-label={`Scene ${num(i)}, ${s.title}`}
-                  aria-current={active}
-                  aria-grabbed={draggingScene === i}
-                  className={cx(
-                    "absolute top-1 bottom-1 flex cursor-grab items-center overflow-hidden rounded-[5px] border px-2 text-left active:cursor-grabbing",
-                    "transition-[background-color,border-color,filter,transform] duration-[var(--t-fast)]",
-                    "border-[var(--accent-line)] bg-[var(--nle-clip)] text-[var(--nle-muted)] hover:bg-[var(--nle-clip-hover)] hover:text-[var(--nle-text)] focus-visible:border-[var(--accent)]",
-                    dragOverScene === i && draggingScene !== i && "border-[var(--accent)] ring-1 ring-[var(--accent)]",
-                    draggingScene === i && "opacity-60 cursor-grabbing",
-                    s.disabled && "opacity-45 saturate-0 line-through",
-                  )}
-                  style={{ left: st[i] * PPS * zoom, width: s.dur * PPS * zoom }}
-                >
-                  <span className="truncate whitespace-nowrap text-[10.5px] font-medium">
-                    {s.title}
-                  </span>
-                </button>
-              </TimelineRow>
-            );
-          })}
-          <TimelineRow label="Audio" height={36}>
-            <div className="pointer-events-none absolute inset-x-0 top-1 bottom-1 overflow-hidden bg-[#111111]">
-              <svg viewBox="0 0 1000 32" preserveAspectRatio="none" className="h-full w-full" aria-hidden>
-                <polygon points={WAVEFORM_POINTS} fill="#666666" opacity="0.82" />
-                <line x1="0" x2="1000" y1="16" y2="16" stroke="#7A7A7A" strokeOpacity="0.32" strokeWidth="0.7" />
-              </svg>
+          {/* Ruler — sticky so it stays on screen while you scroll */}
+          <div className="sticky top-0 z-10 flex h-8 flex-none border-b border-[#2B2B2B] bg-[#171717]" style={{ minWidth: "100%" }}>
+            <div className="flex flex-none items-center justify-center border-r border-[#2B2B2B] bg-[#141414] px-2" style={{ width: GUTTER }}>
+              <span className="font-mono text-[17px] font-semibold tabular-nums tracking-[-0.035em] text-[var(--nle-text)]">
+                <PlayheadTime fallback={playhead} />
+              </span>
             </div>
-          </TimelineRow>
+            <div
+              role="slider"
+              tabIndex={0}
+              aria-label="Scrub the timeline"
+              aria-valuemin={0}
+              aria-valuemax={Math.round(fullDur)}
+              aria-valuenow={Math.round(playhead)}
+              aria-valuetext={`${fmt(playhead)} of ${fmt(fullDur)}`}
+              onKeyDown={onKeyDown}
+              onMouseDown={(e) => {
+                if (e.button !== 0) return;
+                startScrub(e.clientX, false);
+              }}
+              onTouchStart={(e) => {
+                const t = e.touches[0];
+                if (t) startScrub(t.clientX, true);
+              }}
+              className="relative h-8 flex-1 cursor-col-resize touch-none select-none outline-none focus:outline-none focus-visible:outline-none focus-visible:shadow-none"
+            >
+              {ruler.minor.map((tick) => (
+                <div
+                  key={`minor-${tick.t}`}
+                  className="absolute bottom-0 w-px bg-[#3C3C3C]"
+                  style={{ left: tick.left, height: tick.middle ? 9 : 5 }}
+                />
+              ))}
+              {ruler.major.map((tick) => (
+                <div
+                  key={tick.t}
+                  className="absolute inset-y-0"
+                  style={{ left: `${tick.left}px` }}
+                >
+                  <span className="absolute bottom-0 h-3 w-px bg-[#737373]" />
+                  <span
+                    className="absolute top-1 font-mono text-[9.5px] tabular-nums tracking-[0.015em] text-[#A4A4A4]"
+                    style={{ transform: tick.t / fullDur > 0.96 ? "translateX(-100%)" : tick.t === 0 ? undefined : "translateX(8px)" }}
+                  >
+                    {rulerLabel(tick.t, fullDur)}
+                  </span>
+                </div>
+              ))}
+              <LivePlayhead fallback={playhead} pixelsPerSecond={PPS * zoom} flag />
+            </div>
+          </div>
+
+          <div className="relative flex flex-col">
+            <TimelineRow label="V1" height={52}>
+              {sc.map((scene, sceneIndex) => {
+                const active = sceneIndex === sceneIdx;
+                const locked = scene.locked;
+                const start = st[sceneIndex];
+                return (
+                  <button
+                    key={scene.id}
+                    type="button"
+                    onMouseDown={(event) => startClipDrag(event, sceneIndex)}
+                    title={`${num(sceneIndex)} ${scene.title} · ${fmt(scene.dur)}`}
+                    aria-label={`Scene ${num(sceneIndex)}, ${scene.title}`}
+                    aria-current={active}
+                    className={cx(
+                      "group/clip absolute top-[4px] bottom-[4px] flex cursor-grab items-center overflow-hidden rounded-[3px] border px-2.5 text-left active:cursor-grabbing",
+                      "border-[var(--nle-clip-line)] bg-[var(--nle-clip)] text-white shadow-[inset_0_1px_0_rgb(255_255_255_/_0.06)] hover:brightness-[1.08] focus-visible:outline-none",
+                      active && "z-10 border-[var(--nle-clip-selected)] shadow-[inset_0_1px_0_rgb(255_255_255_/_0.14),0_0_0_1px_rgb(0_0_0_/_0.5)]",
+                      scene.disabled && "opacity-40 saturate-0 line-through",
+                      locked && "timeline-clip-locked cursor-not-allowed",
+                    )}
+                    style={{ left: start * PPS * zoom, width: Math.max(1, scene.dur * PPS * zoom - 1) }}
+                  >
+                    <ClipFadeHandle edge="in" seconds={scene.fadeIn ?? 0} duration={scene.dur} onMouseDown={(event) => startFadeDrag(event, sceneIndex, "in")} />
+                    <ClipFadeHandle edge="out" seconds={scene.fadeOut ?? 0} duration={scene.dur} onMouseDown={(event) => startFadeDrag(event, sceneIndex, "out")} />
+                    <svg className="absolute bottom-0.5 left-2.5 right-2.5 h-[6px] opacity-[0.28]" preserveAspectRatio="none" viewBox="0 0 1000 32" aria-hidden>
+                      <polygon points={Array.from({ length: 21 }, (_, i) => `${(i / 20) * 1000},${16 - (((Math.sin(i * 1.3) * 0.5 + 0.5) * (Math.sin(i * 0.7 + sceneIndex) * 0.5 + 0.5)) * 14)}`).join(" ")} fill="currentColor" />
+                    </svg>
+                    <span className="relative z-[1] mr-1.5 font-mono text-[8px] tabular-nums text-white/40">{num(sceneIndex)}</span>
+                    <span className="relative z-[1] truncate whitespace-nowrap text-[10px] font-medium leading-[1.15]">{scene.title}</span>
+                  </button>
+                );
+              })}
+            </TimelineRow>
+          </div>
 
           <div className="pointer-events-none absolute inset-y-0 right-0" style={{ left: GUTTER }}>
             <LivePlayhead fallback={playhead} pixelsPerSecond={PPS * zoom} />
           </div>
-        </div>
         </div>
       </div>
     </div>
@@ -621,133 +559,70 @@ export function Timeline() {
 /** One track: a fixed gutter, then the time axis it shares with every other. */
 function TimelineRow({
   label,
-  active = false,
-  disabled = false,
-  muted = false,
-  locked = false,
   height,
-  onToggle,
-  onToggleMute,
-  onToggleLock,
-  onResize,
   children,
 }: {
   label: string;
-  active?: boolean;
-  disabled?: boolean;
-  muted?: boolean;
-  locked?: boolean;
   height?: number;
-  /** Absent on lanes that are not a beat, like the narration waveform. */
-  onToggle?: () => void;
-  onToggleMute?: () => void;
-  onToggleLock?: () => void;
-  /** Drag this row's bottom edge to resize it. Called with the new px height. */
-  onResize?: (px: number) => void;
   children: React.ReactNode;
 }) {
-  const isBeat = !!onToggle;
-  const resizeRef = useRef<HTMLDivElement>(null);
-  const startResize = useCallback(
-    (e: React.MouseEvent) => {
-      if (!onResize) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const startY = e.clientY;
-      const startH = height ?? 48;
-      const onMove = (ev: MouseEvent) => {
-        const delta = ev.clientY - startY;
-        onResize(Math.max(24, Math.min(120, startH + delta)));
-      };
-      const onUp = () => {
-        document.removeEventListener("mousemove", onMove);
-        document.removeEventListener("mouseup", onUp);
-      };
-      document.addEventListener("mousemove", onMove);
-      document.addEventListener("mouseup", onUp);
-    },
-    [onResize, height],
-  );
-
   return (
     <div
-      className={cx(
-        "relative flex flex-none border-b border-[#242424] bg-[#151515]",
-      )}
+      className="relative flex flex-none border-b border-white/[0.045] bg-[var(--nle-track)]"
       style={{ height }}
     >
-      <div className="flex flex-none items-center gap-1 border-r border-[#242424] bg-[#111111] px-1.5" style={{ width: GUTTER }}>
-        <span
-          className={cx(
-            "font-mono text-[9.5px] tracking-[0.08em] uppercase",
-            active ? "text-[var(--nle-text)]" : "text-[var(--nle-faint)]",
-          )}
-        >
+      <div className="flex flex-none items-center gap-1 border-r border-white/[0.055] bg-[#0D0D0D] px-1.5" style={{ width: GUTTER }}>
+        <span className="font-mono text-[9.5px] tracking-[0.08em] text-[var(--nle-faint)] uppercase">
           {label}
         </span>
-        {isBeat && (
-          <>
-            <button
-              type="button"
-              onClick={onToggleMute}
-              onMouseDown={(e) => e.stopPropagation()}
-              aria-pressed={muted}
-              aria-label={muted ? `Unmute ${label}` : `Mute ${label}`}
-              title={muted ? "No audio on this beat" : "Audio on — click to mute"}
-              className={cx(
-                "ml-auto grid h-5 w-5 flex-none place-items-center rounded-[4px] transition-colors duration-[var(--t-fast)]",
-                muted
-                  ? "text-[var(--nle-faint)]"
-                  : "text-[var(--nle-muted)] hover:bg-[var(--nle-panel-raised)] hover:text-[var(--nle-text)]",
-              )}
-            >
-              {muted ? <SpeakerSimpleSlash size={14} weight="regular" aria-hidden /> : <SpeakerSimpleHigh size={14} weight="regular" aria-hidden />}
-            </button>
-            <button
-              type="button"
-              onClick={onToggleLock}
-              onMouseDown={(e) => e.stopPropagation()}
-              aria-pressed={locked}
-              aria-label={locked ? `Unlock ${label}` : `Lock ${label}`}
-              title={locked ? "Locked — click to unlock" : "Lock — prevent edits"}
-              className={cx(
-                "grid h-5 w-5 flex-none place-items-center rounded-[4px] transition-colors duration-[var(--t-fast)]",
-                locked
-                  ? "text-[var(--accent-lit)]"
-                  : "text-[var(--nle-faint)] hover:text-[var(--nle-text)]",
-              )}
-            >
-              {locked ? <LockSimple size={14} weight="fill" aria-hidden /> : <LockSimpleOpen size={14} weight="regular" aria-hidden />}
-            </button>
-            <button
-              type="button"
-              onClick={onToggle}
-              onMouseDown={(e) => e.stopPropagation()}
-              aria-pressed={!disabled}
-              aria-label={disabled ? `Put ${label} back in the video` : `Take ${label} out of the video`}
-              title={disabled ? "Not in the video — click to restore" : "In the video — click to disable"}
-              className={cx(
-                "grid h-5 w-5 flex-none place-items-center rounded-[4px] transition-colors duration-[var(--t-fast)]",
-                disabled
-                  ? "text-[var(--nle-faint)] hover:text-[var(--nle-text)]"
-                  : "text-[var(--nle-muted)] hover:bg-[var(--nle-panel-raised)] hover:text-[var(--nle-text)]",
-              )}
-            >
-              {disabled ? <EyeSlash size={14} weight="regular" aria-hidden /> : <Eye size={14} weight="regular" aria-hidden />}
-            </button>
-          </>
-        )}
       </div>
       <div className="relative min-w-0 flex-1">{children}</div>
-      {onResize && (
-        <div
-          ref={resizeRef}
-          onMouseDown={startResize}
-          className="absolute bottom-0 left-0 right-0 h-1 cursor-row-resize hover:bg-[var(--accent-tint)] transition-colors"
-          title="Drag to resize track"
-        />
-      )}
     </div>
+  );
+}
+
+function ClipFadeHandle({
+  edge,
+  seconds,
+  duration,
+  onMouseDown,
+}: {
+  edge: "in" | "out";
+  seconds: number;
+  duration: number;
+  onMouseDown: (event: React.MouseEvent) => void;
+}) {
+  const width = `${Math.max(0, Math.min(100, (seconds / Math.max(duration, 0.001)) * 100))}%`;
+  const fadeIn = edge === "in";
+
+  return (
+    <span aria-hidden className="pointer-events-none absolute inset-0 z-[2]">
+      {seconds > 0 && (
+        <span className={`absolute inset-y-0 ${fadeIn ? "left-0" : "right-0"}`} style={{ width }}>
+          <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 100 100">
+            <polygon
+              points={fadeIn ? "0,0 100,0 0,100" : "0,0 100,0 100,100"}
+              fill="rgb(68 28 12 / 0.45)"
+            />
+            <line
+              x1={fadeIn ? 0 : 100}
+              y1="100"
+              x2={fadeIn ? 100 : 0}
+              y2="0"
+              stroke="rgb(255 255 255 / 0.18)"
+              strokeWidth="1"
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
+        </span>
+      )}
+      <span
+        onMouseDown={onMouseDown}
+        title={`${fadeIn ? "Fade in" : "Fade out"}: ${seconds.toFixed(2)}s`}
+        className={`pointer-events-auto absolute top-0 h-[11px] w-[8px] cursor-ew-resize rounded-b-[3px] border border-white/10 bg-white/80 opacity-40 shadow-[0_1px_2px_rgb(0_0_0_/_0.4)] transition-[background-color,opacity] duration-[var(--t-fast)] group-hover/clip:opacity-70 hover:bg-white hover:opacity-100 ${fadeIn ? "-translate-x-1/2" : "translate-x-1/2"}`}
+        style={fadeIn ? { left: width } : { right: width }}
+      />
+    </span>
   );
 }
 
@@ -776,18 +651,6 @@ function LivePlayhead({ fallback, pixelsPerSecond, flag = false }: { fallback: n
   );
 }
 
-
-/**
- * The running timecode, and the only thing here that repaints at frame rate.
- *
- * Remotion's docs are explicit that the component subscribing to the Player's
- * time must be a leaf adjacent to the Player rather than an ancestor of it,
- * or the whole app re-renders on every frame. This is that leaf: it paints
- * one fixed-width timecode and nothing else depends on it.
- *
- * Falls back to the store's seek position when no Player is mounted, which is
- * the case on any timeline-shaped surface outside the Edit stage.
- */
 function PlayheadTime({ fallback }: { fallback: number }) {
   const ref = usePlayerRef();
   const frame = useCurrentPlayerFrame(ref ?? { current: null });

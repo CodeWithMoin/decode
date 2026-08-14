@@ -157,10 +157,12 @@
   --nle-line: #2d2d2d;
   --nle-line-strong: #484848;
   --nle-grid-line: rgb(255 255 255 / 0.04);
-  --nle-track: #121212;
-  --nle-track-active: #181818;
-  --nle-clip: #6b351f;
-  --nle-clip-hover: #85482b;
+  --nle-track: #101010;
+  --nle-track-active: #171513;
+  --nle-clip: #c46a3b;
+  --nle-clip-hover: #d47d4e;
+  --nle-clip-line: #e0956c;
+  --nle-clip-selected: #ffe4d4;
   --nle-text: #f5f5f5;
   --nle-muted: #b8b8b8;
   --nle-faint: #7e7e7e;
@@ -687,6 +689,23 @@
       transform: none;
       transition: none;
     }
+  }
+
+  .timeline-clip-locked::after {
+    position: absolute;
+    inset: 0;
+    content: "";
+    pointer-events: none;
+    background-image:
+      linear-gradient(45deg, rgb(0 0 0 / 0.34) 25%, transparent 25%, transparent 75%, rgb(0 0 0 / 0.34) 75%),
+      linear-gradient(45deg, rgb(0 0 0 / 0.34) 25%, transparent 25%, transparent 75%, rgb(0 0 0 / 0.34) 75%);
+    background-position: 0 0, 3px 3px;
+    background-size: 6px 6px;
+  }
+
+  .timeline-clip-locked > span {
+    position: relative;
+    z-index: 1;
   }
 }
 

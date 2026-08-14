@@ -5,9 +5,11 @@
 // through, and it deliberately withholds the clock so a scene cannot learn its
 // own duration. This file is the host that lays scenes out on the real
 // timeline, so it is exactly the code that should have frames.
-import { Sequence, useCurrentFrame } from "remotion";
+import { Audio, interpolate, Sequence, useCurrentFrame } from "remotion";
 import { AbsoluteFill, fontCss, Interactive } from "@decode/animation-api";
 import { SceneVisual } from "@/components/project/canvas/SceneVisual";
+import { GeneratedScene } from "@/components/player/GeneratedScene";
+import { startsAll, totalAll } from "@/lib/derive";
 import { sceneVisualStyleAt } from "@/lib/scene-style";
 import type { Scene } from "@/lib/types";
 
@@ -21,36 +23,23 @@ export type DecodeCompositionProps = {
 };
 
 export function getDecodeDurationInFrames(scenes: Scene[]) {
-  const dur = scenes.reduce((a, s) => a + s.dur, 0);
-  return Math.max(1, Math.round(dur * DECODE_FPS));
+  return Math.max(1, Math.ceil(totalAll(scenes) * DECODE_FPS));
 }
 
 export function DecodeComposition({ scenes, visualPick }: DecodeCompositionProps) {
-  const sceneStarts: number[] = [];
-  let acc = 0;
-  for (const s of scenes) {
-    sceneStarts.push(Math.round(acc * DECODE_FPS));
-    acc += s.dur;
-  }
+  const sceneStarts = startsAll(scenes);
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#0B0B0B" }}>
       {scenes.map((scene, index) => {
         const durationInFrames = Math.max(1, scene.dur * DECODE_FPS);
-        const start = sceneStarts[index];
+        const start = Math.round(sceneStarts[index] * DECODE_FPS);
 
-        const blank = scene.disabled;
-
-        if (blank) {
-          return (
-            <Sequence key={scene.id} name={`Scene ${index + 1}`} from={start} durationInFrames={durationInFrames}>
-              <AbsoluteFill style={{ backgroundColor: "#0B0B0B" }} />
-            </Sequence>
-          );
-        }
+        if (scene.disabled) return null;
 
         return (
           <Sequence key={scene.id} name={`Scene ${index + 1}`} from={start} durationInFrames={durationInFrames} premountFor={DECODE_FPS}>
+            {scene.audioUrl && <Audio src={scene.audioUrl} />}
             <DecodeScene scene={scene} index={index} durationInFrames={durationInFrames} pick={visualPick[index]} />
           </Sequence>
         );
@@ -60,6 +49,35 @@ export function DecodeComposition({ scenes, visualPick }: DecodeCompositionProps
 }
 
 function DecodeScene({ scene, index, durationInFrames, pick }: { scene: Scene; index: number; durationInFrames: number; pick?: "A" | "B" }) {
+  const frame = useCurrentFrame();
+  const progress = Math.min(1, Math.max(0, frame / Math.max(1, durationInFrames - 1)));
+  const style = sceneVisualStyleAt(scene, progress);
+  const fadeInFrames = Math.min(durationInFrames, Math.max(0, Math.round((scene.fadeIn ?? 0) * DECODE_FPS)));
+  const fadeOutFrames = Math.min(durationInFrames - fadeInFrames, Math.max(0, Math.round((scene.fadeOut ?? 0) * DECODE_FPS)));
+  const fadeInOpacity = fadeInFrames > 0
+    ? interpolate(frame, [0, fadeInFrames], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })
+    : 1;
+  const fadeOutOpacity = fadeOutFrames > 0
+    ? interpolate(frame, [durationInFrames - fadeOutFrames - 1, durationInFrames - 1], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })
+    : 1;
+  const opacity = Math.min(fadeInOpacity, fadeOutOpacity);
+
+  // A connected scene brings its own animation as code. Everything below is the
+  // prototype's chip stand-in for a visual that does not exist yet, so a scene
+  // that has the real thing skips it.
+  const hostStyle: React.CSSProperties = {
+    translate: `${style.x}px ${style.y}px`,
+    scale: style.scale / 100,
+    opacity: opacity * (style.opacity / 100),
+    filter: style.blur > 0 ? `blur(${style.blur}px)` : undefined,
+  };
+
+  if (scene.componentSource) return <AbsoluteFill style={hostStyle}><GeneratedScene scene={scene} /></AbsoluteFill>;
+
+  return <AbsoluteFill style={hostStyle}><SeededScene scene={scene} index={index} durationInFrames={durationInFrames} pick={pick} /></AbsoluteFill>;
+}
+
+function SeededScene({ scene, index, durationInFrames, pick }: { scene: Scene; index: number; durationInFrames: number; pick?: "A" | "B" }) {
   const frame = useCurrentFrame();
   const progress = Math.min(1, Math.max(0, frame / Math.max(1, durationInFrames - 1)));
   const style = sceneVisualStyleAt(scene, progress);
@@ -93,10 +111,6 @@ function DecodeScene({ scene, index, durationInFrames, pick }: { scene: Scene; i
           flexDirection: "column",
           alignItems: "center",
           padding: "68px 84px 54px",
-          translate: `${style.x}% ${style.y}%`,
-          scale: style.scale / 100,
-          opacity: style.opacity / 100,
-          filter: style.blur > 0 ? `blur(${style.blur}px)` : undefined,
         }}
       >
         <Interactive.Div

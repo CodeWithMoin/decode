@@ -1,24 +1,30 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useLayoutEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { StageRail, type StageState } from "@/components/app/StageRail";
 import { AppMark, cx } from "@/components/ui/primitives";
+import { ExportModal } from "@/components/project/ExportModal";
+import { ProjectChatTab } from "@/components/project/ProjectChatDock";
+import { ProducerDrawer } from "@/components/producer/ProducerDrawer";
 import { decodeApi } from "@/lib/decode-api";
-import { useProjectViewportLock } from "@/lib/use-project-viewport-lock";
+import { useConnectedProjectSnapshot } from "@/components/connected/ConnectedProjectViewport";
+import { useStudio } from "@/store/studio";
 import type { StudioSnapshot, TabId } from "@/lib/types";
 
 const ROUTES: Partial<Record<TabId, string>> = {
   overview: "understanding",
   plan: "teaching-plan",
+  script: "script",
+  edit: "edit",
 };
 
 const LOCKED_NOTES: Record<TabId, string> = {
   overview: "Understanding is available now.",
   plan: "Approve the Production Brief before the Director shapes the Teaching Plan.",
-  script: "Script becomes available after the connected Writing stage is built.",
-  edit: "Edit becomes available after a connected Script exists.",
+  script: "Approve the Teaching Plan before the Writer drafts the narration.",
+  edit: "Approve the Script before the Motion Designer builds the scenes.",
 };
 
 export function connectedStageState(studio: StudioSnapshot | null) {
@@ -26,11 +32,25 @@ export function connectedStageState(studio: StudioSnapshot | null) {
   const plan = studio?.artifacts.find((item) => item.artifact_type === "teaching_plan");
   const briefApproved = Boolean(brief?.approved_version_id);
   const planApproved = Boolean(plan?.approved_version_id);
+  const script = studio?.artifacts.find((item) => item.artifact_type === "script");
+  const scriptApproved = Boolean(script?.approved_version_id);
 
   return (tab: TabId): StageState => {
     if (tab === "overview") return { badge: briefApproved ? "✓" : undefined };
     if (tab === "plan") {
       return { locked: !briefApproved, badge: planApproved ? "✓" : undefined };
+    }
+    if (tab === "script") {
+      // Same gate the backend enforces: the Writer works from the approved
+      // plan, so an unapproved plan means there is nothing authorised to write
+      // against. Unlocking here without that would just surface a 409.
+      return { locked: !planApproved, badge: scriptApproved ? "✓" : undefined };
+    }
+    if (tab === "edit") {
+      // Same gate again: the Motion Designer builds against the approved
+      // script, so an unapproved one has nothing authorised to build from.
+      const visuals = studio?.artifacts.find((item) => item.artifact_type === "scene_visuals");
+      return { locked: !scriptApproved, badge: visuals?.approved_version_id ? "✓" : undefined };
     }
     return { locked: true };
   };
@@ -98,6 +118,8 @@ export function ConnectedProjectFrame({
   activeStage,
   statusLabel,
   loading,
+  fill = false,
+  onExport,
   children,
 }: {
   projectId: string;
@@ -105,33 +127,67 @@ export function ConnectedProjectFrame({
   activeStage: TabId;
   statusLabel: string;
   loading: boolean;
+  fill?: boolean;
+  onExport?: () => void;
   children: ReactNode;
 }) {
-  useProjectViewportLock();
   const router = useRouter();
-  const [note, setNote] = useState("");
-  const state = connectedStageState(studio);
-  const sourceCount = studio?.sources.length;
+  const [exportOpen, setExportOpen] = useState(false);
+  const { snapshot, setSnapshot } = useConnectedProjectSnapshot();
+  const stableStudio = studio ?? snapshot;
+  useLayoutEffect(() => {
+    if (studio) setSnapshot(studio);
+  }, [setSnapshot, studio]);
+  useLayoutEffect(() => {
+    useStudio.setState({ screen: "project", tab: activeStage });
+  }, [activeStage]);
+  const state = connectedStageState(stableStudio);
+  const sourceCount = stableStudio?.sources.length;
+
+  // The cutting room is dark, and the whole shell goes with it — same as
+  // ProjectShell. Derived from the stage rather than from whether the scenes
+  // have arrived, which is the difference between opening dark and flashing
+  // white first: the header paints before any fetch resolves.
+  const editing = activeStage === "edit";
 
   const selectStage = (tab: TabId, locked: boolean) => {
     if (locked || !ROUTES[tab]) {
-      setNote(LOCKED_NOTES[tab]);
+      const studioState = useStudio.getState();
+      studioState.setThreadOpen(true);
+      studioState.say(LOCKED_NOTES[tab]);
       return;
     }
-    setNote("");
     router.push(`/studio/projects/${projectId}/${ROUTES[tab]}`);
   };
 
   return (
-    <div className="app-field app-field-global min-h-dvh p-0 lg:h-dvh lg:overflow-hidden">
+    <div
+      data-editing={editing || undefined}
+      className={cx(
+        "app-field app-field-global min-h-dvh p-0 lg:h-dvh lg:overflow-hidden",
+        editing && "bg-[var(--nle-bg)]",
+      )}
+    >
       {/* No global rail inside a project.
           The studio's rail carried a wordmark, New decode, Home and the account
           menu. Inside a project every one of those is either off-task or
           duplicated by something else in this header, and the 80px gutter cost
           the work the width it was asking for. Identity and the way out move
           into the header, where they read as one line instead of a column. */}
-      <div className="min-w-0 lg:relative lg:z-[1] lg:h-dvh lg:overflow-y-auto lg:bg-sunken-2">
-        <header className="panel-glass sticky top-0 z-30 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 border-b border-line-head px-4 py-2.5">
+      <div
+        className={cx(
+          "min-w-0 lg:relative lg:z-[1] lg:flex lg:h-dvh lg:flex-col lg:overflow-hidden",
+          editing ? "bg-[var(--nle-bg)]" : "lg:bg-sunken-2",
+        )}
+      >
+        <header
+          className={cx(
+            "sticky top-0 z-30 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 border-b px-4 py-2.5",
+            editing
+              ? "border-[var(--nle-line)] bg-[var(--nle-panel)] text-[var(--nle-text)]"
+              : "panel-glass border-line-head",
+          )}
+        >
           <div className="flex min-w-0 items-center gap-3 justify-self-start">
           <button onClick={() => router.push("/studio")} aria-label="Back to projects" className="grid h-9 w-9 place-items-center rounded-full border border-line-input bg-card lg:hidden">
             <ArrowLeft size={14} />
@@ -148,41 +204,70 @@ export function ConnectedProjectFrame({
                 Decode
               </span>
             </button>
-            <span aria-hidden className="hidden flex-none text-[13px] text-t8 lg:inline">
+            <span
+              aria-hidden
+              className={cx(
+                "hidden flex-none text-[13px] lg:inline",
+                editing ? "text-[var(--nle-faint)]" : "text-t8",
+              )}
+            >
               /
             </span>
             <span
               aria-current="page"
               className="min-w-0 truncate font-display text-[14.5px] font-semibold"
             >
-              {studio?.project.title ?? (loading ? "Opening project" : "Decode project")}
+              {stableStudio?.project.title ?? (loading ? "Opening project" : "Decode project")}
             </span>
           </nav>
           </div>
 
-          <StageRail variant="header" active={activeStage} state={state} onSelect={selectStage} />
+          <StageRail variant="header" active={activeStage} state={state} onSelect={selectStage} dark={editing} />
 
           <div className="flex min-w-0 items-center justify-self-end gap-3">
-          <span className="hidden rounded-full border border-line-input bg-sunken px-2.5 py-1 font-mono text-[9px] tracking-[0.1em] text-t6 uppercase 2xl:inline">
+          <span
+            className={cx(
+              "hidden rounded-full border px-2.5 py-1 font-mono text-[9px] tracking-[0.1em] uppercase 2xl:inline",
+              editing
+                ? "border-[var(--nle-line)] bg-[var(--nle-panel-raised)] text-[var(--nle-muted)]"
+                : "border-line-input bg-sunken text-t6",
+            )}
+          >
             {statusLabel}
           </span>
-          <span className="hidden font-mono text-[9px] tracking-[0.1em] text-t6 uppercase 2xl:inline">
+          <span
+            className={cx(
+              "hidden font-mono text-[9px] tracking-[0.1em] uppercase 2xl:inline",
+              editing ? "text-[var(--nle-muted)]" : "text-t6",
+            )}
+          >
             {sourceCount === undefined
               ? "Checking sources"
               : `${sourceCount} source${sourceCount === 1 ? "" : "s"}`}
           </span>
-          <ContinuousToggle projectId={projectId} studio={studio} />
+          <ContinuousToggle projectId={projectId} studio={stableStudio} />
+          {editing && (
+            <button
+              type="button"
+              onClick={() => onExport ? onExport() : setExportOpen(true)}
+              aria-label={onExport ? "Export video" : "Open export settings showcase"}
+              className="flex h-[31px] flex-none items-center rounded-full border border-transparent px-3 text-[11.5px] text-[var(--nle-muted)] transition-[background-color,border-color,color,transform] duration-[var(--t-fast)] hover:border-[var(--nle-line)] hover:bg-[var(--nle-panel-raised)] hover:text-[var(--nle-text)] active:scale-[0.98]"
+            >
+              Export
+            </button>
+          )}
           </div>
         </header>
 
-        {note && (
-          <div role="status" className="mx-4 mt-3 rounded-xl border border-line-input bg-card px-4 py-3 text-[12px] leading-[1.55] text-t6 sm:mx-6 lg:mx-8">
-            <span className="font-mono text-[8.5px] tracking-[0.1em] text-t8 uppercase">Production note</span>
-            <span className="ml-2">{note}</span>
+        <div className="flex min-h-0 flex-1">
+          <ProducerDrawer />
+          <div className={cx("min-h-0 min-w-0 flex-1", fill ? "lg:overflow-hidden" : "lg:overflow-y-auto")}>
+            {children}
           </div>
-        )}
-        {children}
+        </div>
       </div>
+      {!onExport && <ExportModal open={exportOpen} onClose={() => setExportOpen(false)} />}
+      <ProjectChatTab />
     </div>
   );
 }

@@ -3,11 +3,9 @@ import type { Scene, TabId, Approvals } from "./types";
 /**
  * Derived timing.
  *
- * Nothing here is ever stored. `dur` on a scene is the only timing input;
- * total runtime, scene start offsets, word timings, act splits and every
- * timecode in the app are recomputed from it. Reorder or retime anything and
- * the arc bar, timeline and captions all follow on their own —
- * the user never manually syncs.
+ * A scene stores duration and may store explicit placement after a timeline
+ * drag. Runtime, effective starts, word timings, act splits and every timecode
+ * are recomputed from those inputs, so the user never manually syncs.
  */
 
 /** m:ss (compact display for durations). */
@@ -47,12 +45,6 @@ export function total(scenes: Scene[]): number {
   return scenes.reduce((a, s) => (s.disabled ? a : a + s.dur), 0);
 }
 
-/**
- * Start offset of each scene: starts[i] = Σ durations of enabled scenes before it.
- *
- * A disabled scene does not advance the clock, so it reports the offset where
- * playback resumes — which is also where it would slot back in if switched on.
- */
 export function starts(scenes: Scene[]): number[] {
   let acc = 0;
   return scenes.map((s) => {
@@ -62,25 +54,25 @@ export function starts(scenes: Scene[]): number[] {
   });
 }
 
-/**
- * Full canvas duration — every scene, enabled or not. Used for visual layout
- * on the timeline so toggling a scene off never changes chip positions.
- */
 export function totalAll(scenes: Scene[]): number {
   return scenes.reduce((a, s) => a + s.dur, 0);
 }
 
-/**
- * Start offset of each scene measured against the full canvas. Disabled
- * scenes keep their visual slot; their duration still counts toward the
- * ruler, ticks and percentage positions.
- */
 export function startsAll(scenes: Scene[]): number[] {
   let acc = 0;
   return scenes.map((s) => {
     const v = acc;
     acc += s.dur;
     return v;
+  });
+}
+
+export function startsOf(durations: number[]): number[] {
+  let acc = 0;
+  return durations.map((seconds) => {
+    const at = acc;
+    acc += seconds;
+    return at;
   });
 }
 
@@ -94,15 +86,26 @@ export function scriptWordCount(scenes: Scene[]): number {
 }
 
 /** Words per minute decides the pace label. */
+/**
+ * How fast a passage reads, from words against seconds.
+ *
+ * Split out from `pace` so the connected Script stage can ask the same
+ * question of an artifact payload, which is not a `Scene`. One threshold, two
+ * callers — the alternative was the same 165 written twice and free to drift.
+ */
+export function paceOf(words: number, seconds: number): "brisk" | "measured" {
+  if (seconds <= 0) return "measured";
+  return words / (seconds / 60) > 165 ? "brisk" : "measured";
+}
+
 export function pace(scene: Scene): "brisk" | "measured" {
-  return wordCount(scene.narration) / (scene.dur / 60) > 165
-    ? "brisk"
-    : "measured";
+  return paceOf(wordCount(scene.narration), scene.dur);
 }
 
 /** Which scene is on screen at time t, including disabled scenes. */
 export function sceneAtAll(scenes: Scene[], t: number): number {
   const st = startsAll(scenes);
+  for (let i = st.length - 1; i >= 0; i--) if (t >= st[i] && t < st[i] + scenes[i].dur) return i;
   for (let i = st.length - 1; i >= 0; i--) if (t >= st[i]) return i;
   return 0;
 }
@@ -110,7 +113,8 @@ export function sceneAtAll(scenes: Scene[], t: number): number {
 /** Which scene is on screen at time t (enabled cut). */
 export function sceneAt(scenes: Scene[], t: number): number {
   const st = starts(scenes);
-  for (let i = st.length - 1; i >= 0; i--) if (t >= st[i]) return i;
+  for (let i = st.length - 1; i >= 0; i--) if (!scenes[i].disabled && t >= st[i] && t < st[i] + scenes[i].dur) return i;
+  for (let i = st.length - 1; i >= 0; i--) if (!scenes[i].disabled && t >= st[i]) return i;
   return 0;
 }
 

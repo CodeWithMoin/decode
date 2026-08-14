@@ -5,6 +5,8 @@ import type {
   ApprovalResult,
   CreatedProject,
   GenerateBriefResult,
+  GenerateSceneVisualsResult,
+  GenerateScriptResult,
   GenerateTeachingPlanResult,
   JobDetail,
   ProblemResponse,
@@ -13,15 +15,23 @@ import type {
   ProductionIntentPayload,
   ProjectEvent,
   ProjectListResponse,
+  SceneVisualsPayload,
+  ScriptPayload,
   SourceUploadResult,
   StudioSnapshot,
   TeachingPlanPayload,
   UsageResponse,
+  VoicePayload,
 } from "./types";
 
 const configuredBase = process.env.NEXT_PUBLIC_DECODE_API_URL?.trim();
 export const decodeApiConfigured = Boolean(configuredBase);
 const API_BASE = (configuredBase ?? "").replace(/\/$/, "");
+
+/** Absolute URL for a stored media object key (narration audio, etc.). */
+export function mediaUrl(key: string): string {
+  return `${API_BASE}/api/v1/voice/${key}`;
+}
 
 export class DecodeApiError extends Error {
   constructor(public readonly problem: ProblemResponse) {
@@ -159,6 +169,91 @@ export const decodeApi = {
       },
     ),
 
+  generateScript: (
+    projectId: string,
+    planVersionId: string,
+    intentVersionId: string,
+    key: string,
+  ) =>
+    request<GenerateScriptResult>(`/api/v1/projects/${projectId}/script/generations`, {
+      method: "POST",
+      headers: { "Idempotency-Key": key },
+      body: JSON.stringify({
+        plan_version_id: planVersionId,
+        intent_version_id: intentVersionId,
+      }),
+    }),
+
+  /**
+   * Save an edited script.
+   *
+   * A complete replacement, like `editBrief` — the endpoint takes the whole
+   * payload and publishes a new immutable version rather than patching one.
+   * `baseVersionId` is what the edit was made against; a mismatch comes back
+   * 409 rather than clobbering someone else's newer version.
+   */
+  editScript: (
+    projectId: string,
+    artifactId: string,
+    baseVersionId: string,
+    payload: ScriptPayload,
+    key: string,
+  ) =>
+    request<ArtifactVersion<ScriptPayload>>(
+      `/api/v1/projects/${projectId}/artifacts/${artifactId}/versions`,
+      {
+        method: "POST",
+        headers: { "Idempotency-Key": key },
+        body: JSON.stringify({ base_version_id: baseVersionId, schema_version: 1, payload }),
+      },
+    ),
+
+  getScript: (projectId: string, artifactId: string) =>
+    request<ArtifactHistoryResponse<ScriptPayload>>(
+      `/api/v1/projects/${projectId}/artifacts/${artifactId}/versions?limit=50`,
+    ),
+
+  generateSceneVisuals: (
+    projectId: string,
+    scriptVersionId: string,
+    intentVersionId: string,
+    key: string,
+  ) =>
+    request<GenerateSceneVisualsResult>(
+      `/api/v1/projects/${projectId}/scene-visuals/generations`,
+      {
+        method: "POST",
+        headers: { "Idempotency-Key": key },
+        body: JSON.stringify({
+          script_version_id: scriptVersionId,
+          intent_version_id: intentVersionId,
+        }),
+      },
+    ),
+
+  getSceneVisuals: (projectId: string, artifactId: string) =>
+    request<ArtifactHistoryResponse<SceneVisualsPayload>>(
+      `/api/v1/projects/${projectId}/artifacts/${artifactId}/versions?limit=50`,
+    ),
+
+  generateVoice: (projectId: string, scriptVersionId: string, intentVersionId: string, key: string) =>
+    request<{ job_id: string; run_id: string; status: string; kind: string }>(
+      `/api/v1/projects/${projectId}/voice/generations`,
+      {
+        method: "POST",
+        headers: { "Idempotency-Key": key },
+        body: JSON.stringify({
+          script_version_id: scriptVersionId,
+          intent_version_id: intentVersionId,
+        }),
+      },
+    ),
+
+  getVoice: (projectId: string, artifactId: string) =>
+    request<ArtifactHistoryResponse<VoicePayload>>(
+      `/api/v1/projects/${projectId}/artifacts/${artifactId}/versions?limit=50`,
+    ),
+
   getStudio: (projectId: string) =>
     request<StudioSnapshot>(`/api/v1/projects/${projectId}/studio`),
 
@@ -242,6 +337,21 @@ export const decodeApi = {
 
   getUsage: (projectId: string, jobId: string) =>
     request<UsageResponse>(`/api/v1/projects/${projectId}/jobs/${jobId}/usage`),
+
+  startRender: (projectId: string, scenes: object[], visualPick: Record<number, string>, key: string) =>
+    request<{ render_id: string; status: string }>(
+      `/api/v1/projects/${projectId}/renders`,
+      {
+        method: "POST",
+        headers: { "Idempotency-Key": key },
+        body: JSON.stringify({ scenes, visual_pick: visualPick }),
+      },
+    ),
+
+  getRender: (renderId: string) =>
+    request<{ render_id: string; status: string; error?: string; download_path?: string }>(
+      `/api/v1/renders/${renderId}`,
+    ),
 };
 
 /** Fetch-based SSE allows an explicit Last-Event-ID on reconnect. */

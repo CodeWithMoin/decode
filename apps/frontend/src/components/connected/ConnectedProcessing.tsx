@@ -28,25 +28,70 @@ const PLAN_STEPS = [
   { events: ["artifact.ready_for_review", "job.succeeded"], label: "Ready for your review", detail: "The Director’s Teaching Plan is ready." },
 ] as const;
 
-const processingConfig = (kind?: JobKind) => kind === "generate_teaching_plan" ? {
-  steps: PLAN_STEPS,
-  eyebrow: "Director at work",
-  title: "Shaping the Teaching Plan",
-  description: "The Director is turning your approved brief into ordered teaching beats. You can leave this page—we’ll keep working.",
-  success: "The Teaching Plan is ready.",
-  action: "Review Teaching Plan →",
-  destination: "teaching-plan",
-  failure: "We couldn’t finish the Teaching Plan.",
-} : {
-  steps: BRIEF_STEPS,
-  eyebrow: "Preparing your project",
-  title: "Creating the production brief",
-  description: "Decode is turning your source and production choices into a reviewable brief. You can leave this page—we’ll keep working.",
-  success: "Your production brief is ready.",
-  action: "Review production brief →",
-  destination: "understanding",
-  failure: "We couldn’t finish your production brief.",
-};
+const SCRIPT_STEPS = [
+  { events: ["job.queued"], label: "Teaching Plan received", detail: "The approved beats and durations are ready for the Writer." },
+  { events: ["run.started"], label: "Preparing the Writer’s context", detail: "Bringing together the approved plan and your production direction." },
+  { events: ["reading_sources"], label: "Reviewing the approved plan", detail: "Keeping every passage inside its approved beat and time budget." },
+  { events: ["writing_narration"], label: "Writing the narration", detail: "Turning each beat into clear words written for the ear." },
+  { events: ["artifact.version.created"], label: "Saving the script", detail: "Recording the complete narration as a reviewable version." },
+  { events: ["artifact.ready_for_review", "job.succeeded"], label: "Ready for your review", detail: "The Writer’s script is ready." },
+] as const;
+
+const VISUAL_STEPS = [
+  { events: ["job.queued"], label: "Script received", detail: "The approved words and Teaching Plan are ready for the Motion Designer." },
+  { events: ["run.started"], label: "Preparing scene context", detail: "Bringing together each beat, its narration, and your visual direction." },
+  { events: ["reading_sources"], label: "Reviewing the approved production", detail: "Keeping every scene aligned with the work you approved." },
+  { events: ["designing_visuals"], label: "Designing the scenes", detail: "Building one animation module for every teaching beat." },
+  { events: ["artifact.version.created"], label: "Saving the scene set", detail: "Recording the generated components and their creator controls." },
+  { events: ["artifact.ready_for_review", "job.succeeded"], label: "Ready in Edit", detail: "The Motion Designer’s scenes are ready in the cutting room." },
+] as const;
+
+const PROCESSING_CONFIG = {
+  generate_production_brief: {
+    steps: BRIEF_STEPS,
+    eyebrow: "Preparing your project",
+    title: "Creating the production brief",
+    description: "Decode is turning your source and production choices into a reviewable brief. You can leave this page—we’ll keep working.",
+    success: "Your production brief is ready.",
+    action: "Review production brief →",
+    destination: "understanding",
+    failure: "We couldn’t finish your production brief.",
+  },
+  generate_teaching_plan: {
+    steps: PLAN_STEPS,
+    eyebrow: "Director at work",
+    title: "Shaping the Teaching Plan",
+    description: "The Director is turning your approved brief into ordered teaching beats. You can leave this page—we’ll keep working.",
+    success: "The Teaching Plan is ready.",
+    action: "Review Teaching Plan →",
+    destination: "teaching-plan",
+    failure: "We couldn’t finish the Teaching Plan.",
+  },
+  generate_script: {
+    steps: SCRIPT_STEPS,
+    eyebrow: "Writer at work",
+    title: "Writing the script",
+    description: "The Writer is turning every approved beat into narration that fits its purpose and duration. You can leave this page—we’ll keep working.",
+    success: "The script is ready.",
+    action: "Review script →",
+    destination: "script",
+    failure: "We couldn’t finish the script.",
+  },
+  generate_scene_visuals: {
+    steps: VISUAL_STEPS,
+    eyebrow: "Motion Designer at work",
+    title: "Building the scenes",
+    description: "The Motion Designer is turning the approved script into one editable animation per beat. You can leave this page—we’ll keep working.",
+    success: "The scenes are ready.",
+    action: "Open Edit →",
+    destination: "edit",
+    failure: "We couldn’t finish the scenes.",
+  },
+} as const;
+
+const processingConfig = (kind?: JobKind) => (
+  PROCESSING_CONFIG[kind as keyof typeof PROCESSING_CONFIG] ?? PROCESSING_CONFIG.generate_production_brief
+);
 
 export function ConnectedProcessing({ projectId, jobId }: { projectId: string; jobId: string }) {
   const router = useRouter();

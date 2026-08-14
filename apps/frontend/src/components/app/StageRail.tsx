@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, Lock } from "@phosphor-icons/react";
-import { useEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { STAGES } from "@/lib/stages";
 import type { TabId } from "@/lib/types";
 
@@ -41,11 +41,16 @@ export function StageRail({
 }) {
   const stripRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (variant === "rail") return;
-    stripRef.current
-      ?.querySelector<HTMLElement>("[aria-current]")
-      ?.scrollIntoView({ block: "nearest", inline: "center" });
+  useLayoutEffect(() => {
+    // Header tabs must stay fixed while routes change. Recentering the active
+    // item made the whole group visibly jump from side to side.
+    if (variant !== "strip") return;
+    const strip = stripRef.current;
+    const current = strip?.querySelector<HTMLElement>("[aria-current]");
+    if (!strip || !current) return;
+    const left = current.offsetLeft - (strip.clientWidth - current.offsetWidth) / 2;
+    const max = Math.max(0, strip.scrollWidth - strip.clientWidth);
+    strip.scrollLeft = Math.max(0, Math.min(max, left));
   }, [active, variant]);
 
   const rows = STAGES.map(({ tab, label }, index) => {
@@ -124,9 +129,9 @@ export function StageRail({
           ].join(" ")
         : variant === "header"
           ? [
-              "flex flex-none items-center gap-1.5 rounded-full border border-transparent py-1.5 pr-2.5 pl-1.5 text-[11.5px] whitespace-nowrap",
-              on
-                ? "border-accent bg-[linear-gradient(180deg,var(--accent-top),var(--accent))] font-medium text-white shadow-[inset_0_1px_0_rgb(255_255_255_/_0.2)]"
+               "flex flex-none items-center gap-1.5 rounded-full border border-transparent py-1.5 pr-2.5 pl-1.5 text-[11.5px] whitespace-nowrap",
+               on
+                 ? "border-accent bg-[linear-gradient(180deg,var(--accent-top),var(--accent))] font-medium text-white shadow-[inset_0_1px_0_rgb(255_255_255_/_0.2)]"
                 : locked
                   ? dark ? "text-[var(--nle-faint)]" : "text-t8"
                   : dark

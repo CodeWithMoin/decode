@@ -55,6 +55,8 @@ interface StudioState {
   visualPick: Record<number, "A" | "B">;
   /** Artifact drift, persisted at project level so it survives panel changes. */
   staleByScene: Record<string, StaleKind[]>;
+  /** Live overrides for a generated scene's declared controls, keyed by scene id then control name. Falls back to the module's declared default when absent. */
+  controlValues: Record<string, Record<string, string | number | boolean>>;
   /** Undo/redo history. Each entry snapshots scene data before a mutation. */
   _history: HistorySnapshot[];
   _future: HistorySnapshot[];
@@ -99,7 +101,8 @@ interface StudioState {
   toggleVisualKeyframe: (i: number, property: SceneKeyframeProperty) => void;
   resetVisualParameter: (i: number, property: SceneKeyframeProperty) => void;
   nudgeDur: (i: number, delta: number) => void;
-  select: (i: number, opts?: { openCanvas?: boolean }) => void;
+  setClipFade: (i: number, edge: "in" | "out", seconds: number) => void;
+  select: (i: number, opts?: { openCanvas?: boolean; preservePlayhead?: boolean }) => void;
   /** Take a beat out of the video, or put it back. Reversible, never destructive. */
   toggleScene: (i: number) => void;
   toggleMute: (i: number) => void;
@@ -131,6 +134,7 @@ interface StudioState {
   setRegen: (label: string | null) => void;
   applyRegen: (i: number, kind: "scene" | "visuals" | "voice") => void;
   pickVisual: (pos: number, key: "A" | "B") => void;
+  setControlValue: (sceneId: string, name: string, value: string | number | boolean) => void;
 
   setPstep: (n: number) => void;
 
@@ -208,6 +212,7 @@ export const useStudio = create<StudioState>((set, get) => ({
   playbackRate: 0,
   visualPick: {},
   staleByScene: {},
+  controlValues: {},
   _history: [],
   _future: [],
 
@@ -375,10 +380,13 @@ export const useStudio = create<StudioState>((set, get) => ({
     set((s) => {
       const current = s.sc[i];
       if (!current) return s;
+      const dur = Math.max(10, Math.min(150, current.dur + delta));
+      const fadeIn = Math.min(current.fadeIn ?? 0, dur);
+      const fadeOut = Math.min(current.fadeOut ?? 0, dur - fadeIn);
       return {
         sc: s.sc.map((scene, ix) =>
           ix === i
-            ? { ...scene, dur: Math.max(10, Math.min(150, scene.dur + delta)) }
+            ? { ...scene, dur, fadeIn, fadeOut }
             : scene,
         ),
         staleByScene: {
@@ -387,6 +395,18 @@ export const useStudio = create<StudioState>((set, get) => ({
         },
       };
     });
+  },
+
+  setClipFade: (i, edge, seconds) => {
+    const scene = get().sc[i];
+    if (!scene) return;
+    const other = edge === "in" ? (scene.fadeOut ?? 0) : (scene.fadeIn ?? 0);
+    const next = Math.max(0, Math.min(scene.dur - other, seconds));
+    set((state) => ({
+      sc: state.sc.map((item, index) => index === i
+        ? edge === "in" ? { ...item, fadeIn: next } : { ...item, fadeOut: next }
+        : item),
+    }));
   },
 
   toggleScene: (i) => {
@@ -431,11 +451,9 @@ export const useStudio = create<StudioState>((set, get) => ({
 
 
 
-
-
   select: (i, opts) =>
     set((s) => {
-      const playhead = startsAll(s.sc)[i] ?? 0;
+      const playhead = opts?.preservePlayhead ? s.playhead : (startsAll(s.sc)[i] ?? 0);
       // Selecting the scene that is already selected is a no-op, the same way
       // `seek` guards itself. Without this, anything that re-selects on a
       // render — a timeline click, an observation, a keyboard step — publishes
@@ -593,6 +611,7 @@ export const useStudio = create<StudioState>((set, get) => ({
       title: `${s.title} · setup`,
       narration: toks.slice(0, mid).join(" "),
       dur: half,
+      fadeOut: 0,
       reason: "Split — two ideas were sharing one beat.",
     };
     const b: Scene = {
@@ -601,6 +620,7 @@ export const useStudio = create<StudioState>((set, get) => ({
       title: `${s.title} · payoff`,
       narration: toks.slice(mid).join(" "),
       dur: s.dur - half,
+      fadeIn: 0,
       reason: "Second half of a beat that ran too dense.",
     };
     set((st) => {
@@ -633,6 +653,8 @@ export const useStudio = create<StudioState>((set, get) => ({
       ...a,
       narration: `${a.narration} ${b.narration}`,
       dur: a.dur + b.dur,
+      fadeIn: a.fadeIn,
+      fadeOut: b.fadeOut,
       reason: "Merged — the two beats were making one point.",
     };
     set((st) => {
@@ -786,6 +808,14 @@ export const useStudio = create<StudioState>((set, get) => ({
     );
   },
 
+  setControlValue: (sceneId, name, value) =>
+    set((s) => ({
+      controlValues: {
+        ...s.controlValues,
+        [sceneId]: { ...s.controlValues[sceneId], [name]: value },
+      },
+    })),
+
   setPstep: (pstep) => set({ pstep }),
 
   toggleThread: () => set((s) => ({ threadOpen: !s.threadOpen })),
@@ -864,6 +894,7 @@ export const useStudio = create<StudioState>((set, get) => ({
       playbackRate: 0,
       visualPick: {},
       staleByScene: {},
+      controlValues: {},
       thread: SEED_THREAD(),
       tab: "overview",
       renderState: "idle",

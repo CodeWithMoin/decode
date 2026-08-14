@@ -554,7 +554,7 @@ export function ProducerDrawer() {
               }
             }}
             aria-label="Write in Project Chat"
-            placeholder="Ask about this project, or describe a change…"
+            placeholder="What do you want Decode to look at?"
             className={cx("max-h-[112px] min-h-[28px] flex-1 resize-none self-center border-none bg-transparent py-[5px] text-[12.5px] leading-[18px]", dark ? "text-[var(--nle-text)] placeholder:text-[var(--nle-faint)]" : "placeholder:text-t9")}
           />
           <Graphite

@@ -3,9 +3,9 @@
 import { useEffect } from "react";
 
 /** Keep project scrolling inside its panels so the document never rubber-bands. */
-export function useProjectViewportLock() {
+export function useProjectViewportLock(enabled = true) {
   useEffect(() => {
-    if (!window.matchMedia("(min-width: 1024px)").matches) return;
+    if (!enabled || !window.matchMedia("(min-width: 1024px)").matches) return;
 
     const html = document.documentElement;
     const body = document.body;
@@ -27,5 +27,5 @@ export function useProjectViewportLock() {
       html.style.overscrollBehavior = previous.htmlOverscroll;
       body.style.overscrollBehavior = previous.bodyOverscroll;
     };
-  }, []);
+  }, [enabled]);
 }

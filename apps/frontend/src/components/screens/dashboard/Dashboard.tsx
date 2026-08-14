@@ -12,6 +12,7 @@ import { STAGES } from "@/lib/stages";
 import type { ProjectCard } from "@/lib/types";
 import { decodeApi, idempotencyKey } from "@/lib/decode-api";
 import { creatorError } from "@/lib/creator-errors";
+import { projectRoute } from "@/lib/project-route";
 import type { ProjectSummary, StudioSnapshot } from "@/lib/types";
 import { CreateMark, Graphite } from "@/components/ui/primitives";
 
@@ -535,10 +536,9 @@ function SearchEmpty({ query, filtered, onReset }: { query: string; filtered: bo
 /**
  * What the backend can honestly say about a project today.
  *
- * `current_stage` has exactly three values, because Understanding is the only
- * connected stage: a project is either still being set up, has a brief in
- * flight, or has one to read. Labelling all three "Understanding" told the
- * creator a draft with no sources had reached a stage it never started.
+ * `current_stage` is the furthest durable artifact, or processing while a job
+ * is active. The dashboard mirrors those four creator-facing stages rather than
+ * guessing from project age or source count.
  *
  * `reached` is how many of the four stages actually have work behind them, so
  * the progress bar reports something. The old 0.08 / 0.02 / 0.2 were three
@@ -549,6 +549,8 @@ const STAGE_VIEW: Record<string, { label: string; reached: number; status: strin
   processing: { label: "Understanding", reached: 0, status: "Working", next: "Follow production progress" },
   understanding: { label: "Understanding", reached: 1, status: "Brief review", next: "Review the production brief" },
   teaching_plan: { label: "Teaching Plan", reached: 2, status: "Plan review", next: "Review the Teaching Plan" },
+  script: { label: "Script", reached: 3, status: "Script review", next: "Review the script" },
+  edit: { label: "Edit", reached: 4, status: "Scenes ready", next: "Open the cutting room" },
 };
 
 function projectToCard(project: ProjectSummary, snapshot?: StudioSnapshot): DashboardCard {
@@ -556,28 +558,38 @@ function projectToCard(project: ProjectSummary, snapshot?: StudioSnapshot): Dash
   const jobStatus = snapshot?.most_recent_job?.status;
   const failed = jobStatus === "failed" || project.status === "failed";
   const working = jobStatus === "queued" || jobStatus === "running" || currentStage === "processing";
-  const planning = working && snapshot?.most_recent_job?.kind === "generate_teaching_plan";
+  const jobKind = snapshot?.most_recent_job?.kind;
   const brief = snapshot?.artifacts.find((artifact) => artifact.artifact_type === "production_brief");
   const plan = snapshot?.artifacts.find((artifact) => artifact.artifact_type === "teaching_plan");
+  const script = snapshot?.artifacts.find((artifact) => artifact.artifact_type === "script");
+  const visuals = snapshot?.artifacts.find((artifact) => artifact.artifact_type === "scene_visuals");
   const awaitingBriefReview = currentStage === "understanding" && brief?.latest_version_id !== brief?.approved_version_id;
   const awaitingPlanReview = currentStage === "teaching_plan" && plan?.latest_version_id !== plan?.approved_version_id;
+  const awaitingScriptReview = currentStage === "script" && script?.latest_version_id !== script?.approved_version_id;
+  const awaitingVisualReview = currentStage === "edit" && visuals?.latest_version_id !== visuals?.approved_version_id;
   const needsSetup = currentStage === "draft" || !currentStage;
-  const view = planning
-    ? { label: "Teaching Plan", reached: 1, status: "Working", next: "Follow the Director’s progress" }
+  const workingView = {
+    generate_production_brief: { label: "Understanding", reached: 0, status: "Working", next: "Follow the Producer’s progress" },
+    generate_teaching_plan: { label: "Teaching Plan", reached: 1, status: "Working", next: "Follow the Director’s progress" },
+    generate_script: { label: "Script", reached: 2, status: "Working", next: "Follow the Writer’s progress" },
+    generate_scene_visuals: { label: "Edit", reached: 3, status: "Working", next: "Follow the Motion Designer’s progress" },
+  }[jobKind ?? ""];
+  const view = working && workingView
+    ? workingView
     : STAGE_VIEW[currentStage ?? "draft"] ?? STAGE_VIEW.draft;
   const when = new Date(project.updated_at).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  const attention: AttentionKind = failed ? "failed" : awaitingBriefReview || awaitingPlanReview ? "review" : needsSetup ? "setup" : null;
+  const attention: AttentionKind = failed ? "failed" : awaitingBriefReview || awaitingPlanReview || awaitingScriptReview || awaitingVisualReview ? "review" : needsSetup ? "setup" : null;
   return {
     id: project.project_id,
     title: project.title || "Untitled decode",
     meta: `${project.source_count ?? 0} source${project.source_count === 1 ? "" : "s"} · updated ${when}`,
-    status: failed ? "Needs attention" : awaitingBriefReview ? "Brief review" : awaitingPlanReview ? "Plan review" : needsSetup ? "Setup needed" : working ? "Working" : "Approved",
+    status: failed ? "Needs attention" : awaitingBriefReview ? "Brief review" : awaitingPlanReview ? "Plan review" : awaitingScriptReview ? "Script review" : awaitingVisualReview ? "Scene review" : needsSetup ? "Setup needed" : working ? "Working" : "Approved",
     pillBg: "#F1F1EE",
     pillFg: failed ? "#8E2F19" : "#C2410C",
     sourceKind: "Sources",
     currentStage: view.label,
     // A failed run is not progress to follow; it is a thing to look at.
-    nextAction: failed ? "See what went wrong" : awaitingBriefReview ? "Review the production brief" : awaitingPlanReview ? "Review the Teaching Plan" : view.next,
+    nextAction: failed ? "See what went wrong" : awaitingBriefReview ? "Review the production brief" : awaitingPlanReview ? "Review the Teaching Plan" : awaitingScriptReview ? "Review the script" : awaitingVisualReview ? "Review the scenes" : view.next,
     progress: view.reached / STAGES.length,
     attention,
     attentionDetail: failed
@@ -586,6 +598,10 @@ function projectToCard(project: ProjectSummary, snapshot?: StudioSnapshot): Dash
         ? "The production brief is ready for your review before the crew continues."
         : awaitingPlanReview
           ? "The Director’s Teaching Plan is ready for your review before writing begins."
+        : awaitingScriptReview
+          ? "The Writer’s script is ready for your review before scene work begins."
+        : awaitingVisualReview
+          ? "The Motion Designer’s scenes are ready for your review in Edit."
         : needsSetup
           ? "Finish the source and direction so the crew can begin production."
           : "",
@@ -630,7 +646,7 @@ function ProjectPreview({ card }: { card: DashboardCard }) {
             />
           ))}
         </div>
-        <div className="font-mono text-[8px] tracking-[0.08em] text-canvas-meta uppercase">Five-stage production</div>
+        <div className="font-mono text-[8px] tracking-[0.08em] text-canvas-meta uppercase">Four-stage production</div>
       </div>
     </div>
   );
@@ -645,16 +661,7 @@ function openProject(
 ) {
   if (!connected) return openPrototype();
   const snapshot = snapshots[card.id];
-  const job = snapshot?.active_job ?? snapshot?.most_recent_job;
-  if (snapshot?.current_stage === "processing" && job?.job_id) {
-    push(`/studio/projects/${card.id}/jobs/${job.job_id}`);
-  } else if (snapshot?.current_stage === "draft") {
-    push("/studio/new");
-  } else if (snapshot?.current_stage === "teaching_plan") {
-    push(`/studio/projects/${card.id}/teaching-plan`);
-  } else {
-    push(`/studio/projects/${card.id}/understanding`);
-  }
+  push(snapshot ? projectRoute(card.id, snapshot) : `/studio/projects/${card.id}`);
 }
 
 
