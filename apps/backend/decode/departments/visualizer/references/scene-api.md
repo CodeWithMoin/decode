@@ -17,6 +17,22 @@ export function useProgress(): number;
 /** The rendered frame's size. Size is not duration, so this one is safe. */
 export function useCanvas(): { width: number; height: number };
 
+/** A physical spring, in progress units. Returns 0→1 by default; `delay` and
+ *  `duration` are fractions of the beat (0–1), not frames. Reach for this over
+ *  `interpolate` when motion should *settle* — entrances, emphasis, anything
+ *  physical. `useProgress()` still runs the timeline; this is just an easier
+ *  value to feed a `translate`/`scale`/`opacity`. */
+export function useSpring(options?: {
+  config?: { damping?: number; mass?: number; stiffness?: number; overshootClamping?: boolean };
+  from?: number;
+  to?: number;
+  delay?: number;
+  duration?: number;
+}): number;
+
+/** Named spring feels, if you would rather not tune damping by hand. */
+export const SPRING_PRESETS: { gentle; smooth; bouncy; stiff };
+
 /** A slice of the beat, in progress units. Replaces `<Sequence from={frames}>`,
  *  which is not available because it is written in frames you may not see.
  *  `useProgress()` inside a Segment restarts at 0. */
@@ -84,13 +100,29 @@ style={{ transform: `translateY(${rise}px)` }}
 Reach for a `transform` string only for things the individual properties do not
 cover, such as `skew` or `perspective`.
 
+## Let motion settle with `useSpring`
+
+For entrances and emphasis, a spring reads more alive than a timed curve. It
+returns 0→1; scale or offset from it exactly as with `interpolate`'s output.
+
+```tsx
+const enter = useSpring({ config: SPRING_PRESETS.smooth, duration: 0.4 });
+// …
+style={{ opacity: enter, translate: `0px ${(1 - enter) * 24}px` }}
+```
+
+`delay` and `duration` are fractions of the beat (`0.4` = the first 40%), never
+frames. Stagger elements by giving each a larger `delay`.
+
 ## Never use CSS transitions or animations
 
 `transition`, `animation`, `@keyframes` and Tailwind's `animate-` classes do not
 render. They will look correct in the preview and produce wrong frames in the
 exported file, which is the worst way for a scene to be broken.
 
-Every moving value comes from `interpolate` and nowhere else.
+Every moving value is driven by the frame clock — `interpolate(progress, …)` or
+`useSpring(…)`, and nothing else. Both read the timeline Decode owns; CSS motion
+does not.
 
 ## Name the elements you want to be editable
 
