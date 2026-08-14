@@ -306,6 +306,7 @@ export function ConnectedScript({ projectId }: { projectId: string }) {
           onEditNarration={(index, text) => void editNarration(index, text)}
           onApprove={() => void approve()}
           onPushBack={() => router.push(`/studio/projects/${projectId}/teaching-plan`)}
+          onNext={() => router.push(`/studio/projects/${projectId}/edit`)}
           secondaryLabel="Back to the plan"
         />
       )}

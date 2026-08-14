@@ -119,6 +119,7 @@ export function HandoffBar({
   approved,
   handoff,
   nextLabel,
+  onNext,
   approveLabel,
   onApprove,
   onPushBack,
@@ -131,6 +132,7 @@ export function HandoffBar({
   approved: boolean;
   handoff: string;
   nextLabel?: string;
+  onNext?: () => void;
   approveLabel: string;
   onApprove: () => void;
   onPushBack: () => void;
@@ -174,15 +176,27 @@ export function HandoffBar({
           >
             {approved ? approvedSecondaryLabel : secondaryLabel}
           </Ghost>
-          {!approved && (
-            <Graphite
-              onClick={onApprove}
-              disabled={approveDisabled}
-              className="px-4 py-1.5 text-[12.5px] font-medium whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {approveLabel}
-            </Graphite>
-          )}
+          {approved
+            ? onNext && (
+                // A stage the creator has already approved must still offer the
+                // way forward — the top rail is not the only path, and a bar that
+                // names the next stage without a button to reach it is a dead end.
+                <Graphite
+                  onClick={onNext}
+                  className="px-4 py-1.5 text-[12.5px] font-medium whitespace-nowrap"
+                >
+                  {nextLabel ?? "Continue"}
+                </Graphite>
+              )
+            : (
+                <Graphite
+                  onClick={onApprove}
+                  disabled={approveDisabled}
+                  className="px-4 py-1.5 text-[12.5px] font-medium whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {approveLabel}
+                </Graphite>
+              )}
         </div>
       </div>
     </div>

@@ -56,6 +56,7 @@ export function ScriptStage({
   onOpenCanvas,
   onApprove,
   onPushBack,
+  onNext,
   secondaryLabel,
 }: {
   rows: ScriptRow[];
@@ -77,6 +78,8 @@ export function ScriptStage({
   onOpenCanvas?: (index: number) => void;
   onApprove: () => void;
   onPushBack: () => void;
+  /** Where an already-approved script goes forward; absent hides the next button. */
+  onNext?: () => void;
   secondaryLabel?: string;
 }) {
   const words = rows.reduce((sum, row) => sum + wordCount(row.narration), 0);
@@ -125,6 +128,7 @@ export function ScriptStage({
         approved={approved}
         handoff={handoff ?? "Handed to the Motion Designer — scene visuals next."}
         nextLabel="Next: Edit"
+        onNext={onNext}
         approveLabel={approveLabel ?? "Approve and build scenes"}
         approveDisabled={approveDisabled}
         onApprove={onApprove}

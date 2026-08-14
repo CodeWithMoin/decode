@@ -380,6 +380,7 @@ export function ConnectedTeachingPlan({ projectId }: { projectId: string }) {
             approved={approved}
             handoff="Teaching Plan approved. Script is the next connected stage to build."
             nextLabel="Next: Script"
+            onNext={() => router.push(`/studio/projects/${projectId}/script`)}
             approveLabel={busy ? "Saving…" : "Approve Teaching Plan"}
             approveDisabled={busy || studio?.allowed_actions.can_approve_plan === false}
             onApprove={() => void approve()}
