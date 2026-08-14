@@ -173,8 +173,9 @@ scene modules.
 | `nle-panel-raised` | `#1B1B1B` | Inputs and pressed tool surfaces. |
 | `nle-line` / `nle-line-strong` | `#2D2D2D` / `#484848` | Major structural separators and selected edges. |
 | `nle-grid-line` | `rgb(255 255 255 / 0.04)` | Timeline row and gutter rules; visible only as low-opacity separation. |
-| `nle-track` / `nle-track-active` | `#121212` / `#181818` | Timeline depth without bright outlines. |
-| `nle-clip` / `nle-clip-hover` | `#6B351F` / `#85482B` | Inactive scene clips, derived from the amber family. |
+| `nle-track` / `nle-track-active` | `#101010` / `#171513` | Timeline depth without bright outlines. |
+| `nle-clip` / `nle-clip-hover` | `#C46A3B` / `#D47D4E` | Amber-copper scene clips, derived from the accent family. |
+| `nle-clip-line` / `nle-clip-selected` | `#E0956C` / `#FFE4D4` | Clip edge and selected-clip outline. |
 | `nle-text` / `nle-muted` / `nle-faint` | `#F5F5F5` / `#B8B8B8` / `#7E7E7E` | Tool hierarchy. |
 
 ### Crew
@@ -431,10 +432,11 @@ it can be deleted in one file.
 
 These are product decisions, not styling. Any implementation preserves them.
 
-**Derived timing.** `total = Σ durations`; `starts[i] = Σ durations[0..i-1]`;
-word timings distribute a scene's duration evenly across its tokens. Nothing is
-stored. Reordering or retiming recomputes the arc bar, timecodes and
-timeline automatically. The user never manually syncs anything.
+**Derived timing.** A scene stores its duration and, after a free timeline drag,
+its explicit start and video track. Scenes without an explicit start retain the
+gapless `starts[i] = Σ durations[0..i-1]` fallback. Runtime is the furthest enabled
+clip end; playhead lookup, timecodes and word timings are always derived from
+placement and duration. The user never manually syncs anything.
 
 **Edit playback shortcuts.** `Space` toggles normal-speed play/pause. `J` plays
 backward and repeated presses step through −1×, −2× and −4×. `K` stops at the
@@ -442,9 +444,15 @@ current position. `L` plays forward and repeated presses step through 1×, 2×
 and 4×. They never fire from an input, textarea, select or editable narration.
 
 **Timeline editing is direct.** The selected scene can be split, merged,
-reordered earlier or later, dragged to a new position, duplicated, removed with
-a confirmation press, or followed by a new scene. Every operation recomputes
-starts, runtime, selection and playhead from scene durations; no sync step exists.
+reordered earlier or later, freely positioned across video tracks, duplicated,
+removed with a confirmation press, or followed by a new scene. Tracks retain
+mute, lock, visibility and vertical resize controls. Runtime, selection,
+playhead lookup and timecodes derive from clip placement and duration; no sync
+step exists.
+
+**Inspector units match the composition.** Position is centered at `0, 0` and
+stored in 1920×1080 composition pixels (`X: -7680…7680`, `Y: -4320…4320`).
+Scale and opacity are percentages, blur is pixels, and clip fades are seconds.
 
 **Stage gating.** `unlockLevel()`: `approvals.script → 5`, `plan → 2`,
 `understanding → 1`, else `0`. Nav levels: overview 0, plan 1, script 2,

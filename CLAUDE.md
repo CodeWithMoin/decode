@@ -54,11 +54,13 @@ before you edit.
 | Entry | `/` → `components/Studio.tsx` | `/studio/*` App Router pages |
 | Navigation | `useStudio.screen` switch | real URLs |
 | Data | `lib/api.ts` — seeded, synchronous | `lib/decode-api.ts` — fetch + SSE |
-| Project screen | `project/ProjectShell.tsx`, four live stages | `connected/ConnectedProject.tsx`, Understanding only |
+| Project screen | `project/ProjectShell.tsx`, four seeded stages | `connected/ConnectedProjectFrame.tsx`, four durable stage routes |
 
-`Dashboard` and `NewDecode` serve both through a `connected` prop. Everything else
-belongs to one side. The prototype is the full product, faked; the connected app is
-the real vertical slice. New backend-backed work goes on the connected side.
+`Dashboard` and `NewDecode` serve both through a `connected` prop. Script shares a
+prop-driven stage surface, and connected Edit adapts durable artifacts into the
+prototype workstation. Everything else belongs to one side. The prototype is the
+full product, faked; the connected app is the real vertical slice. New
+backend-backed work goes on the connected side.
 
 ### Frontend seams (prototype side)
 
@@ -84,11 +86,11 @@ work — handoffs, proposals, receipts — not to global chrome; the Production 
 speaks as Decode, not as one all-purpose Producer. All generated copy is first
 person, past tense for finished work, and always states *why*.
 
-**All timing is derived.** `total = Σ dur`; `starts[i] = Σ dur[0..i-1]`; word
-timings distribute a scene's duration evenly across its tokens. Reordering or
-retiming recomputes the header, arc bar, timecodes, transcript and timeline on
-their own. There is no sync step and there must never be one. Get this right
-before touching the timeline.
+**Timing outputs are derived.** A scene stores duration and may store an explicit
+timeline start and video track after a free drag. Scenes without explicit
+placement use the gapless cumulative fallback. Runtime is the furthest enabled
+clip end; playhead lookup, timecodes and word timings derive from placement and
+duration. There is no sync step and there must never be one.
 
 **Stage gating.** `unlockLevel()`: `script → 5`, `plan → 2`, `understanding → 1`,
 else `0`. Nav levels: overview 0, plan 1, script 2, edit 5. Export is an Edit

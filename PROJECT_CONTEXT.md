@@ -139,7 +139,7 @@ Production Brief
 
 ↓
 
-Production Plan
+Teaching Plan
 
 ↓
 
@@ -326,7 +326,7 @@ Responsibilities
 
 Output
 
-Production Plan
+Teaching Plan
 
 ---
 

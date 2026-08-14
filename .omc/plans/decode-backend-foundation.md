@@ -450,12 +450,12 @@ Definitions:
 Rules:
 
 1. TTS must never silently time-stretch audio to hit the target.
-2. If measured duration exceeds the target tolerance, the evaluator may suggest revising the script or changing delivery settings.
+2. If measured duration exceeds the target tolerance, revise the Script once and synthesize a new Narration version before escalating to the creator.
 3. Word timing comes from ElevenLabs alignment when available; forced alignment is a replaceable fallback.
 4. Captions and visual cue points use measured alignment, not equal word spacing.
 5. Changing narration style or voice profile creates a new Narration version and may invalidate Visual Specification, Scene Render, Timeline, Review, and future exports for that scene.
 
-Initial tolerance recommendation: measured duration may differ from the target by the greater of 1.5 seconds or 8%. Outside that range, produce an evaluation warning; do not automatically fail unless a hard project runtime constraint is configured.
+Initial tolerance decision: measured duration may differ from the target by the greater of 1.5 seconds or 5%. Outside that range, attempt one Script revision and TTS pass. If the second result still misses, preserve it, show the measured delta, and ask the creator rather than silently stretching audio.
 
 ## 11. Artifact-version lifecycle
 

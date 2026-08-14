@@ -24,15 +24,15 @@ store/studio.ts     all mutable state + every action. 491 lines, complete.
        ↓
 components/*        render state, call actions. They compute nothing durable.
        ↑
-lib/derive.ts       everything computed from state: runtime, starts, word counts,
-                    acts, pacing, gating. Called at render, never stored.
+lib/derive.ts       runtime, effective starts, word counts, acts, pacing, gating.
+                    Called at render; computed outputs are never stored.
 ```
 
 **The rule that makes this work:** nothing derived is ever written back into the
-store. `total = Σ dur` and `starts[i] = Σ dur[0..i-1]` are recomputed on every
-render, so reordering or retiming a scene updates the header, arc bar,
-timecodes, transcript and timeline with nothing having to remember to notify
-anything. There is no sync step and there must never be one.
+store. A scene stores duration and may store explicit timeline placement after a
+free drag; scenes without it use the gapless cumulative fallback. Runtime,
+playhead lookup, timecodes and transcript timings are recomputed from those
+inputs, so there is no sync step and there must never be one.
 
 ---
 
@@ -170,6 +170,13 @@ dark treatment. Its Decode-owned modal configures
 format, resolution, range, quality, captions and chapters, then shows named
 progress steps. It is not a fifth workflow stage.
 
+The connected application has durable routes for all four stages under
+`/studio/projects/[projectId]`. The project root is the canonical resume route:
+it reads the studio snapshot and forwards to an active job or the furthest saved
+stage. Connected Script reuses `ScriptStage`; connected Edit adapts approved Plan,
+Script and Scene Visuals artifacts into the workstation. Timeline and Inspector
+mutations remain session-local until the backend owns an assembly artifact.
+
 Layout traps recorded in the spec — re-introducing any is a regression:
 
 - **Understanding** — the Audience stat is user free text: step the size down at
@@ -302,7 +309,9 @@ once a project actually exists to open.
   "AI". All generated copy is first person, past tense for finished work, and
   always says *why*.
 - **Nothing is a bare loading state.** No spinner without explanation, ever.
-- **All timing is derived.** The user never syncs anything.
+- **Timing outputs are derived.** Clip duration and optional free placement are
+  inputs; runtime, lookup and timecodes recompute automatically. The user never
+  syncs anything.
 - **Stage gating.** `unlockLevel()`. Locked → drawer, never a tooltip. Approving
   advances the tab.
 - **Re-approval asymmetry.** Plan-level edits reset `plan` *and* `script`.
