@@ -7,8 +7,10 @@ import {
   Interactive,
   Sequence,
   Series,
+  type SpringConfig,
   interpolate,
   random,
+  spring,
   staticFile,
   useCurrentFrame,
   useVideoConfig,
@@ -71,6 +73,52 @@ export function useProgress(): number {
 export function useCanvas(): { width: number; height: number } {
   const { width, height } = useVideoConfig();
   return { width, height };
+}
+
+export type { SpringConfig };
+
+/**
+ * A physical spring, in progress units.
+ *
+ * Remotion's `spring()` is written in frames + fps a scene may not see, the same
+ * reason `Segment` exists — so this reads the clock on our side and exposes only
+ * progress. `delay` and `duration` are fractions of the beat (0–1), not frames.
+ * Returns the eased value (0→1 by default); multiply or feed it into a `translate`
+ * the way you would `useProgress()`.
+ *
+ * Prefer this over `interpolate` when motion should *settle* — entrances,
+ * emphasis, anything that should feel physical rather than timed. Pick a feel
+ * from `SPRING_PRESETS` or pass your own `config`.
+ */
+export function useSpring(
+  options: {
+    config?: Partial<SpringConfig>;
+    from?: number;
+    to?: number;
+    delay?: number;
+    duration?: number;
+  } = {},
+): number {
+  const frame = useCurrentFrame();
+  const { fps, durationInFrames } = useVideoConfig();
+  const { config, from = 0, to = 1, delay = 0, duration } = options;
+  const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+  const value = spring({
+    frame,
+    fps,
+    config,
+    from,
+    to,
+    delay: Math.round(clamp01(delay) * durationInFrames),
+    durationInFrames:
+      duration === undefined
+        ? undefined
+        : Math.max(1, Math.round(clamp01(duration) * durationInFrames)),
+  });
+  // Quantised for the same reason as useProgress: spring is exponential/trig
+  // internally, Node and browser libm disagree in the last ULP, and an unrounded
+  // value hydrates mismatched.
+  return Number(value.toFixed(6));
 }
 
 /**
@@ -201,4 +249,12 @@ export const EASE_PRESETS = {
   easeOut: Easing.bezier(0.22, 1, 0.36, 1),
   easeInOut: Easing.bezier(0.65, 0, 0.35, 1),
   soft: Easing.bezier(0.16, 1, 0.3, 1),
+} as const;
+
+/** Named feels for `useSpring({ config })`, the way EASE_PRESETS names curves. */
+export const SPRING_PRESETS = {
+  gentle: { damping: 20, mass: 1, stiffness: 80 },
+  smooth: { damping: 26, mass: 1, stiffness: 120 },
+  bouncy: { damping: 10, mass: 1, stiffness: 140 },
+  stiff: { damping: 30, mass: 1, stiffness: 260 },
 } as const;
