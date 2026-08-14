@@ -37,18 +37,21 @@ function toScenes(
 ): Scene[] {
   const narrationByBeat = new Map((script?.beats ?? []).map((b) => [b.beat_id, b.narration]));
   const moduleByBeat = new Map((visuals?.scenes ?? []).map((s) => [s.beat_id, s]));
-  const voiceByBeat = new Map((voice?.clips ?? []).map((c) => [c.beat_id, c.audio_key]));
+  const voiceByBeat = new Map((voice?.clips ?? []).map((c) => [c.beat_id, c]));
 
   // A beat without an id cannot be matched to its narration or its module, so
   // it is not a scene — the same guard the Script stage uses.
   return (plan?.beats ?? []).flatMap<Scene>((beat) => {
     if (!beat.id) return [];
     const sceneModule = moduleByBeat.get(beat.id);
-    const audioKey = voiceByBeat.get(beat.id);
+    const clip = voiceByBeat.get(beat.id);
     return [{
       id: beat.id,
       title: beat.title ?? "Untitled scene",
-      dur: beat.target_duration_seconds ?? 0,
+      // Audio is the timing authority (ADR-005): once narration exists, the
+      // scene is as long as its measured clip, so the visual stays locked to the
+      // voice. The plan's target is only the estimate used before voice lands.
+      dur: clip?.duration_seconds ?? beat.target_duration_seconds ?? 0,
       // The prototype's animation labels are a fixed vocabulary describing
       // stand-in visuals. A real module is not one of them, and naming one
       // would be a claim about generated code nobody checked.
@@ -69,7 +72,7 @@ function toScenes(
       altUsed: false,
       componentSource: sceneModule?.component_source,
       controls: sceneModule?.controls,
-      audioUrl: audioKey ? mediaUrl(audioKey) : undefined,
+      audioUrl: clip ? mediaUrl(clip.audio_key) : undefined,
     }];
   });
 }
