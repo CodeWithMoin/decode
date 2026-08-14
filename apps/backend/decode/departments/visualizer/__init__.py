@@ -190,6 +190,131 @@ class OpenAIVisualizer:
             },
         )
 
+    async def regenerate_one(
+        self,
+        intent: ProductionIntent,
+        plan: TeachingPlan,
+        script: Script,
+        prior_scenes: list[SceneModule],
+        beat_id: str,
+        direction: str,
+    ) -> SceneVisuals:
+        """Rebuild the scene for one beat under a creator's direction.
+
+        This is the per-scene direction loop the product is built on: the creator
+        says how they want *this* scene to look, and only this scene changes. Every
+        other beat's module is carried through untouched, and the result publishes
+        as one new immutable version — so lineage and the whole-artifact model hold
+        exactly as they do for a full generation.
+        """
+        beat = next((item for item in plan.beats if item.id == beat_id), None)
+        if beat is None:
+            raise ValueError(f"no beat {beat_id!r} in the plan to regenerate")
+        current = next((s for s in prior_scenes if s.beat_id == beat_id), None)
+
+        system = SKILLS.system()
+        narration = {item.beat_id: item.narration for item in script.beats}
+        instructions = SKILLS.instructions(
+            visual_direction=json.dumps(
+                {
+                    "audience": intent.audience,
+                    "depth": intent.depth,
+                    "brand_colors": intent.brand.colors,
+                    "brand_guidelines": intent.brand.guidelines,
+                },
+                ensure_ascii=True,
+                indent=2,
+            ),
+            beats=json.dumps(
+                [
+                    {
+                        "beat_id": beat.id,
+                        "title": beat.title,
+                        "objective": beat.objective,
+                        "key_points": beat.key_points,
+                        "visual_opportunity": beat.visual_opportunity,
+                        "narration": narration.get(beat.id, ""),
+                    }
+                ],
+                ensure_ascii=True,
+                indent=2,
+            ),
+            scene_api=SKILLS.reference("scene-api"),
+        )
+        instructions += (
+            "\n\n## Revise this one scene\n\n"
+            "You are rewriting the scene for this single beat, not the whole production. "
+            "Return exactly this one beat and no others.\n\n"
+            "The creator's direction — this is what to change, in their words:\n\n"
+            f"{direction}\n"
+        )
+        if current is not None:
+            instructions += (
+                "\nThe scene as it stands now. Revise it toward the direction; keep what already "
+                "works, change what the direction asks for.\n\n"
+                f"```tsx\n{current.component_source}\n```\n"
+            )
+
+        history: list = [
+            {"role": "user", "content": [{"type": "input_text", "text": instructions}]}
+        ]
+
+        def merge(new_scenes: list[SceneModule]) -> list[SceneModule]:
+            fresh = next((s for s in new_scenes if s.beat_id == beat_id), None) or new_scenes[0]
+            fresh = fresh.model_copy(update={"beat_id": beat_id})
+            return [fresh if s.beat_id == beat_id else s for s in prior_scenes]
+
+        with tracing.span(
+            "visualizer-regenerate",
+            input={"beat_id": beat_id, "direction": direction},
+            metadata={"skills_version": SKILLS.version, "model": self.model},
+        ) as run:
+            with tracing.span("draft"):
+                draft, input_tokens, output_tokens = await self._draft(system, history)
+            turns = 1
+
+            merged = merge(draft.scenes)
+            violations = validate_scenes(merged, plan)
+            if violations:
+                guidance = SKILLS.reflection() or "Repair the scene using the listed violations."
+                history.append(
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "input_text", "text": repair_message(violations, guidance)}
+                        ],
+                    }
+                )
+                with tracing.span("repair"):
+                    second, extra_in, extra_out = await self._draft(system, history)
+                merged = merge(second.scenes)
+                remaining = validate_scenes(merged, plan)
+                if remaining:
+                    codes = ", ".join(item["code"] for item in remaining)
+                    raise ValueError(f"visualizer regenerate failed validation: {codes}")
+                input_tokens += extra_in
+                output_tokens += extra_out
+                turns += 1
+
+            run.update(output={"beat_id": beat_id, "scenes": len(merged)})
+
+        self.last_usage = ProviderUsage(self.model, input_tokens, output_tokens, turns)
+
+        return SceneVisuals(
+            rationale=(
+                f"I redrew the scene for {beat_id} to your direction "
+                "and left the rest as they were."
+            ),
+            scenes=merged,
+            visual_findings={
+                "fixture": False,
+                "model": self.model,
+                "skills_version": SKILLS.version,
+                "runtime_version": RUNTIME_VERSION,
+                "regenerated_beat": beat_id,
+            },
+        )
+
 
 def build(settings: Settings) -> OpenAIVisualizer:
     if not settings.openai_api_key:

@@ -179,3 +179,45 @@ async def test_the_fixture_writes_scenes_that_pass_their_own_gate():
     assert validate_scenes(visuals.scenes, PLAN) == []
     assert visuals.visual_findings["fixture"] is True
     assert visuals.visual_findings["runtime_version"] == "decode-animation-api-v1"
+
+
+async def test_regenerate_one_rebuilds_only_the_target_beat():
+    """The per-scene direction loop: one beat changes, every other is carried
+    through untouched, and the result is still a full scene-visuals artifact."""
+    from decode.schemas import BeatNarration, Script
+
+    plan = TeachingPlan(
+        structure_name="Two beats",
+        sections=[PlanSection(id="q", title="Q", purpose="Establish.")],
+        through_line="t",
+        rationale="r",
+        beats=[
+            Beat(id="beat-01", title="One", objective="First idea", target_duration_seconds=30,
+                 section_id="q", key_points=["k"],
+                 brief_support=BriefSupport(learning_objectives=[0])),
+            Beat(id="beat-02", title="Two", objective="Second idea", target_duration_seconds=30,
+                 section_id="q", key_points=["k"],
+                 brief_support=BriefSupport(learning_objectives=[0])),
+        ],
+    )
+    script = Script(rationale="r", beats=[
+        BeatNarration(beat_id="beat-01", narration="a"),
+        BeatNarration(beat_id="beat-02", narration="b"),
+    ])
+    prior = [
+        SceneModule(beat_id="beat-01", controls=[], component_source="ORIGINAL_ONE"),
+        SceneModule(beat_id="beat-02", controls=[], component_source="ORIGINAL_TWO"),
+    ]
+    fake = build_visualizer(Settings(visualizer="fake"))
+
+    result = await fake.regenerate_one(
+        INTENT, plan, script, prior, "beat-02", "make it a nested structure"
+    )
+    by = {s.beat_id: s for s in result.scenes}
+    assert {*by} == {"beat-01", "beat-02"}
+    assert by["beat-01"].component_source == "ORIGINAL_ONE"      # untouched
+    assert by["beat-02"].component_source != "ORIGINAL_TWO"      # rebuilt
+    assert result.visual_findings["regenerated_beat"] == "beat-02"
+
+    with pytest.raises(ValueError):
+        await fake.regenerate_one(INTENT, plan, script, prior, "beat-99", "x")

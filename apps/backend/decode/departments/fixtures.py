@@ -241,6 +241,40 @@ class FakeVisualizer:
             },
         )
 
+    async def regenerate_one(
+        self,
+        intent: ProductionIntent,
+        plan: TeachingPlan,
+        script: Script,
+        prior_scenes: list[SceneModule],
+        beat_id: str,
+        direction: str,
+    ) -> SceneVisuals:
+        beat = next((item for item in plan.beats if item.id == beat_id), None)
+        if beat is None:
+            raise ValueError(f"no beat {beat_id!r} in the plan to regenerate")
+        fresh = SceneModule(
+            beat_id=beat_id,
+            controls=[
+                SceneControl(
+                    name="background", type="color", label="Background", default="#0E0E10"
+                ),
+                SceneControl(name="label", type="string", label="Label", default=beat.title),
+            ],
+            component_source=_SAMPLE_SCENE,
+        )
+        scenes = [fresh if s.beat_id == beat_id else s for s in prior_scenes]
+        return SceneVisuals(
+            rationale=f"I redrew {beat_id} as a deterministic fixture following: {direction!r}.",
+            scenes=scenes,
+            visual_findings={
+                "fixture": True,
+                "runtime_version": RUNTIME_VERSION,
+                "regenerated_beat": beat_id,
+                "note": "Deterministic regenerate; no design was performed.",
+            },
+        )
+
 
 # The sample lives beside the department as a real .tsx file rather than inside
 # a Python string: it has to stay valid JavaScript, and a formatter that wrapped

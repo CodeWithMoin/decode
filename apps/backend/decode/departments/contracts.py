@@ -19,6 +19,7 @@ from typing import Protocol
 from ..schemas import (
     ProductionBrief,
     ProductionIntent,
+    SceneModule,
     SceneVisuals,
     Script,
     TeachingPlan,
@@ -116,6 +117,16 @@ class Visualizer(Protocol):
 
     async def generate(
         self, intent: ProductionIntent, plan: TeachingPlan, script: Script
+    ) -> SceneVisuals: ...
+
+    async def regenerate_one(
+        self,
+        intent: ProductionIntent,
+        plan: TeachingPlan,
+        script: Script,
+        prior_scenes: list[SceneModule],
+        beat_id: str,
+        direction: str,
     ) -> SceneVisuals: ...
 
 
