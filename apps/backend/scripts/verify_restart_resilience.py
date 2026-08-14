@@ -91,7 +91,11 @@ async def run_generation(client: AsyncClient) -> tuple[str, str]:
     assert generation.status_code == 202, generation.text
     job_id = generation.json()["job_id"]
 
-    assert await dispatch_once() == 1
+    dispatch_redis = await create_pool(RedisSettings.from_dsn(get_settings().redis_url))
+    try:
+        assert await dispatch_once(dispatch_redis) == 1
+    finally:
+        await dispatch_redis.aclose()
     for _ in range(100):
         job = await client.get(f"/api/v1/projects/{project_id}/jobs/{job_id}")
         assert job.status_code == 200, job.text
@@ -143,9 +147,7 @@ async def check_redis_loss(client: AsyncClient, project_id: str) -> None:
     assert brief_after.json()["latest_version_id"] == brief_before["latest_version_id"]
 
     artifact_id = brief_after.json()["artifact_id"]
-    history = await client.get(
-        f"/api/v1/projects/{project_id}/artifacts/{artifact_id}/versions"
-    )
+    history = await client.get(f"/api/v1/projects/{project_id}/artifacts/{artifact_id}/versions")
     assert history.status_code == 200, history.text
     assert len(history.json()["items"]) >= 1
 

@@ -1,7 +1,8 @@
 import pytest
 
 from decode.config import Settings
-from decode.providers.producer import SourceInput, evaluator, producer
+from decode.departments import SourceInput
+from decode.departments.registry import evaluator, intake
 from decode.providers.storage import LocalObjectStore
 
 
@@ -21,11 +22,11 @@ async def test_local_store_rejects_traversal(tmp_path):
         await store.get("../escape")
 
 
-async def test_fake_producer_reports_sources_and_discloses_fixture(tmp_path):
+async def test_fake_intake_reports_sources_and_discloses_fixture(tmp_path):
     from decode.schemas import ProductionIntent
 
     settings = Settings(local_object_root=tmp_path)
-    brief = await producer(settings).generate(
+    brief = await intake(settings).generate(
         ProductionIntent(
             audience="Beginners",
             runtime_mode="deep_dive",
@@ -52,6 +53,6 @@ async def test_fake_producer_reports_sources_and_discloses_fixture(tmp_path):
 def test_unknown_provider_raises_rather_than_falling_back(tmp_path):
     # A silent fallback would publish a fixture brief labelled as real work.
     with pytest.raises(ValueError):
-        producer(Settings(producer="anthropic", local_object_root=tmp_path))
+        intake(Settings(intake="anthropic", local_object_root=tmp_path))
     with pytest.raises(ValueError):
         evaluator(Settings(evaluator="anthropic"))

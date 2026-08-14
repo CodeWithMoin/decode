@@ -1,8 +1,10 @@
 from datetime import datetime
 from decimal import Decimal
+from enum import StrEnum
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     DateTime,
     ForeignKey,
     Integer,
@@ -10,21 +12,72 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .db import Base, new_id, utcnow
+
+# StrEnum, not sqlalchemy.Enum: a StrEnum *is* its string, so these store into the
+# existing VARCHAR columns unchanged and need no migration. A native Postgres enum
+# would also mean an ALTER TYPE for every artifact type a new department adds, and
+# has no SQLite equivalent for the test database.
+#
+# The value is the point — these words are compared across three files each, and
+# a typo in any one of them takes a wrong branch silently instead of raising.
+
+
+class ExecutionStatus(StrEnum):
+    """Shared by Job and Run: a request and its attempts move in lockstep."""
+
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+
+
+class ProjectStatus(StrEnum):
+    DRAFT = "draft"
+    PROCESSING = "processing"
+    READY = "ready"
+    FAILED = "failed"
+
+
+class SourceStatus(StrEnum):
+    UPLOADING = "uploading"
+    READY = "ready"
+    FAILED = "failed"
+
+
+class ArtifactType(StrEnum):
+    SOURCE = "source"
+    PRODUCTION_INTENT = "production_intent"
+    PRODUCTION_BRIEF = "production_brief"
+    TEACHING_PLAN = "teaching_plan"
+    SCRIPT = "script"
+    SCENE_VISUALS = "scene_visuals"
+    VOICE = "voice"
 
 
 class Project(Base):
     __tablename__ = "projects"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     title: Mapped[str] = mapped_column(String(300), default="Untitled Decode")
-    status: Mapped[str] = mapped_column(String(32), default="draft")
+    status: Mapped[str] = mapped_column(String(32), default=ProjectStatus.DRAFT)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow
     )
+    # Set instead of deleting: artifact_versions rejects DELETE by trigger, so a
+    # cascade would abort. Every read path filters on this being NULL.
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    # Whether one stage finishing starts the next one. On by default: a creator
+    # who asks for a video wants a video, not four separate button presses.
+    # Off is the creator saying "stop after each stage so I can read it first",
+    # and is the only thing between one click and a chain of paid runs.
+    auto_continue: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("true"))
 
 
 class Artifact(Base):
@@ -99,7 +152,7 @@ class Source(Base):
     source_kind: Mapped[str] = mapped_column(String(40))
     media_type: Mapped[str] = mapped_column(String(200))
     size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    status: Mapped[str] = mapped_column(String(20), default="uploading")
+    status: Mapped[str] = mapped_column(String(20), default=SourceStatus.UPLOADING)
     object_key: Mapped[str] = mapped_column(String(1000))
     upload_lease_id: Mapped[str] = mapped_column(String(36), default=new_id)
     command_identity: Mapped[str] = mapped_column(String(64))
@@ -119,7 +172,7 @@ class Job(Base):
         ForeignKey("projects.id", ondelete="CASCADE"), index=True
     )
     kind: Mapped[str] = mapped_column(String(60), default="generate_production_brief")
-    status: Mapped[str] = mapped_column(String(20), default="queued")
+    status: Mapped[str] = mapped_column(String(20), default=ExecutionStatus.QUEUED)
     active_run_id: Mapped[str | None] = mapped_column(
         ForeignKey("runs.id", name="fk_jobs_active_run", use_alter=True), nullable=True
     )
@@ -139,7 +192,7 @@ class Run(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     job_id: Mapped[str] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), index=True)
     attempt: Mapped[int] = mapped_column(Integer)
-    status: Mapped[str] = mapped_column(String(20), default="queued")
+    status: Mapped[str] = mapped_column(String(20), default=ExecutionStatus.QUEUED)
     context_manifest: Mapped[dict] = mapped_column(JSON)
     context_hash: Mapped[str] = mapped_column(String(64))
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -190,7 +243,8 @@ class UsageRecord(Base):
     input_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    estimated_cost_usd: Mapped[Decimal] = mapped_column(Numeric(12, 6), default=0)
+    # NULL means unpriced, not free. See migration 0003.
+    estimated_cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(12, 6), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 

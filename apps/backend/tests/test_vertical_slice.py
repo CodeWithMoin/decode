@@ -9,7 +9,21 @@ from sqlalchemy import func, select
 from decode.db import SessionLocal, new_id, utcnow
 from decode.domain import canonical_hash
 from decode.execution.worker import execute_run
-from decode.models import ArtifactVersion, Job, Project, ProjectEvent, Run, Source
+from decode.models import (
+    ApprovalDecision,
+    Artifact,
+    ArtifactDependency,
+    ArtifactType,
+    ArtifactVersion,
+    Evaluation,
+    Job,
+    JobInput,
+    OutboxEvent,
+    Project,
+    ProjectEvent,
+    Run,
+    Source,
+)
 from decode.projects import router as projects_router
 
 HEADERS = {"Idempotency-Key": "key"}
@@ -24,10 +38,15 @@ INTENT = {
 }
 
 
-async def create_inputs(client):
+async def create_inputs(client, auto_continue: bool = False):
+    # Chaining off by default *here*, not in the product: these tests exercise
+    # the stage-by-stage path, where the creator approves each artifact. The
+    # chained path has its own tests below.
     project = (
         await client.post(
-            "/api/v1/projects", json={"title": "Feedback"}, headers={"Idempotency-Key": "project"}
+            "/api/v1/projects",
+            json={"title": "Feedback", "auto_continue": auto_continue},
+            headers={"Idempotency-Key": "project"},
         )
     ).json()
     source = (
@@ -97,6 +116,10 @@ async def test_complete_generation_edit_approval_history_lineage_and_usage(clien
         headers={"Idempotency-Key": "approve-1"},
     )
     assert approval.status_code == 201
+    approved_brief = (await client.get(f"/api/v1/projects/{pid}/production-brief")).json()
+    # The creator clicked this one, so it must not read as automatic.
+    assert approved_brief["approval"]["automatic"] is False
+    assert approved_brief["approval"]["note"] == "Looks good"
     payload = brief["latest_version"]["payload"]
     payload["summary"] = "Human-edited summary."
     edit = await client.post(
@@ -143,7 +166,12 @@ async def test_complete_generation_edit_approval_history_lineage_and_usage(clien
         "production_brief_generation",
         "production_brief_evaluation",
     }
-    assert all(item["estimated_cost_usd"] == "0.000000" for item in usage["items"])
+    costs = {item["operation"]: item["estimated_cost_usd"] for item in usage["items"]}
+    # The fixture producer reports no tokens, so its cost is unknown rather than
+    # zero. The deterministic evaluator genuinely spends nothing, so its zero is
+    # measured. The two must not serialize the same way.
+    assert costs["production_brief_generation"] is None
+    assert costs["production_brief_evaluation"] == "0.000000"
 
 
 @pytest.mark.asyncio
@@ -508,3 +536,509 @@ async def test_duplicate_source_version_ids_are_rejected(client):
     )
     assert response.status_code == 422
     assert response.json()["code"] == "validation_failed"
+
+
+@pytest.mark.asyncio
+async def test_deleted_project_disappears_from_every_read_path(client):
+    project, _, _ = await create_inputs(client)
+    pid = project["project_id"]
+
+    listed = (await client.get("/api/v1/projects")).json()
+    assert any(item["project_id"] == pid for item in listed["items"])
+
+    gone = await client.delete(f"/api/v1/projects/{pid}", headers={"Idempotency-Key": "del"})
+    assert gone.status_code == 200
+
+    # The list drops it and every per-project route stops answering: the guard is
+    # in project_or_404, so studio and sources go with it without being touched.
+    listed = (await client.get("/api/v1/projects")).json()
+    assert not any(item["project_id"] == pid for item in listed["items"])
+    assert (await client.get(f"/api/v1/projects/{pid}/studio")).status_code == 404
+
+    # Soft, so the rows the immutability trigger protects are still there.
+    async with SessionLocal() as session:
+        assert await session.scalar(select(func.count(Source.id)).where(Source.project_id == pid))
+
+    # Same key replays the stored response instead of deleting twice.
+    replay = await client.delete(f"/api/v1/projects/{pid}", headers={"Idempotency-Key": "del"})
+    assert replay.status_code == 200 and replay.json()["project_id"] == pid
+
+
+@pytest.mark.asyncio
+async def test_teaching_plan_requires_an_approved_brief_and_then_publishes(client):
+    project, source, intent = await create_inputs(client)
+    pid = project["project_id"]
+    queued = (
+        await client.post(
+            f"/api/v1/projects/{pid}/production-brief/generations",
+            json={
+                "source_version_ids": [source["source_version_id"]],
+                "intent_version_id": intent["version_id"],
+            },
+            headers={"Idempotency-Key": "generation"},
+        )
+    ).json()
+    await execute_run(None, queued["run_id"])
+    brief = (await client.get(f"/api/v1/projects/{pid}/production-brief")).json()
+    artifact_id, brief_version = brief["artifact_id"], brief["latest_version_id"]
+
+    # Nothing is approved yet, so the Director has nothing authorised to shape.
+    refused = await client.post(
+        f"/api/v1/projects/{pid}/teaching-plan/generations",
+        json={"brief_version_id": brief_version, "intent_version_id": intent["version_id"]},
+        headers={"Idempotency-Key": "plan-early"},
+    )
+    assert refused.status_code == 409
+    assert refused.json()["code"] == "brief_not_approved"
+
+    await client.post(
+        f"/api/v1/projects/{pid}/artifacts/{artifact_id}/versions/{brief_version}/approvals",
+        json={"decision": "approved", "note": None},
+        headers={"Idempotency-Key": "approve-brief"},
+    )
+
+    # An edit makes latest move while approved stays put; planning against the
+    # unapproved draft has to be refused by version, not just by existence.
+    payload = brief["latest_version"]["payload"]
+    payload["summary"] = "Edited after approval."
+    edited = (
+        await client.post(
+            f"/api/v1/projects/{pid}/artifacts/{artifact_id}/versions",
+            json={"base_version_id": brief_version, "schema_version": 1, "payload": payload},
+            headers={"Idempotency-Key": "edit-after-approval"},
+        )
+    ).json()
+    stale = await client.post(
+        f"/api/v1/projects/{pid}/teaching-plan/generations",
+        json={"brief_version_id": edited["version_id"], "intent_version_id": intent["version_id"]},
+        headers={"Idempotency-Key": "plan-unapproved"},
+    )
+    assert stale.status_code == 409
+    assert stale.json()["approved_version_id"] == brief_version
+
+    later_intent = (
+        await client.post(
+            f"/api/v1/projects/{pid}/production-intent/versions",
+            json={**INTENT, "creative_brief": "A different direction"},
+            headers={"Idempotency-Key": "later-intent"},
+        )
+    ).json()
+    mismatched_context = await client.post(
+        f"/api/v1/projects/{pid}/teaching-plan/generations",
+        json={
+            "brief_version_id": brief_version,
+            "intent_version_id": later_intent["version_id"],
+        },
+        headers={"Idempotency-Key": "plan-wrong-intent"},
+    )
+    assert mismatched_context.status_code == 409
+    assert mismatched_context.json()["approved_intent_version_id"] == intent["version_id"]
+
+    plan_job = await client.post(
+        f"/api/v1/projects/{pid}/teaching-plan/generations",
+        json={"brief_version_id": brief_version, "intent_version_id": intent["version_id"]},
+        headers={"Idempotency-Key": "plan"},
+    )
+    assert plan_job.status_code == 202
+    assert plan_job.json()["kind"] == "generate_teaching_plan"
+    assert (await execute_run(None, plan_job.json()["run_id"]))["status"] == "succeeded"
+
+    async with SessionLocal() as session:
+        artifact = await session.scalar(
+            select(Artifact).where(
+                Artifact.project_id == pid,
+                Artifact.artifact_type == ArtifactType.TEACHING_PLAN,
+            )
+        )
+        assert artifact is not None
+        version = await session.get(ArtifactVersion, artifact.latest_version_id)
+        assert version is not None
+        # The Director owns this handoff, and the beats must spend exactly the
+        # runtime the creator asked for.
+        assert version.owner_role == "director"
+        assert version.schema_version == 2
+        assert version.payload["structure_name"]
+        assert version.payload["sections"]
+        beats = version.payload["beats"]
+        assert sum(b["target_duration_seconds"] for b in beats) == INTENT["target_duration_seconds"]
+        assert all(b["key_points"] and b["brief_support"] for b in beats)
+
+        evaluation = await session.scalar(
+            select(Evaluation).where(Evaluation.artifact_version_id == version.id)
+        )
+        assert evaluation is not None
+        assert evaluation.decision == "pass"
+
+        # Lineage binds the approved brief, not the later edit.
+        parents = list(
+            (
+                await session.scalars(
+                    select(ArtifactDependency).where(
+                        ArtifactDependency.child_version_id == version.id
+                    )
+                )
+            ).all()
+        )
+        assert brief_version in {p.parent_version_id for p in parents}
+        assert edited["version_id"] not in {p.parent_version_id for p in parents}
+
+    usage = (
+        await client.get(f"/api/v1/projects/{pid}/jobs/{plan_job.json()['job_id']}/usage")
+    ).json()
+    assert {item["operation"] for item in usage["items"]} == {
+        "teaching_plan_generation",
+        "teaching_plan_evaluation",
+    }
+
+    plan_history = (
+        await client.get(f"/api/v1/projects/{pid}/artifacts/{artifact.id}/versions")
+    ).json()
+    assert plan_history["items"][0]["latest_evaluation"]["decision"] == "pass"
+
+    studio = (await client.get(f"/api/v1/projects/{pid}/studio")).json()
+    assert studio["current_stage"] == "teaching_plan"
+    assert studio["most_recent_job"]["kind"] == "generate_teaching_plan"
+    assert studio["allowed_actions"]["can_approve_plan"] is True
+
+
+@pytest.mark.asyncio
+async def test_a_chaining_project_starts_the_next_stage_itself(client):
+    """One request reaches a Teaching Plan, and says who approved the brief.
+
+    The artifacts stay separate — the plan is still its own versioned artifact
+    with its own approval — but the creator does not have to stand between them.
+    """
+    project, source, intent = await create_inputs(client, auto_continue=True)
+    pid = project["project_id"]
+    queued = (
+        await client.post(
+            f"/api/v1/projects/{pid}/production-brief/generations",
+            json={
+                "source_version_ids": [source["source_version_id"]],
+                "intent_version_id": intent["version_id"],
+            },
+            headers={"Idempotency-Key": "generation"},
+        )
+    ).json()
+    await execute_run(None, queued["run_id"])
+
+    brief = (await client.get(f"/api/v1/projects/{pid}/production-brief")).json()
+    # Approved by the chain, not left dangling: the next stage reads the
+    # approved pointer, so it has to be the version that was just published.
+    assert brief["approved_version_id"] == brief["latest_version_id"]
+    # And the studio can tell that apart from a creator's own approval.
+    assert brief["approval"]["automatic"] is True
+
+    async with SessionLocal() as session:
+        approval = await session.scalar(
+            select(ApprovalDecision).where(
+                ApprovalDecision.version_id == brief["latest_version_id"]
+            )
+        )
+        # An automatic approval is still a decision with an actor, and not the
+        # creator's: the studio must never tell someone they approved something
+        # they never saw.
+        assert approval is not None
+        assert approval.actor_id == "decode:auto-continue"
+        assert "automatically" in (approval.note or "")
+
+        plan_job = await session.scalar(
+            select(Job).where(Job.project_id == pid, Job.kind == "generate_teaching_plan")
+        )
+        assert plan_job is not None
+        assert plan_job.status == "queued"
+        # The intent travelled forward from the brief job unchanged; nobody had
+        # to name it a second time.
+        roles = {
+            item.role: item.version_id
+            for item in (
+                await session.scalars(select(JobInput).where(JobInput.job_id == plan_job.id))
+            ).all()
+        }
+        assert roles == {
+            "production_brief": brief["latest_version_id"],
+            "production_intent": intent["version_id"],
+        }
+        # The queue has the work: the chain went through the outbox like every
+        # other job, not around it.
+        assert await session.scalar(
+            select(func.count(OutboxEvent.id)).where(
+                OutboxEvent.aggregate_id == plan_job.active_run_id
+            )
+        )
+        run_id = plan_job.active_run_id
+
+    assert (await execute_run(None, run_id))["status"] == "succeeded"
+
+    async with SessionLocal() as session:
+        plan_artifact = await session.scalar(
+            select(Artifact).where(
+                Artifact.project_id == pid, Artifact.artifact_type == ArtifactType.TEACHING_PLAN
+            )
+        )
+        assert plan_artifact is not None
+        plan_version = await session.get(ArtifactVersion, plan_artifact.latest_version_id)
+        assert plan_version is not None
+        plan_beats = [beat["id"] for beat in plan_version.payload["beats"]]
+
+    # The chain does not stop at the plan. One request reaches a script, with
+    # each stage approved on the creator's behalf as it is handed on.
+    async with SessionLocal() as session:
+        script_job = await session.scalar(
+            select(Job).where(Job.project_id == pid, Job.kind == "generate_script")
+        )
+        assert script_job is not None
+        roles = {
+            item.role
+            for item in (
+                await session.scalars(select(JobInput).where(JobInput.job_id == script_job.id))
+            ).all()
+        }
+        assert roles == {"teaching_plan", "production_intent"}
+        script_run_id = script_job.active_run_id
+
+    assert (await execute_run(None, script_run_id))["status"] == "succeeded"
+
+    # And on to the visuals. Four departments, one request.
+    async with SessionLocal() as session:
+        visuals_job = await session.scalar(
+            select(Job).where(Job.project_id == pid, Job.kind == "generate_scene_visuals")
+        )
+        assert visuals_job is not None
+        visuals_run_id = visuals_job.active_run_id
+
+    assert (await execute_run(None, visuals_run_id))["status"] == "succeeded"
+    studio = (await client.get(f"/api/v1/projects/{pid}/studio")).json()
+    assert studio["current_stage"] == "edit"
+    assert studio["project"]["auto_continue"] is True
+
+    async with SessionLocal() as session:
+        script_artifact = await session.scalar(
+            select(Artifact).where(
+                Artifact.project_id == pid, Artifact.artifact_type == ArtifactType.SCRIPT
+            )
+        )
+        assert script_artifact is not None
+        version = await session.get(ArtifactVersion, script_artifact.latest_version_id)
+        assert version is not None
+        # The Writer owns this handoff, and every beat of the approved plan has
+        # exactly one passage.
+        assert version.owner_role == "writer"
+        assert len(version.payload["beats"]) == len(plan_beats)
+        assert [b["beat_id"] for b in version.payload["beats"]] == plan_beats
+
+
+@pytest.mark.asyncio
+async def test_turning_chaining_off_stops_after_each_stage(client):
+    project, source, intent = await create_inputs(client, auto_continue=True)
+    pid = project["project_id"]
+    patched = await client.patch(f"/api/v1/projects/{pid}", json={"auto_continue": False})
+    assert patched.status_code == 200 and patched.json()["auto_continue"] is False
+
+    queued = (
+        await client.post(
+            f"/api/v1/projects/{pid}/production-brief/generations",
+            json={
+                "source_version_ids": [source["source_version_id"]],
+                "intent_version_id": intent["version_id"],
+            },
+            headers={"Idempotency-Key": "generation"},
+        )
+    ).json()
+    await execute_run(None, queued["run_id"])
+
+    brief = (await client.get(f"/api/v1/projects/{pid}/production-brief")).json()
+    # Nothing was approved on the creator's behalf and nothing was spent.
+    assert brief["approved_version_id"] is None
+    assert brief["approval"] is None
+    async with SessionLocal() as session:
+        assert not await session.scalar(
+            select(func.count(Job.id)).where(
+                Job.project_id == pid, Job.kind == "generate_teaching_plan"
+            )
+        )
+
+
+@pytest.mark.asyncio
+async def test_the_script_is_editable_and_the_plan_is_not(client):
+    """Narration is editable in exactly one place, and this endpoint is behind it."""
+    project, source, intent = await create_inputs(client, auto_continue=True)
+    pid = project["project_id"]
+    queued = (
+        await client.post(
+            f"/api/v1/projects/{pid}/production-brief/generations",
+            json={
+                "source_version_ids": [source["source_version_id"]],
+                "intent_version_id": intent["version_id"],
+            },
+            headers={"Idempotency-Key": "generation"},
+        )
+    ).json()
+    await execute_run(None, queued["run_id"])
+
+    async with SessionLocal() as session:
+        plan_job = await session.scalar(
+            select(Job).where(Job.project_id == pid, Job.kind == "generate_teaching_plan")
+        )
+        assert plan_job is not None
+        await execute_run(None, plan_job.active_run_id)
+        script_job = await session.scalar(
+            select(Job).where(Job.project_id == pid, Job.kind == "generate_script")
+        )
+        assert script_job is not None
+    await execute_run(None, script_job.active_run_id)
+
+    async with SessionLocal() as session:
+        script_artifact = await session.scalar(
+            select(Artifact).where(
+                Artifact.project_id == pid, Artifact.artifact_type == ArtifactType.SCRIPT
+            )
+        )
+        assert script_artifact is not None
+        base_id = script_artifact.latest_version_id
+        approved_before = script_artifact.approved_version_id
+        base = await session.get(ArtifactVersion, base_id)
+        assert base is not None
+        payload = dict(base.payload)
+        plan_artifact = await session.scalar(
+            select(Artifact).where(
+                Artifact.project_id == pid, Artifact.artifact_type == ArtifactType.TEACHING_PLAN
+            )
+        )
+        assert plan_artifact is not None
+        plan_artifact_id, plan_version_id = plan_artifact.id, plan_artifact.latest_version_id
+
+    payload["beats"][0]["narration"] = "The words a person actually wanted."
+    edited = await client.post(
+        f"/api/v1/projects/{pid}/artifacts/{script_artifact.id}/versions",
+        json={"base_version_id": base_id, "schema_version": 1, "payload": payload},
+        headers={"Idempotency-Key": "edit-script"},
+    )
+    assert edited.status_code == 201, edited.text
+    assert edited.json()["payload"]["beats"][0]["narration"] == (
+        "The words a person actually wanted."
+    )
+    # An edit moves latest and leaves approved behind, so the script correctly
+    # reads as awaiting review again rather than silently staying approved.
+    assert edited.json()["latest_version_id"] == edited.json()["version_id"]
+    assert edited.json()["approved_version_id"] == approved_before
+    assert edited.json()["latest_is_approved"] is False
+
+    # A payload that is not a script is refused before anything immutable lands.
+    broken = await client.post(
+        f"/api/v1/projects/{pid}/artifacts/{script_artifact.id}/versions",
+        json={
+            "base_version_id": edited.json()["version_id"],
+            "schema_version": 1,
+            "payload": {"rationale": "no beats"},
+        },
+        headers={"Idempotency-Key": "edit-script-broken"},
+    )
+    assert broken.status_code == 422
+    assert broken.json()["code"] == "validation_failed"
+
+    # The plan is not a payload swap: reordering beats resets the script written
+    # against them, so it is a command rather than an edit.
+    refused = await client.post(
+        f"/api/v1/projects/{pid}/artifacts/{plan_artifact_id}/versions",
+        json={"base_version_id": plan_version_id, "schema_version": 1, "payload": {}},
+        headers={"Idempotency-Key": "edit-plan"},
+    )
+    assert refused.status_code == 400
+    assert refused.json()["code"] == "invalid_command"
+
+
+@pytest.mark.asyncio
+async def test_voice_generation_requires_approved_script_and_publishes_clips(client):
+    """The Narrator reads the approved Script into one clip per beat."""
+    project, source, intent = await create_inputs(client)
+    pid = project["project_id"]
+
+    # Chain up to an approved script: brief → plan → script.
+    brief = (await client.post(
+        f"/api/v1/projects/{pid}/production-brief/generations",
+        json={
+            "source_version_ids": [source["source_version_id"]],
+            "intent_version_id": intent["version_id"],
+        },
+        headers={"Idempotency-Key": "brief"},
+    )).json()
+    await execute_run(None, brief["run_id"])
+    brief_view = (await client.get(f"/api/v1/projects/{pid}/production-brief")).json()
+    await client.post(
+        f"/api/v1/projects/{pid}/artifacts/{brief_view['artifact_id']}/versions/"
+        f"{brief_view['latest_version_id']}/approvals",
+        json={"decision": "approved"},
+        headers={"Idempotency-Key": "approve-brief"},
+    )
+    plan = (await client.post(
+        f"/api/v1/projects/{pid}/teaching-plan/generations",
+        json={
+            "brief_version_id": brief_view["latest_version_id"],
+            "intent_version_id": intent["version_id"],
+        },
+        headers={"Idempotency-Key": "plan"},
+    )).json()
+    await execute_run(None, plan["run_id"])
+    async with SessionLocal() as session:
+        plan_artifact = await session.scalar(
+            select(Artifact).where(
+                Artifact.project_id == pid,
+                Artifact.artifact_type == ArtifactType.TEACHING_PLAN,
+            )
+        )
+        assert plan_artifact is not None
+        await client.post(
+            f"/api/v1/projects/{pid}/artifacts/{plan_artifact.id}/versions/"
+            f"{plan_artifact.latest_version_id}/approvals",
+            json={"decision": "approved"},
+            headers={"Idempotency-Key": "approve-plan"},
+        )
+
+    script = (await client.post(
+        f"/api/v1/projects/{pid}/script/generations",
+        json={
+            "plan_version_id": plan_artifact.latest_version_id,
+            "intent_version_id": intent["version_id"],
+        },
+        headers={"Idempotency-Key": "script"},
+    )).json()
+    await execute_run(None, script["run_id"])
+    async with SessionLocal() as session:
+        script_artifact = await session.scalar(
+            select(Artifact).where(
+                Artifact.project_id == pid, Artifact.artifact_type == ArtifactType.SCRIPT
+            )
+        )
+        assert script_artifact is not None
+        await client.post(
+            f"/api/v1/projects/{pid}/artifacts/{script_artifact.id}/versions/"
+            f"{script_artifact.latest_version_id}/approvals",
+            json={"decision": "approved"},
+            headers={"Idempotency-Key": "approve-script"},
+        )
+
+    voice = (await client.post(
+        f"/api/v1/projects/{pid}/voice/generations",
+        json={
+            "script_version_id": script_artifact.latest_version_id,
+            "intent_version_id": intent["version_id"],
+        },
+        headers={"Idempotency-Key": "voice"},
+    ))
+    assert voice.status_code == 202
+    await execute_run(None, voice.json()["run_id"])
+
+    async with SessionLocal() as session:
+        voice_artifact = await session.scalar(
+            select(Artifact).where(
+                Artifact.project_id == pid, Artifact.artifact_type == ArtifactType.VOICE
+            )
+        )
+        assert voice_artifact is not None
+        version = await session.get(ArtifactVersion, voice_artifact.latest_version_id)
+        assert version is not None
+        # Fixture narrator produces a clip per script beat and labels itself.
+        assert version.payload["voice_findings"]["fixture"] is True
+        script_version = await session.get(ArtifactVersion, script_artifact.latest_version_id)
+        assert len(version.payload["clips"]) == len(script_version.payload["beats"])

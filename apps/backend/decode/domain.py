@@ -159,9 +159,13 @@ def save_idempotency(
     )
 
 
-def version_projection(
-    artifact: Artifact, version: ArtifactVersion, *, evaluation: dict | None = None
-) -> dict:
+def version_projection(artifact: Artifact, version: ArtifactVersion) -> dict:
+    """One immutable version on the wire.
+
+    Version-level fields only. The artifact's latest/approved pointers are
+    mutable projections that belong to the artifact, not to any version, and
+    callers that need them add them alongside.
+    """
     return {
         "artifact_id": artifact.id,
         "version_id": version.id,
@@ -177,8 +181,4 @@ def version_projection(
         "run_id": version.run_id,
         "supersedes_version_id": version.supersedes_version_id,
         "rationale": version.rationale,
-        "latest_version_id": artifact.latest_version_id,
-        "approved_version_id": artifact.approved_version_id,
-        "latest_is_approved": artifact.latest_version_id == artifact.approved_version_id,
-        "latest_evaluation": evaluation,
     }
