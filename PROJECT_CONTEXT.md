@@ -20,6 +20,24 @@ The architecture should support this evolution without requiring major redesign.
 
 ---
 
+# Where the moat is
+
+Decode's defensibility is **knowledge → teaching → production intelligence**,
+plus **dependency-aware editing** (change one scene, only downstream work
+regenerates) and **evaluation / trust**. It is explicitly **not** rendering and
+**not** media playback — those are a substrate Decode stands on, not the product.
+
+> Decode owns semantic intent + timing; HyperFrames owns executable composition
+> + deterministic rendering.
+
+HyperFrames is the replaceable render substrate behind a Decode-owned port (see
+`HYPERFRAMES-ARCHITECTURE-REVIEW.md`); the Visualizer's migration onto it is
+planned in `VISUALIZER-TO-HYPERFRAMES.md`. Osmo and Motion.so validate the market
+but are beatable on this ground: a teaching-first pipeline where narration is the
+timing authority is the moat neither of them has.
+
+---
+
 # Philosophy
 
 Decode should never feel like ChatGPT.
@@ -270,6 +288,13 @@ Responsibilities
 
 Departments never invoke each other directly.
 
+> **Designed, not yet built.** The current execution model is the staged
+> department pipeline described below (immutable artifacts, deterministic
+> dependency tracking). The single orchestrator running a graph of specialist
+> agents — and the snapshot + checkpoints that replace per-artifact versions — is
+> the planned direction, specified in `AGENT-GRAPH.md` (see §8 for the snapshot
+> state model). Read it as the target, not current reality.
+
 ---
 
 # Departments
@@ -356,6 +381,14 @@ Purpose
 Determine how every concept should be visualized.
 
 Not implementation.
+
+The Visualizer's role is the **Motion Designer**: how a beat's teaching intent
+becomes animated, positioned, and synced to narration. Decode decides *what
+visual teaches*; the Motion Designer turns that into motion; HyperFrames renders
+it (see `VISUALIZER-TO-HYPERFRAMES.md`). "Motion Designer" is the role — the
+persisted contract names stay put (`scene_visuals`, `generate_scene_visuals` /
+`regenerate_scene_visual`, `DECODE_VISUALIZER`, the `visualizer/` folder and
+provenance ids).
 
 Responsibilities
 

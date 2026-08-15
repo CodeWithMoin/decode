@@ -1,8 +1,28 @@
 # REMOTION-FEATURE-ROADMAP.md — what we use, and what we'll add
 
-Remotion (v4.0.508) is Decode's render substrate — behind a Decode-owned port,
+> **⚠️ Substrate migration in progress — read this first.**
+> Decode is migrating its render substrate **off Remotion to HyperFrames** — see
+> **`VISUALIZER-TO-HYPERFRAMES.md`** (the live plan) and `HYPERFRAMES-ARCHITECTURE-REVIEW.md`.
+> One scene is already ported by hand (`hyperframes/self-attention/`), rendering
+> deterministically. Remotion is still today's substrate under the hood — the Motion
+> Designer department emits Remotion-flavored React and the frontend preview still
+> uses `@remotion/player` — but it is on the way out.
+>
+> **So much of the backlog below is SUPERSEDED.** The question for any item that
+> means "adopt more Remotion capability" is no longer *"add this Remotion feature?"*
+> but ***"does HyperFrames already cover this capability?"*** — because we don't want
+> to invest in the substrate we're leaving. Each item below is tagged:
+> - **[capability — still relevant]** — the *need* (e.g. captions, transitions,
+>   real audio duration) matters regardless of substrate. Keep it, but implement it
+>   on the substrate we're keeping.
+> - **[superseded]** — this is Remotion-specific plumbing HyperFrames replaces; do
+>   not build it on Remotion. Re-frame as "does HyperFrames cover it?"
+> - **[done]** — already shipped.
+
+Remotion (v4.0.508) is Decode's render substrate today — behind a Decode-owned port,
 per ADR-007 (`decisions.md`). This is the running list of which Remotion features
-we expose today and which good ones we'll add progressively.
+we expose today and which good ones we'll add progressively — now read against the
+HyperFrames migration above.
 
 ## The one rule that governs all of this
 
@@ -44,35 +64,53 @@ Where each feature plugs in:
 
 ## Next up (rough priority)
 
-### 1. Real audio duration → timing (`@remotion/media-utils`) · dep
-`useAudioData` + `getAudioDurationInSeconds`. The Voice department currently
-*estimates* clip duration from character count (`_CHARS_PER_SECOND` in
-`voice/__init__.py`). Reading the real mp3 duration closes the loop on **ADR-005
-(audio is the timing authority)** instead of approximating it. Highest-value
-correctness win. *Touches voice department + timing projection, not the scene SDK.*
+### 1. Real audio duration → timing · ✅ done (via mutagen, not Remotion) · [capability — still relevant, now done]
+**Completed — and deliberately *not* with `@remotion/media-utils`.** The Voice
+department no longer estimates clip duration from character count; it reads the real
+mp3 duration on the backend with **mutagen**, closing the loop on **ADR-005 (audio is
+the timing authority)**. The **beat-timing model now builds on this measured
+duration** — `decode/timing.py` resolves anchors against real word timings, and the
+scene's `data-duration` is stamped from the measured narration (see
+`VISUALIZER-TO-HYPERFRAMES.md §3`). This was the highest-value correctness win and it
+is closed; because the reader is a Python backend dependency, no Remotion package was
+needed. *This is the archetype for the whole doc: the capability mattered, the
+Remotion feature that once represented it did not.*
 
-### 2. Captions (`@remotion/captions`) · dep
-Auto on-screen captions synced to narration — you already store per-beat audio +
-the exact narration text, so the caption source is free. Big perceived-quality
-and accessibility win. *SDK-wrap a caption component; feed it beat narration + audio.*
+### 2. Captions · [capability — still relevant, substrate TBD]
+Auto on-screen captions synced to narration — we already store per-beat audio +
+the exact narration text, so the caption source is free. Big perceived-quality and
+accessibility win. **The capability stands regardless of substrate; the `@remotion/captions`
+implementation does not.** Before building on Remotion, ask whether HyperFrames'
+captioning covers it (see the `captions-overlay` / `embedded-captions` workflows) —
+we should not add a caption component to a substrate we're retiring.
 
-### 3. Scene transitions (`@remotion/transitions`) · infra
-`<TransitionSeries>` with slide/fade/wipe between beats, instead of hard cuts.
-Lives at the **composition** level (`DecodeComposition`), not inside a scene, so
-it doesn't widen the scene SDK or the gate. *Decode picks the transition; scenes
-stay unaware.*
+### 3. Scene transitions · [capability — still relevant, substrate TBD]
+Slide/fade/wipe between beats instead of hard cuts. **The capability stands; the
+`@remotion/transitions` `<TransitionSeries>` implementation is [superseded].**
+Transitions live at the **composition** level either way (Decode picks them; scenes
+stay unaware) — so this belongs to whatever composition layer HyperFrames gives us,
+not to `DecodeComposition`. Check HyperFrames' transition support before building.
 
-### 4. Video source material (`OffthreadVideo`, `Video`) · SDK
-Let a scene embed a video clip (screen recording, b-roll). `OffthreadVideo` is the
-render-correct one. Needs an asset-fetch story (see delayRender). *SDK, gated.*
+### 4. Video source material (`OffthreadVideo`, `Video`) · [superseded]
+Embedding a video clip (screen recording, b-roll) in a scene is a capability we'll
+still want, but `OffthreadVideo`/`Video` are Remotion-specific. HyperFrames owns
+media playback (framework-owned media + `/media-use`); reach for that, not the
+Remotion primitives. Do not widen the Remotion scene SDK for this.
 
-### 5. Async assets done right (`delayRender` / `continueRender`) · SDK/infra
-Wait for fonts/fetched data before a frame renders — prevents the flash where a
-scene renders before its font loads. Add if scenes start pulling remote assets.
+### 5. Async assets done right (`delayRender` / `continueRender`) · [superseded]
+Waiting for fonts/fetched data before a frame renders is Remotion's render-lifecycle
+API and has no place on a substrate we're leaving. HyperFrames' deterministic-render
+contract handles asset readiness its own way. Do not build on `delayRender`.
 
 ---
 
 ## Later / bigger bets
+
+> **All Remotion-package bets below are [superseded] by the HyperFrames migration.**
+> None should be adopted *on Remotion*. Each names a real capability (cloud render,
+> shapes/paths, Lottie, GIF, 3D, data-driven metadata) — treat every one as "does
+> HyperFrames already cover this?" and build there, not here. Kept only so the
+> capability list isn't lost in the move.
 
 - **Cloud + parallel render (`@remotion/lambda`)** · infra — today the backend
   shells out to a **local** Node subprocess (`renders/department.py`). Fine for

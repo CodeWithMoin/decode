@@ -11,9 +11,13 @@ breakpoint. Authoritative on *flow*; `MASTER.md` stays authoritative on design,
 
 ### A. The journey — where a project goes, stage by stage
 
-One creator request walks this whole line (when `auto_continue` is on). The
-brief and the plan pass through the independent **Evaluator** before the chain
-hands them on; script, visuals and voice are not evaluated (yet).
+One creator request walks this whole line, end to end, with no per-stage
+approval gate. Creating a project takes the creator straight through inputs → a
+build/processing screen → **Edit**; there is no separate Understanding / Plan /
+Script navigation to stop at (those pages are deep-links only — plan and script
+are now tabs in the Edit inspector). The brief and the plan pass through the
+independent **Evaluator** before the chain hands them on; script, visuals and
+voice are not evaluated (yet).
 
 ```mermaid
 flowchart LR
@@ -41,9 +45,11 @@ flowchart LR
     class beval,peval eval;
 ```
 
-Each arrow between stages is only *taken automatically* if `auto_continue` is on
-and the next stage's inputs are already available; otherwise the project rests
-there and waits for the creator to approve (see §5).
+Each arrow between stages is taken automatically as soon as the next stage's
+inputs are available — continuous is the only mode now. The
+Continuous / Stage-by-stage toggle is **gone from the UI**; the backend
+`auto_continue` column still exists and is honored (default **true**), so in
+practice the whole chain runs unattended from create to Edit (see §5).
 
 ### B. Inside one stage — the generation loop every stage runs
 
@@ -124,11 +130,12 @@ breakpoints; the deeper "why" for each hop is in the numbered sections below.
    evidence — it never rewrites or approves the artifact.
    *(`pipeline.run_evaluation` → `decode/departments/evaluator/`)*
 
-6. **The chain decides whether to keep going.** With the brief published and
-   judged, `continue_chain` checks `project.auto_continue`. **Off** → the project
-   goes `ready` and waits for the creator to approve the brief by hand. **On** →
-   it records an auto-approval (under actor `decode:auto-continue`), carries the
-   inputs forward, and queues the next stage's Job+Run — the Teaching Plan.
+6. **The chain keeps going automatically.** With the brief published and judged,
+   `continue_chain` checks `project.auto_continue` — which is `true` by default
+   and has no UI to turn off — so it records an auto-approval (under actor
+   `decode:auto-continue`), carries the inputs forward, and queues the next
+   stage's Job+Run — the Teaching Plan. (The off branch still exists in code and
+   would park the project at `ready`, but nothing in the studio reaches it.)
    *(`pipeline.continue_chain`)*
 
 7. **The Teaching Plan repeats steps 3–6**, and is **also evaluated** (the second
@@ -143,19 +150,28 @@ breakpoints; the deeper "why" for each hop is in the numbered sections below.
 10. **Voice repeats steps 3–6, without evaluation.** The Narrator (Fish Audio)
     reads each beat aloud and stores an mp3 per clip in the object store. This is
     the last link in the chain — `continue_chain` finds no successor and stops.
-    Because narration duration is the timing authority, the scenes now have a real
-    runtime. *(`decode/departments/voice/`, served by `decode/voice_router.py`)*
+    Narration is the timing authority (**ADR-005**): the measured clip duration
+    gives each scene its real runtime, and the per-clip **word timestamps** now
+    drive sub-scene timing too — the beat-timing model in `decode/timing.py`
+    (`NarrationTiming` + semantic `Anchor`s that resolve to seconds) lets visual
+    events inside a scene land on the words they describe, not on guessed offsets.
+    *(`decode/departments/voice/`, `decode/timing.py`, served by
+    `decode/voice_router.py`)*
 
-11. **The project lands on Edit.** With every stage published and narration
-    rendered, the studio snapshot's derived `current_stage` becomes `edit`. The
+11. **The project lands on Edit — the single workspace.** With every stage
+    published and narration rendered, the studio snapshot's derived
+    `current_stage` becomes `edit`, and that is where the creator arrives. The
     connected frontend loads the generated scenes, compiles them in the browser,
-    plays them against the narration, and offers render/export.
+    plays them against the narration, and offers render/export. Plan and script
+    live as **inspector tabs** inside this one workspace rather than as separate
+    stages to visit.
     *(`components/connected/ConnectedEdit.tsx`, `lib/scene-module.ts`)*
 
 > The whole way through, every `emit(...)` streams a named progress event to the
 > UI over SSE — so the creator watches "reading sources → drafting → evaluating →
-> ready" instead of a spinner. If auto-continue is off, the story pauses after
-> each stage's step 6 until the creator approves.
+> ready" instead of a spinner. The `auto_continue`-off branch below is a
+> backend-only path with no UI to reach it; today the chain always runs straight
+> through to Edit.
 
 ---
 
@@ -181,7 +197,8 @@ If a generation "hangs", the first question is always **which of these three
 Defined in `decode/models.py`. Five that matter for flow:
 
 - **Project** — the unit of work. Has `status` (draft → processing → ready →
-  failed) and `auto_continue` (the per-project chain switch, §5).
+  failed) and `auto_continue` (the per-project chain switch, §5 — default `true`,
+  no longer surfaced as a UI toggle).
 - **Artifact** — a *slot* of one type (`production_brief`, `teaching_plan`,
   `script`, `scene_visuals`, `voice`). One per type per project (`stable_key`).
   Holds two pointers: `latest_version_id` and `approved_version_id` — **distinct**.
@@ -289,13 +306,17 @@ brief → teaching_plan → script → scene_visuals → voice → (stop)
 ```
 
 After a run succeeds, `continue_chain()` runs **inside the worker's success
-transaction**:
+transaction**. `project.auto_continue` is `true` by default and the studio no
+longer exposes a toggle for it (the old Continuous / Stage-by-stage switch is
+gone), so continuous is the only path a real project takes:
 
-- If `project.auto_continue` is **off**, it stops — the pointer moves, nothing
-  auto-runs, the creator approves each stage by hand.
-- If **on**, it: records an `ApprovalDecision` on the finished version under the
-  actor `decode:auto-continue` (so "who approved this" is never empty), carries
-  the inputs the next stage needs forward, and creates the next Job+Run.
+- **On** (the normal case): it records an `ApprovalDecision` on the finished
+  version under the actor `decode:auto-continue` (so "who approved this" is never
+  empty), carries the inputs the next stage needs forward, and creates the next
+  Job+Run.
+- **Off** (backend-only, unreachable from the UI): it stops — the pointer moves,
+  nothing auto-runs, and the project waits for a hand-approval that the studio
+  has no button to send.
 
 The input-carry is why voice can follow visuals with no new input: voice needs
 `script` + `production_intent`, both of which the visuals job already carried, so

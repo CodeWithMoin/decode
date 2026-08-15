@@ -135,3 +135,73 @@ and must never be committed; the no-co-author-trailer is a standing user
 preference.
 **Open:** `Makefile` + `compose.langfuse.yaml` (infra) still uncommitted;
 `.vscode/`, `*.png`, `.omc/project-memory.json` are `.gitignore` candidates.
+
+### S-09 — Single workspace: land in Edit, stages become inspector tabs (BUILT)
+**Decision:** New projects run inputs → build screen → **Edit** automatically. The
+Understanding / Plan / Script pages are **removed from nav** (reachable only by
+deep link); plan and script become **tabs in the Edit inspector**. Edit is the one
+workspace.
+**Why:** The staged wizard made teaching the project feel like paperwork before the
+video. Landing in Edit puts the artifact — the film — first; the earlier stages are
+context you open when you need them, not gates you march through.
+**Applies to:** the connected app is the single workspace; prototype/connected split
+still exists in `apps/frontend/src`.
+
+### S-10 — Continuous is the only mode; the auto_continue toggle removed (BUILT)
+**Decision:** Remove the **Continuous / Stage-by-stage** (`auto_continue`) toggle
+from the UI. Projects always run continuously. The backend `auto_continue` column
+is **retained and honored** until the snapshot migration (S-12) lands.
+**Why:** With a single workspace there is no stage to pause on, so a per-stage gate
+was a choice with one sensible answer. Dropping the UI toggle without ripping out the
+column keeps the change reversible and avoids a schema migration mid-pivot.
+
+### S-11 — "Visualizer" role renamed to Motion Designer; contract names kept (BUILT)
+**Decision:** The department's *role* is now the **Motion Designer** — how a beat's
+teaching intent becomes animated, positioned and synced to narration. **Persisted
+names stay unchanged on purpose:** artifact type `scene_visuals`, job kinds
+`generate_scene_visuals` / `regenerate_scene_visual`, provider `DECODE_VISUALIZER`,
+provenance `visualizer/<v>`, department folder `visualizer/`.
+**Why:** "Motion Designer" is the honest creator-facing name for the work; the wire
+contract, provenance ids and provider keys are load-bearing and renaming them buys a
+migration for zero user value. Role is language; contract names are identity.
+
+### S-12 — DIRECTION: snapshot + checkpoints replace per-artifact versions (DESIGNED, NOT built)
+**Decision (direction, not shipped):** Replace the per-artifact immutable-version /
+lineage model with a project **snapshot + checkpoints** model. Designed only — see
+`AGENT-GRAPH.md §8`.
+**Why:** As editing becomes dependency-aware across scenes, per-artifact version
+pointers get awkward; a whole-project checkpoint is the cleaner unit to branch and
+roll back. **Current reality:** immutable `ArtifactVersion` (ADR-002) + exact-version
+edges (ADR-003) are still what runs.
+
+### S-13 — HyperFrames adopted as the render substrate; migration begun (DESIGNED direction, one scene BUILT)
+**Decision:** Commit to **HyperFrames as the render/composition substrate**: Decode
+owns semantic **intent + timing**, HyperFrames owns executable composition +
+deterministic rendering. The migration has **begun** — one scene ported by hand
+(`hyperframes/self-attention/`), rendering deterministically. Full generalization is
+designed in `VISUALIZER-TO-HYPERFRAMES.md`.
+**Why:** Rendering and media are not the moat (knowledge → teaching → production
+intelligence is); owning a render framework is undifferentiated weight. This
+sharpens ADR-007 from "behind a port" to "the substrate we build on."
+**Current reality:** the Motion Designer department still emits Remotion-flavored
+React and the preview still uses `@remotion/player`; only the one scene is ported.
+
+### S-14 — Beat-timing model: narration authority extended to sub-scene anchors (BUILT)
+**Decision:** Add `decode/timing.py` — `NarrationTiming` with word timestamps and
+semantic `Anchor`s resolving to seconds; narration clips carry `words`. Design in
+`AUDIO-SYNC-PROPOSAL.md`.
+**Why:** ADR-005 made *scene* timing derive from measured audio; teaching moments
+land inside a scene, so the same authority must reach sub-scene events. Anchors let a
+visual cue bind to a spoken phrase instead of a guessed offset. **Note:** the full
+Sound Designer department / beat-sync system in the proposal is **DESIGNED, not
+built**.
+
+### S-15 — Evaluation becomes an optional hook, not a per-stage gate (DESIGNED direction)
+**Decision (direction):** Evaluation moves from a per-stage gate toward an **optional
+hook** in the orchestrated model — trust/quality checks you can attach, not a wall
+every stage must clear. Framed alongside the orchestrator direction in
+`AGENT-GRAPH.md`.
+**Why:** A single continuous workspace shouldn't stall on a gate between invisible
+stages; evaluation is most valuable as a signal the creator can request. **Current
+reality:** evaluation still runs inline in the pipeline layer per S-01 for the types
+in `EVALUATED_TYPES`.

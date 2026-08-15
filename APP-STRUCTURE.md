@@ -154,6 +154,16 @@ explained, never a tooltip.
 Below 1024px the Production room becomes an on-demand overlay. Edit itself is a
 laptop workspace and targets 1280px and wider.
 
+The four centred stage pills, the locked-stage nudge and the approve-to-advance
+sequence above describe the **prototype** `ProjectShell`. The **connected** frame
+(`connected/ConnectedProjectFrame.tsx`) is a single workspace: it dropped the
+stage rail (Understanding/Plan/Script tabs) and the Continuous / Stage-by-stage
+toggle — both deleted. A connected project **lands in Edit**; its header is just
+identity · title · status · sources · Export. The Teaching Plan and Script are now
+**tabs inside the Edit Inspector** (§4), not their own nav destinations. The
+per-stage routes under `/studio/projects/[projectId]` still exist as deep links,
+but nothing in the shell navigates to them.
+
 ---
 
 ## 4. Stages
@@ -170,12 +180,19 @@ dark treatment. Its Decode-owned modal configures
 format, resolution, range, quality, captions and chapters, then shows named
 progress steps. It is not a fifth workflow stage.
 
-The connected application has durable routes for all four stages under
-`/studio/projects/[projectId]`. The project root is the canonical resume route:
-it reads the studio snapshot and forwards to an active job or the furthest saved
-stage. Connected Script reuses `ScriptStage`; connected Edit adapts approved Plan,
-Script and Scene Visuals artifacts into the workstation. Timeline and Inspector
-mutations remain session-local until the backend owns an assembly artifact.
+The connected application is a **single workspace**. New and continuous projects
+flow inputs → the build/processing screen → **Edit automatically**:
+`ConnectedProcessing` follows the chain forward, since every stage runs back to
+back now (`projectRoute` in `lib/project-route.ts` owns the routing, and a running
+voice job routes straight to `/edit` because scenes already exist and Edit polls
+narration in). The per-stage routes under `/studio/projects/[projectId]` still
+exist as deep links and as the resume target when a project is mid-build, but the
+workspace itself never navigates through them — the Teaching Plan and Script live
+as Inspector tabs, and the "Edit narration in Script →" link routes to the Script
+editor **on demand**. Connected Script reuses `ScriptStage`; connected Edit adapts
+approved Plan, Script and Scene Visuals artifacts into the workstation. Timeline
+and Inspector mutations remain session-local until the backend owns an assembly
+artifact.
 
 Layout traps recorded in the spec — re-introducing any is a regression:
 
@@ -193,12 +210,16 @@ Its own section because it is three components, not one.
 - **`player/DecodePlayer.tsx`** — the Decode-owned Player boundary. Remotion
   frame events update the store; timeline seeks and Inspector edits update the
   Player. Regeneration overlays a named progress state outside the composition.
-- **`Inspector.tsx`** — direct scene properties: name, labels, motion,
-  typography, colours, layout, timing and effects. Numeric properties use
-  DaVinci-style tracks, value fields, real playhead keyframes and reset actions.
-  Keyframe positions are normalized to scene progress, so retiming scales them
-  without a sync step. Narration links to Script rather than creating a second
-  editable copy.
+- **`Inspector.tsx`** — three tabs: **Scene · Plan · Script**. Scene is direct
+  properties for the frame in front of you (name, labels, motion, typography,
+  colours, layout, timing and effects; numeric properties use DaVinci-style
+  tracks, value fields, real playhead keyframes and reset actions, and keyframe
+  positions are normalized to scene progress so retiming scales them without a
+  sync step). Plan and Script are the two stages that shaped the scene, brought
+  into the cutting room in read/navigate form — this is where the removed stage
+  nav went. Narration stays editable in exactly one place: the "Edit narration in
+  Script →" link routes to the Script editor on demand rather than creating a
+  second editable copy.
 - **`Timeline.tsx`** — transport and J/K/L shuttle, adaptive frame-accurate
   ruler, `HH:MM:SS:FF` timecode, continuous audio waveform and one derived track
   per scene. Supports drag-scrub, zoom, reorder, split, merge, move, duplicate,

@@ -5,6 +5,30 @@
 **Review date:** 2026-08-03  
 **HyperFrames source reviewed:** `heygen-com/hyperframes` at commit `411ada0d902349e1663bb5459c611f18449527fb` (2026-08-02), package version `0.7.89`
 
+## Status update — the decision is now being acted on
+
+This review's conclusion (adopt HyperFrames as a replaceable render substrate
+behind a Decode-owned port; no adapter yet) has moved from decision to execution.
+
+- **The migration has begun.** One scene is ported by hand at
+  `hyperframes/self-attention/` and renders deterministically via
+  `hyperframes check` / `render`. This is the first real HyperFrames composition
+  in the repo — no longer just a recommendation.
+- **The live implementation plan is `VISUALIZER-TO-HYPERFRAMES.md`.** It supersedes
+  this document as the plan of record for how the Visualizer stops emitting
+  Remotion-flavored React and starts emitting HyperFrames compositions. Read it for
+  the current contract, sequencing, and validity/security boundaries; this review
+  remains the historical rationale for *why* HyperFrames sits behind a port.
+- **The settled boundary is:** *Decode owns semantic intent + timing; HyperFrames
+  owns executable composition + deterministic rendering.*
+- **Still future — do not read the migration as done.** Today the Motion Designer
+  department (the Visualizer's role) still emits Remotion-flavored React, and the
+  frontend preview still uses `@remotion/player`. Only one scene is ported; full
+  generalization of the Visualizer and the frontend render swap are ahead, tracked
+  in `VISUALIZER-TO-HYPERFRAMES.md`.
+
+The rest of this document is preserved as the original decision record.
+
 ## Executive recommendation
 
 Decode should adopt HyperFrames as a **replaceable rendering substrate inside the Renderer Department**, not as Decode's application framework, workflow engine, project model, or canonical artifact model.
