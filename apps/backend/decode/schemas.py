@@ -239,6 +239,26 @@ class VisualPlan(BaseModel):
     visual_findings: dict = Field(default_factory=dict)
 
 
+class AnalogyMapping(BaseModel):
+    """One correspondence in an analogy: a part of the concept ↔ a part of the image."""
+
+    concept_part: str = Field(min_length=1, max_length=200)
+    analogy_part: str = Field(min_length=1, max_length=200)
+
+
+class Analogy(BaseModel):
+    """A concept framed as a concrete, everyday image — the shared Analogy helper's
+    inline output (never a stored artifact). The `mapping` is what makes it teachable
+    rather than decorative, and `where_it_breaks` keeps it honest: an analogy that is
+    allowed to lie teaches the wrong model. Consumed by the Director, Writer and
+    Visual Director to ground their own work."""
+
+    concept: str = Field(min_length=1, max_length=300)
+    framing: str = Field(min_length=1, max_length=600)  # the one memorable image
+    mapping: list[AnalogyMapping] = Field(min_length=1, max_length=8)
+    where_it_breaks: str = Field(min_length=1, max_length=600)
+
+
 class SceneModule(BaseModel):
     """The animation for one beat.
 

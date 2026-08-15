@@ -9,7 +9,11 @@ downstream can mistake a sample for a real read.
 
 from __future__ import annotations
 
+import json
+
 from ..schemas import (
+    Analogy,
+    AnalogyMapping,
     Beat,
     BeatNarration,
     BeatStoryboard,
@@ -320,6 +324,43 @@ class FakeVisualDirector:
                 "note": "Deterministic storyboard; no direction was performed.",
             },
         )
+
+
+class FakeAnalogy:
+    """The Analogy helper as a deterministic fixture: concept → a labelled framing.
+
+    Returns a real `Analogy` shape (image + mapping + where-it-breaks) so a caller's
+    delegation round-trip is exercised offline, but the framing is a template, not a
+    reading of the concept — it labels itself so nothing downstream mistakes it for one.
+    """
+
+    identifier = "fixture-analogy-v1"
+
+    async def generate(self, concept: str, context: str = "") -> Analogy:
+        return Analogy(
+            concept=concept,
+            framing=(
+                f"Think of {concept} like a coat-check: you hand something over and get "
+                "a way to ask for it back later. (Deterministic fixture, not a real analogy.)"
+            ),
+            mapping=[
+                AnalogyMapping(concept_part=concept, analogy_part="the coat you check in"),
+                AnalogyMapping(concept_part="the answer it gives", analogy_part="the ticket stub"),
+            ],
+            where_it_breaks="A coat-check never confuses two coats; this fixture is a stand-in.",
+        )
+
+    def as_delegate(self):
+        async def _run(assignment: str) -> str:
+            try:
+                payload = json.loads(assignment)
+                concept = str(payload.get("concept", assignment))
+            except (json.JSONDecodeError, AttributeError):
+                concept = assignment
+            result = await self.generate(concept)
+            return result.model_dump_json()
+
+        return _run
 
 
 class FakeRenderer:

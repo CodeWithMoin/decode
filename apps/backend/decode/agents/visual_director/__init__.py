@@ -27,6 +27,7 @@ from ...schemas import (
 )
 from ..agent_config import AgentConfig
 from ..agent_runtime import AgentRuntime
+from ..analogy import ModelAnalogy
 from .prompt import SKILLS
 
 
@@ -47,7 +48,13 @@ class ModelVisualDirector:
 
     def __init__(self, settings: Settings):
         self.config = AgentConfig.from_skillset(SKILLS)
-        self.runtime = AgentRuntime(settings, self.config)
+        # The shared Analogy helper, wired as an in-process delegate so the Director
+        # can ground a beat's metaphor mid-direction instead of inventing it cold.
+        self.runtime = AgentRuntime(
+            settings,
+            self.config,
+            delegates={"analogy": ModelAnalogy(settings).as_delegate()},
+        )
         self.model = self.config.model.id
 
     async def generate(

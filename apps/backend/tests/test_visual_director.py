@@ -11,7 +11,8 @@ from test_visualizer import PLAN
 
 from decode.agents.agent_config import AgentConfig
 from decode.agents.agent_runtime import FakeAgentRuntime, SkillLibrary
-from decode.agents.fixtures import FakeRenderer, FakeVisualDirector
+from decode.agents.analogy.prompt import SKILLS as ANALOGY
+from decode.agents.fixtures import FakeAnalogy, FakeRenderer, FakeVisualDirector
 from decode.agents.renderer.composition import resolve_scene
 from decode.agents.renderer.prompt import SKILLS as RENDERER
 from decode.agents.renderer.validation import validate_scenes
@@ -32,7 +33,9 @@ def test_visual_director_config_reads_its_skill_md():
     config = AgentConfig.from_skillset(VISUAL_DIRECTOR)
     assert config.name == "visual-director"
     assert config.produces == "visual_plan"
-    assert config.multiagent == ("renderer", "animation-reviewer")
+    # The one in-loop delegate today is the shared Analogy helper; renderer /
+    # animation-reviewer are downstream steps, not in-loop delegates yet.
+    assert config.multiagent == ("analogy",)
     # The custom skill it directs with, plus the vendored public ones.
     assert "visual-direction" in {r.name for r in config.skills}
     assert "apple-design" in {r.name for r in config.skills}
@@ -42,6 +45,30 @@ def test_renderer_config_keeps_the_persisted_scene_visuals_name():
     config = AgentConfig.from_skillset(RENDERER)
     assert config.produces == "scene_visuals"  # persisted contract, unchanged
     assert "hyperframes-animation" in {r.name for r in config.skills}
+
+
+def test_analogy_config_reads_its_skill_md():
+    config = AgentConfig.from_skillset(ANALOGY)
+    assert config.name == "analogy"
+    assert config.produces == "analogy"
+    assert config.multiagent == ()  # a leaf helper — it delegates to no one
+    assert "humanise" in {r.name for r in config.skills}
+
+
+async def test_visual_director_delegates_to_analogy_in_process():
+    """The coordinator → Analogy hand-off runs offline on fakes: the Director calls the
+    analogy delegate and gets a grounded framing back to build the metaphor on."""
+    config = AgentConfig.from_skillset(VISUAL_DIRECTOR)
+    director = FakeAgentRuntime(config, delegates={"analogy": FakeAnalogy().as_delegate()})
+
+    result = await director.run("Storyboard the Bloom-filter beats")
+
+    assert "analogy" in result.delegated_to
+    framing = result.output["delegations"]["analogy"]
+    assert "coat-check" in framing["framing"]
+    assert framing["mapping"]  # the part-by-part mapping the Director builds on
+    # The coordinator pulled its declared skills on the way (progressive disclosure).
+    assert "visual-direction" in result.skills_loaded
 
 
 def test_the_custom_visual_direction_skill_is_loadable():
@@ -78,28 +105,6 @@ async def test_renderer_turns_the_plan_into_hyperframes_scene_visuals():
     assert scene.component_source is None  # never the retired React substrate
     assert "{{SCENE_DURATION}}" in scene.composition_html  # duration stays Decode's
     assert validate_scenes(visuals.scenes, PLAN) == []
-
-
-async def test_coordinator_delegates_to_the_renderer_in_process():
-    """The real slice-1 mechanism: the Visual Director's config exposes a `renderer`
-    delegate; the coordinator hands off the assignment and gets scene_visuals back."""
-    rendered = await FakeRenderer().generate(INTENT, PLAN, await FakeVisualDirector().generate(
-        INTENT, PLAN, _script()
-    ))
-
-    async def renderer_delegate(assignment: str) -> str:
-        return rendered.model_dump_json()
-
-    config = AgentConfig.from_skillset(VISUAL_DIRECTOR)
-    coordinator = FakeAgentRuntime(config, delegates={"renderer": renderer_delegate})
-    result = await coordinator.run("Direct the video")
-
-    assert "renderer" in result.delegated_to
-    handed_back = result.output["delegations"]["renderer"]
-    assert handed_back["visual_findings"]["fixture"] is True
-    assert handed_back["scenes"][0]["composition_html"] is not None
-    # The coordinator pulled its declared skills on the way (progressive disclosure).
-    assert "visual-direction" in result.skills_loaded
 
 
 def _script():
