@@ -1,5 +1,5 @@
 ---
-name: visualizer
+name: renderer
 version: visualizer-skills-v1
 description: >
   The Motion Designer. Turns each approved beat's teaching intent into its

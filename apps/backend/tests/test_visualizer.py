@@ -1,8 +1,8 @@
 import pytest
 
 from decode.agents.registry import visualizer as build_visualizer
-from decode.agents.visualizer import prompt
-from decode.agents.visualizer.validation import (
+from decode.agents.renderer import prompt
+from decode.agents.renderer.validation import (
     controls_export,
     module_source,
     validate_scenes,

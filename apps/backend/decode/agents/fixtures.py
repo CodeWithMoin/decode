@@ -32,7 +32,7 @@ from ..timing import Anchor, even_split_words
 from .author.validation import target_words
 from .contracts import ProviderUsage, SourceInput
 from .evaluator import deterministic_checks, deterministic_plan_checks
-from .visualizer.validation import RUNTIME_VERSION
+from .renderer.validation import RUNTIME_VERSION
 
 OBJECTIVES = (
     "Explain the foundation needed to understand {title}",

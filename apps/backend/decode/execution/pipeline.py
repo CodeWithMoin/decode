@@ -77,7 +77,7 @@ def _discover() -> dict[str, Stage]:
     from ..agents.architect.prompt import SKILLS as ARCHITECT
     from ..agents.author.prompt import SKILLS as AUTHOR
     from ..agents.intake.prompt import SKILLS as INTAKE
-    from ..agents.visualizer.prompt import SKILLS as VISUALIZER
+    from ..agents.renderer.prompt import SKILLS as VISUALIZER
     from ..agents.voice.prompt import SKILLS as VOICE
 
     return {

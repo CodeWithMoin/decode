@@ -61,7 +61,7 @@ def visualizer(settings: Settings) -> Visualizer:
     if settings.visualizer == "fake":
         return FakeVisualizer()
     if settings.visualizer == "openai":
-        from .visualizer import build as build_visualizer
+        from .renderer import build as build_visualizer
 
         return build_visualizer(settings)
     raise ValueError(f"unknown visualizer provider: {settings.visualizer!r}")
