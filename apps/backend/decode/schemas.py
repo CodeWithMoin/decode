@@ -2,7 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-from .timing import NarrationTiming, Word
+from .timing import Anchor, NarrationTiming, Word
 
 
 class Brand(BaseModel):
@@ -158,17 +158,46 @@ class SceneControl(BaseModel):
     step: float | None = None
 
 
+class VisualBeat(BaseModel):
+    """One animated moment inside a scene, declared *when* by an anchor, never a
+    hardcoded second (VISUALIZER-TO-HYPERFRAMES §2). The name matches the beat's
+    id in the HyperFrames composition; Decode resolves the anchor to a start time
+    against the narration and hands the composition `{beat, start, duration}`.
+
+    `duration_s` is the beat's own animation length (how long the move takes) —
+    an authoring choice, distinct from the scene's duration, which comes from the
+    narration. The Visualizer never writes the scene length or the start second.
+    """
+
+    name: str = Field(min_length=1, max_length=60)
+    anchor: Anchor
+    duration_s: float = Field(default=0.6, gt=0, le=30)
+
+
 class SceneModule(BaseModel):
-    """The animation for one beat, as code.
+    """The animation for one beat.
 
     No duration. Osmo's clips declare their own length; ours cannot, because the
-    plan owns runtime and `total = Σ dur`. The component is handed `progress`
-    and never learns how many seconds it is on screen for.
+    plan owns runtime and `total = Σ dur`. The scene is handed `progress` (React)
+    or resolved timing metadata (HyperFrames) and never learns its own seconds.
+
+    Two render substrates during the migration (VISUALIZER-TO-HYPERFRAMES): the
+    legacy `component_source` (React against `@decode/animation-api`, played by
+    Remotion) and `composition_html` (a HyperFrames composition + anchored
+    `beats`). A module carries at least one; new scenes emit HyperFrames.
     """
 
     beat_id: str = Field(min_length=1)
     controls: list[SceneControl] = Field(max_length=20)
-    component_source: str = Field(min_length=1)
+    component_source: str | None = Field(default=None, min_length=1)
+    composition_html: str | None = Field(default=None, min_length=1)
+    beats: list[VisualBeat] = Field(default_factory=list, max_length=40)
+
+    @model_validator(mode="after")
+    def _has_a_renderable(self) -> "SceneModule":
+        if not self.component_source and not self.composition_html:
+            raise ValueError("a scene needs component_source or composition_html")
+        return self
 
 
 class SceneVisuals(BaseModel):

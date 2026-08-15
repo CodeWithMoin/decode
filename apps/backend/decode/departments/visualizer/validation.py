@@ -25,6 +25,14 @@ import json
 import re
 
 from ...schemas import SceneControl, SceneModule, TeachingPlan
+from .composition import stamp
+from .lint import lint_composition
+
+# A placeholder length used only to lint a composition's *validity* — structure
+# and determinism are narration-independent, so a scene is checked before its
+# real duration is known. The real length is stamped from the narration at
+# resolve/render time (VISUALIZER-TO-HYPERFRAMES §3).
+_LINT_PLACEHOLDER_DURATION = 10.0
 
 # The only module a generated scene may import from. Decode's own surface, not
 # Remotion's: the substrate can be replaced without touching a scene, and
@@ -106,8 +114,11 @@ def controls_export(controls: list[SceneControl]) -> str:
 
 
 def module_source(scene: SceneModule) -> str:
-    """The complete module a client would load: generated manifest, then code."""
-    return f"{controls_export(scene.controls)}\n\n{scene.component_source}\n"
+    """The complete module a client would load: generated manifest, then code.
+
+    React scenes only — a HyperFrames scene is an HTML composition, not a module.
+    """
+    return f"{controls_export(scene.controls)}\n\n{scene.component_source or ''}\n"
 
 
 def validate_scenes(scenes: list[SceneModule], plan: TeachingPlan) -> list[dict[str, str]]:
@@ -144,7 +155,38 @@ def validate_scenes(scenes: list[SceneModule], plan: TeachingPlan) -> list[dict[
 
 
 def _validate_one(scene: SceneModule) -> list[dict[str, str]]:
-    source = scene.component_source
+    """Check one scene against its substrate — HyperFrames via the real linter,
+    legacy React via the static import-allowlist (a migration window: a set may
+    hold both while scenes are ported)."""
+    if scene.composition_html is not None:
+        return _validate_composition(scene)
+    if scene.component_source is not None:
+        return _validate_react(scene)
+    return [_violation("empty_scene", f"{scene.beat_id} has no renderable source.")]
+
+
+def _validate_composition(scene: SceneModule) -> list[dict[str, str]]:
+    """Gate a HyperFrames composition on the real `hyperframes lint` (validity —
+    determinism/layout, not execution security, which is the sandbox, §4).
+
+    The composition is duration-agnostic, so it is stamped with a placeholder
+    length before linting; only its structure is judged here. If the linter can't
+    run (offline / not installed) the run is not blocked — validity degrades to
+    the sandbox boundary rather than failing generation on an absent CLI.
+    """
+    html = stamp(scene.composition_html or "", _LINT_PLACEHOLDER_DURATION, [])
+    result = lint_composition(html)
+    if not result.ran:
+        return []
+    return [
+        _violation(f"hf_{finding.code or 'lint'}", f"{scene.beat_id}: {finding.message}")
+        for finding in result.findings
+        if finding.severity == "error"
+    ]
+
+
+def _validate_react(scene: SceneModule) -> list[dict[str, str]]:
+    source = scene.component_source or ""
     found: list[dict[str, str]] = []
     where = scene.beat_id
 

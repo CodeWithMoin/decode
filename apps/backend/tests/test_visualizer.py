@@ -4,7 +4,6 @@ from decode.config import Settings
 from decode.departments.registry import visualizer as build_visualizer
 from decode.departments.visualizer import prompt
 from decode.departments.visualizer.validation import (
-    RUNTIME_MODULE,
     controls_export,
     module_source,
     validate_scenes,
@@ -84,13 +83,13 @@ def test_the_stage_is_discovered_from_its_manifest():
 def test_shipped_skills_load():
     system = prompt.SKILLS.system()
     assert "untrusted content" in system
-    assert RUNTIME_MODULE in system
-    api = prompt.SKILLS.reference("scene-api")
-    # The reference the model reads and the rule the validator enforces have to
-    # describe the same API, or the department is set up to fail its own gate.
-    assert "useProgress" in api
-    assert "useVideoConfig" in api  # named only to say it is absent
-    assert "Easing.bezier" in api
+    assert "HyperFrames" in system  # the model authors compositions, not React
+    contract = prompt.SKILLS.reference("hyperframes-composition")
+    # The contract the model reads and the linter that gates it describe the same
+    # composition — the timing markers Decode fills and the one-timeline rule.
+    assert "window.__timelines" in contract
+    assert "{{SCENE_DURATION}}" in contract
+    assert "decode:timing" in contract
 
 
 def test_visualizer_requires_a_key(tmp_path):

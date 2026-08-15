@@ -1,14 +1,18 @@
 """The Visualizer department — the Motion Designer's scene visuals.
 
 It reads an approved Script and its plan and writes the animation for each beat
-as code: one React component against `@decode/animation-api`, plus the controls a
-creator may turn on it.
+as a **HyperFrames composition** (HTML + one seekable GSAP timeline) plus named
+`beats` that anchor each moment to the narration, and the controls a creator may
+turn on it. A migration window: legacy scenes may still carry React
+`component_source` (VISUALIZER-TO-HYPERFRAMES) — `validation.py` checks each by
+its substrate.
 
-Code rather than a JSON visual spec, because a spec can only express what its
-schema anticipated and scene visuals are the place that ceiling binds hardest.
-The cost is that output has to be checked statically before it is published,
-which `validation.py` does — and that a module is only ever executed in a
-browser preview or a sandboxed export renderer, never in this process.
+Code/markup rather than a JSON visual spec, because a spec can only express what
+its schema anticipated and scene visuals are the place that ceiling binds
+hardest. The cost is that output has to be validated before it is published —
+which `validation.py` does, HyperFrames scenes via the real `hyperframes lint` —
+and that a composition is only ever executed in a browser preview or a sandboxed
+export renderer, never in this process.
 
 Two departures from how Osmo does the same thing, both forced by Decode's own
 rules. A scene never declares its duration, because the approved plan owns
@@ -78,9 +82,9 @@ class OpenAIVisualizer(OpenAIAgent):
                 ensure_ascii=True,
                 indent=2,
             ),
-            # The same declaration the runtime package exports, so the model and
-            # the browser are never shown two different APIs.
-            scene_api=SKILLS.reference("scene-api"),
+            # The authoring rules the model follows and the linter enforces are
+            # one source (hyperframes-composition.md, gated by `hyperframes lint`).
+            composition_contract=SKILLS.reference("hyperframes-composition"),
         )
 
         history: list = [
@@ -217,7 +221,7 @@ class OpenAIVisualizer(OpenAIAgent):
                 ensure_ascii=True,
                 indent=2,
             ),
-            scene_api=SKILLS.reference("scene-api"),
+            composition_contract=SKILLS.reference("hyperframes-composition"),
         )
         instructions += (
             "\n\n## Revise this one scene\n\n"
@@ -230,7 +234,7 @@ class OpenAIVisualizer(OpenAIAgent):
             instructions += (
                 "\nThe scene as it stands now. Revise it toward the direction; keep what already "
                 "works, change what the direction asks for.\n\n"
-                f"```tsx\n{current.component_source}\n```\n"
+                f"```html\n{current.composition_html or current.component_source}\n```\n"
             )
 
         history: list = [
