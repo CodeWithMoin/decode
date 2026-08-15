@@ -120,7 +120,7 @@ class AgentRuntime:
         if self._client is None:
             from openai import AsyncOpenAI
 
-            self._client = AsyncOpenAI(api_key=self.settings.openai_api_key)
+            self._client = AsyncOpenAI(api_key=self.settings.openai_api_key, base_url=self.settings.openai_base_url)
         return self._client
 
     def system(self) -> str:

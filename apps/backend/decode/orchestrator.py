@@ -519,7 +519,7 @@ class ModelOrchestrator:
         from openai import AsyncOpenAI
 
         self.model = settings.openai_model
-        self.client = AsyncOpenAI(api_key=settings.openai_api_key)
+        self.client = AsyncOpenAI(api_key=settings.openai_api_key, base_url=settings.openai_base_url)
 
     def _system_prompt(self) -> str:
         tools = [

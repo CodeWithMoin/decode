@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     evaluator: str = "fake"
     openai_api_key: str | None = None
     openai_model: str = "gpt-5.6-luna"
+    # Any OpenAI-compatible endpoint (e.g. DeepSeek) — set DECODE_OPENAI_BASE_URL
+    # and point openai_model at that provider's model. None = OpenAI's default.
+    openai_base_url: str | None = None
     # Evaluation is a separate model call with a separate quality/cost profile.
     # It may share credentials without coupling its model choice to generation.
     openai_evaluator_model: str = "gpt-5.6-luna"
