@@ -1,6 +1,6 @@
 """The Project Manager: what Decode knows how to produce, and how work starts.
 
-`PROJECT_CONTEXT.md` calls this the Project Manager and `decode-backend-foundation.md`
+`docs/PROJECT_CONTEXT.md` calls this the Project Manager and `decode-backend-foundation.md`
 §6 places it in the application layer, between the command handlers and the
 departments. Departments never invoke each other; this is what routes between
 them.

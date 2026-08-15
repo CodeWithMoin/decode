@@ -100,7 +100,7 @@ export function DecodePlayer() {
       <Player
         ref={playerRef}
         // Silences Remotion's console license notice — the terms have been
-        // reviewed (see decisions.md / the ADR-007 renderer-port discussion).
+        // reviewed (see docs/decisions.md / the ADR-007 renderer-port discussion).
         acknowledgeRemotionLicense
         component={DecodeComposition}
         inputProps={inputProps}

@@ -1,7 +1,7 @@
 """The shared runtime for the OpenAI-backed generative departments.
 
 Every generative department was carrying a byte-identical `__init__` and
-`_draft` — the harness AGENT-GRAPH.md §4 calls the part every agent shares (the
+`_draft` — the harness docs/AGENT-GRAPH.md §4 calls the part every agent shares (the
 client and one structured-output draft call). It lives here once so the three
 departments keep only what actually differs: their prompt assembly and their
 draft→validate→repair policy.

@@ -43,9 +43,9 @@ The authoritative doc set. Read the doc that owns a decision before changing any
 |---|---|
 | [CLAUDE.md](CLAUDE.md) | Working guidance and the product + code invariants. Authoritative for contributors. |
 | [MASTER.md](MASTER.md) | Design system + product invariants. Authoritative on design; every value is decided. |
-| [AGENT-GRAPH.md](AGENT-GRAPH.md) | The orchestration model and state-model direction. Authoritative on execution/orchestration — DESIGNED, in progress; not yet built. |
-| [VISUALIZER-TO-HYPERFRAMES.md](VISUALIZER-TO-HYPERFRAMES.md) | The plan to move the render substrate from Remotion to HyperFrames. DESIGNED; one scene ported by hand so far. |
-| [AUDIO-SYNC-PROPOSAL.md](AUDIO-SYNC-PROPOSAL.md) | Beat/anchor timing plus the Sound Designer department. Timing model is BUILT; sound design is DESIGNED. |
-| [flow.md](flow.md) | How a project moves end to end — the current department pipeline. |
-| [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) | Vision and the backend departments — the "why". |
-| [decisions.md](decisions.md) | The decisions log. |
+| [docs/AGENT-GRAPH.md](docs/AGENT-GRAPH.md) | The orchestration model and state-model direction. Authoritative on execution/orchestration — DESIGNED, in progress; not yet built. |
+| [docs/VISUALIZER-TO-HYPERFRAMES.md](docs/VISUALIZER-TO-HYPERFRAMES.md) | The plan to move the render substrate from Remotion to HyperFrames. DESIGNED; one scene ported by hand so far. |
+| [docs/AUDIO-SYNC-PROPOSAL.md](docs/AUDIO-SYNC-PROPOSAL.md) | Beat/anchor timing plus the Sound Designer department. Timing model is BUILT; sound design is DESIGNED. |
+| [docs/flow.md](docs/flow.md) | How a project moves end to end — the current department pipeline. |
+| [docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md) | Vision and the backend departments — the "why". |
+| [docs/decisions.md](docs/decisions.md) | The decisions log. |
