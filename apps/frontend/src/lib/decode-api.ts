@@ -94,18 +94,6 @@ export const decodeApi = {
       body: JSON.stringify({ title: title || null }),
     }),
 
-  /**
-   * Turn running the stages back to back on or off.
-   *
-   * No idempotency key: this sets a value rather than starting work, so a
-   * repeat of the same request is the same state and costs nothing.
-   */
-  setAutoContinue: (projectId: string, autoContinue: boolean) =>
-    request<{ project_id: string; auto_continue: boolean }>(`/api/v1/projects/${projectId}`, {
-      method: "PATCH",
-      body: JSON.stringify({ auto_continue: autoContinue }),
-    }),
-
   deleteProject: (projectId: string, key: string) =>
     request<{ project_id: string; deleted_at: string }>(`/api/v1/projects/${projectId}`, {
       method: "DELETE",

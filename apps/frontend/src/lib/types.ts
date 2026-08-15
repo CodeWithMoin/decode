@@ -130,8 +130,6 @@ export interface ProjectSummary {
   project_id: string;
   title: string;
   status: ProjectStatus;
-  /** Whether finishing one stage starts the next without being asked. */
-  auto_continue?: boolean;
   current_stage?: "processing" | "understanding" | string;
   source_count?: number;
   created_at: string;

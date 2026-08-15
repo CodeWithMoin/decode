@@ -7,69 +7,11 @@ import { AppMark, cx } from "@/components/ui/primitives";
 import { ExportModal } from "@/components/project/ExportModal";
 import { ProjectChatTab } from "@/components/project/ProjectChatDock";
 import { ProducerDrawer } from "@/components/producer/ProducerDrawer";
-import { decodeApi } from "@/lib/decode-api";
 import { useConnectedProjectSnapshot } from "@/components/connected/ConnectedProjectViewport";
 import { useStudio } from "@/store/studio";
 import type { StudioSnapshot, TabId } from "@/lib/types";
 
-/**
- * Whether finishing one stage starts the next one.
- *
- * It lives in the shared header rather than on a stage, because it governs the
- * whole production and the creator needs it reachable *before* the next stage
- * spends anything. Optimistic: the switch is the creator's own action, so it
- * reads as immediate and rolls back only if the server disagrees.
- */
-function ContinuousToggle({
-  projectId,
-  studio,
-}: {
-  projectId: string;
-  studio: StudioSnapshot | null;
-}) {
-  const [override, setOverride] = useState<boolean | null>(null);
-  const [busy, setBusy] = useState(false);
-  const server = studio?.project.auto_continue;
-  if (server === undefined) return <span className="ml-auto" />;
-  const on = override ?? server;
-
-  const toggle = async () => {
-    if (busy) return;
-    const next = !on;
-    setOverride(next);
-    setBusy(true);
-    try {
-      await decodeApi.setAutoContinue(projectId, next);
-    } catch {
-      setOverride(!next);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <button
-      onClick={() => void toggle()}
-      aria-pressed={on}
-      disabled={busy}
-      title={
-        on
-          ? "Each stage starts the next one on its own. Switch off to review every stage before the production continues."
-          : "The production stops after each stage so you can review it. Switch on to let each stage start the next."
-      }
-      className="ml-auto hidden items-center gap-1.5 rounded-full border border-line-input bg-sunken px-2.5 py-1 font-mono text-[9px] tracking-[0.1em] text-t6 uppercase disabled:opacity-60 sm:inline-flex"
-    >
-      <span
-        aria-hidden
-        className={cx("h-1.5 w-1.5 rounded-full", on ? "bg-accent-deep" : "bg-line-strong")}
-      />
-      {on ? "Continuous" : "Stage by stage"}
-    </button>
-  );
-}
-
 export function ConnectedProjectFrame({
-  projectId,
   studio,
   activeStage,
   statusLabel,
@@ -78,7 +20,9 @@ export function ConnectedProjectFrame({
   onExport,
   children,
 }: {
-  projectId: string;
+  // Callers still pass projectId; the frame no longer needs it (the stage rail
+  // and the continuous toggle that used it are both gone).
+  projectId?: string;
   studio: StudioSnapshot | null;
   activeStage: TabId;
   statusLabel: string;
@@ -188,7 +132,6 @@ export function ConnectedProjectFrame({
               ? "Checking sources"
               : `${sourceCount} source${sourceCount === 1 ? "" : "s"}`}
           </span>
-          <ContinuousToggle projectId={projectId} studio={stableStudio} />
           {editing && (
             <button
               type="button"

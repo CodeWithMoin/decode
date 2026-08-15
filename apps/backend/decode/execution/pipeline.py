@@ -446,6 +446,10 @@ async def continue_chain(
     and so paid for twice — because the stage after it was not satisfiable.
     """
     project = await session.get(Project, job.project_id)
+    # The user-facing Continuous / Stage-by-stage toggle is gone, so nothing sets
+    # this false anymore and every project chains in practice. The column and its
+    # honouring stay until the artifact/gates migration retires them (§8) — the
+    # server still respects an explicitly-set false so this stays testable.
     if project is None or not project.auto_continue:
         return None
     next_kind = CHAIN.get(job.kind)
