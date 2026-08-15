@@ -12,6 +12,7 @@ from .artifacts.router import router as artifacts_router
 from .config import get_settings
 from .db import SessionLocal
 from .execution.router import router as execution_router
+from .orchestrator_router import router as orchestrator_router
 from .problems import AppProblem, problem_handler
 from .projects.router import router as projects_router
 from .renders.router import router as renders_router
@@ -84,5 +85,6 @@ async def ready():
 app.include_router(projects_router, prefix="/api/v1")
 app.include_router(artifacts_router, prefix="/api/v1")
 app.include_router(execution_router, prefix="/api/v1")
+app.include_router(orchestrator_router, prefix="/api/v1")
 app.include_router(renders_router, prefix="/api/v1")
 app.include_router(voice_router, prefix="/api/v1")
