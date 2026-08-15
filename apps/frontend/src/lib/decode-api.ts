@@ -94,18 +94,6 @@ export const decodeApi = {
       body: JSON.stringify({ title: title || null }),
     }),
 
-  /**
-   * Turn running the stages back to back on or off.
-   *
-   * No idempotency key: this sets a value rather than starting work, so a
-   * repeat of the same request is the same state and costs nothing.
-   */
-  setAutoContinue: (projectId: string, autoContinue: boolean) =>
-    request<{ project_id: string; auto_continue: boolean }>(`/api/v1/projects/${projectId}`, {
-      method: "PATCH",
-      body: JSON.stringify({ auto_continue: autoContinue }),
-    }),
-
   deleteProject: (projectId: string, key: string) =>
     request<{ project_id: string; deleted_at: string }>(`/api/v1/projects/${projectId}`, {
       method: "DELETE",
@@ -234,6 +222,29 @@ export const decodeApi = {
   getSceneVisuals: (projectId: string, artifactId: string) =>
     request<ArtifactHistoryResponse<SceneVisualsPayload>>(
       `/api/v1/projects/${projectId}/artifacts/${artifactId}/versions?limit=50`,
+    ),
+
+  // The per-scene direction loop: redraw one beat's scene under the creator's
+  // words. Only that scene changes; the version id is the cut they are editing,
+  // so a stale one is refused rather than silently redrawn.
+  regenerateSceneVisual: (
+    projectId: string,
+    sceneVisualsVersionId: string,
+    beatId: string,
+    direction: string,
+    key: string,
+  ) =>
+    request<{ job_id: string; run_id: string; status: string; kind: string }>(
+      `/api/v1/projects/${projectId}/scene-visuals/regenerations`,
+      {
+        method: "POST",
+        headers: { "Idempotency-Key": key },
+        body: JSON.stringify({
+          scene_visuals_version_id: sceneVisualsVersionId,
+          beat_id: beatId,
+          direction,
+        }),
+      },
     ),
 
   generateVoice: (projectId: string, scriptVersionId: string, intentVersionId: string, key: string) =>

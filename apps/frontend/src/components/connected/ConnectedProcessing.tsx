@@ -6,6 +6,7 @@ import { AppShell } from "@/components/app/AppShell";
 import { AppMark, Graphite, Spinner, cx } from "@/components/ui/primitives";
 import { decodeApi, idempotencyKey, streamProjectEvents } from "@/lib/decode-api";
 import { creatorError } from "@/lib/creator-errors";
+import { projectRoute } from "@/lib/project-route";
 import type { JobDetail, JobKind, ProjectEvent, StudioSnapshot } from "@/lib/types";
 
 const BRIEF_STEPS = [
@@ -183,6 +184,26 @@ export function ConnectedProcessing({ projectId, jobId }: { projectId: string; j
     return furthest;
   }, [job?.status, seen, steps]);
 
+  // Follow the chain forward.
+  //
+  // Every project runs its stages back to back now (the Continuous / Stage-by-
+  // stage toggle is gone), so a finished stage has already started the next one.
+  // Forward to wherever the production now is — the next running job's progress,
+  // or the cutting room once scenes exist. projectRoute owns that decision. When
+  // the snapshot hasn't caught up to the chained job yet it still points back
+  // here; nudge a refresh rather than bouncing to the stage this job just finished.
+  useEffect(() => {
+    if (job?.status !== "succeeded" || !studio) return;
+    const next = projectRoute(projectId, studio);
+    const advanced = next.includes("/jobs/") && !next.endsWith(`/jobs/${jobId}`);
+    if (advanced || next.endsWith("/edit")) {
+      router.replace(next);
+      return;
+    }
+    const timer = window.setTimeout(() => void refresh().catch(() => undefined), 1200);
+    return () => window.clearTimeout(timer);
+  }, [job?.status, studio, projectId, jobId, router, refresh]);
+
   const retry = async () => {
     if (!job?.active_run_id || retrying) return;
     setRetrying(true);
@@ -262,7 +283,7 @@ export function ConnectedProcessing({ projectId, jobId }: { projectId: string; j
             <div className="h-[3px] overflow-hidden rounded-full bg-line-soft"><div className="h-full w-full origin-left rounded-full bg-accent transition-transform duration-[var(--t-normal)] ease-decode" style={{ transform: `scaleX(${progress / 100})` }} /></div>
             {error && <p role="alert" className="mt-3 text-[12px] text-[#8E2F19]">{error}</p>}
             <div className="mt-4 flex min-h-9 items-center justify-between gap-4">
-              {job?.status === "succeeded" ? <><p className="text-[12px] text-t6">{config.success}</p><Graphite onClick={() => router.push(`/studio/projects/${projectId}/${config.destination}`)} className="px-4 py-2 text-[12.5px] font-medium">{config.action}</Graphite></> : job?.status === "failed" ? <><p className="text-[12px] text-[#8E2F19]">{job.failure?.retryable ? config.failure : `${config.failure} Your work is safe—please try again later.`}</p>{job.failure?.retryable && <Graphite onClick={() => void retry()} disabled={retrying} className="px-4 py-2 text-[12.5px] font-medium">{retrying ? "Trying again…" : "Try again"}</Graphite>}</> : <p className="text-[12px] text-t7">You can leave this page. We’ll keep working.</p>}
+              {job?.status === "succeeded" ? <><p className="text-[12px] text-t6">{config.success}</p><span className="flex items-center gap-2 text-[12px] text-t7"><Spinner size={13} />Continuing to the next stage…</span></> : job?.status === "failed" ? <><p className="text-[12px] text-[#8E2F19]">{job.failure?.retryable ? config.failure : `${config.failure} Your work is safe—please try again later.`}</p>{job.failure?.retryable && <Graphite onClick={() => void retry()} disabled={retrying} className="px-4 py-2 text-[12.5px] font-medium">{retrying ? "Trying again…" : "Try again"}</Graphite>}</> : <p className="text-[12px] text-t7">You can leave this page. We’ll keep working.</p>}
             </div>
           </div>
           </div>

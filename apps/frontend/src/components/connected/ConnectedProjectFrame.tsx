@@ -3,117 +3,15 @@
 import { useLayoutEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { StageRail, type StageState } from "@/components/app/StageRail";
 import { AppMark, cx } from "@/components/ui/primitives";
 import { ExportModal } from "@/components/project/ExportModal";
 import { ProjectChatTab } from "@/components/project/ProjectChatDock";
 import { ProducerDrawer } from "@/components/producer/ProducerDrawer";
-import { decodeApi } from "@/lib/decode-api";
 import { useConnectedProjectSnapshot } from "@/components/connected/ConnectedProjectViewport";
 import { useStudio } from "@/store/studio";
 import type { StudioSnapshot, TabId } from "@/lib/types";
 
-const ROUTES: Partial<Record<TabId, string>> = {
-  overview: "understanding",
-  plan: "teaching-plan",
-  script: "script",
-  edit: "edit",
-};
-
-const LOCKED_NOTES: Record<TabId, string> = {
-  overview: "Understanding is available now.",
-  plan: "Approve the Production Brief before the Director shapes the Teaching Plan.",
-  script: "Approve the Teaching Plan before the Writer drafts the narration.",
-  edit: "Approve the Script before the Motion Designer builds the scenes.",
-};
-
-export function connectedStageState(studio: StudioSnapshot | null) {
-  const brief = studio?.artifacts.find((item) => item.artifact_type === "production_brief");
-  const plan = studio?.artifacts.find((item) => item.artifact_type === "teaching_plan");
-  const briefApproved = Boolean(brief?.approved_version_id);
-  const planApproved = Boolean(plan?.approved_version_id);
-  const script = studio?.artifacts.find((item) => item.artifact_type === "script");
-  const scriptApproved = Boolean(script?.approved_version_id);
-
-  return (tab: TabId): StageState => {
-    if (tab === "overview") return { badge: briefApproved ? "✓" : undefined };
-    if (tab === "plan") {
-      return { locked: !briefApproved, badge: planApproved ? "✓" : undefined };
-    }
-    if (tab === "script") {
-      // Same gate the backend enforces: the Writer works from the approved
-      // plan, so an unapproved plan means there is nothing authorised to write
-      // against. Unlocking here without that would just surface a 409.
-      return { locked: !planApproved, badge: scriptApproved ? "✓" : undefined };
-    }
-    if (tab === "edit") {
-      // Same gate again: the Motion Designer builds against the approved
-      // script, so an unapproved one has nothing authorised to build from.
-      const visuals = studio?.artifacts.find((item) => item.artifact_type === "scene_visuals");
-      return { locked: !scriptApproved, badge: visuals?.approved_version_id ? "✓" : undefined };
-    }
-    return { locked: true };
-  };
-}
-
-/**
- * Whether finishing one stage starts the next one.
- *
- * It lives in the shared header rather than on a stage, because it governs the
- * whole production and the creator needs it reachable *before* the next stage
- * spends anything. Optimistic: the switch is the creator's own action, so it
- * reads as immediate and rolls back only if the server disagrees.
- */
-function ContinuousToggle({
-  projectId,
-  studio,
-}: {
-  projectId: string;
-  studio: StudioSnapshot | null;
-}) {
-  const [override, setOverride] = useState<boolean | null>(null);
-  const [busy, setBusy] = useState(false);
-  const server = studio?.project.auto_continue;
-  if (server === undefined) return <span className="ml-auto" />;
-  const on = override ?? server;
-
-  const toggle = async () => {
-    if (busy) return;
-    const next = !on;
-    setOverride(next);
-    setBusy(true);
-    try {
-      await decodeApi.setAutoContinue(projectId, next);
-    } catch {
-      setOverride(!next);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <button
-      onClick={() => void toggle()}
-      aria-pressed={on}
-      disabled={busy}
-      title={
-        on
-          ? "Each stage starts the next one on its own. Switch off to review every stage before the production continues."
-          : "The production stops after each stage so you can review it. Switch on to let each stage start the next."
-      }
-      className="ml-auto hidden items-center gap-1.5 rounded-full border border-line-input bg-sunken px-2.5 py-1 font-mono text-[9px] tracking-[0.1em] text-t6 uppercase disabled:opacity-60 sm:inline-flex"
-    >
-      <span
-        aria-hidden
-        className={cx("h-1.5 w-1.5 rounded-full", on ? "bg-accent-deep" : "bg-line-strong")}
-      />
-      {on ? "Continuous" : "Stage by stage"}
-    </button>
-  );
-}
-
 export function ConnectedProjectFrame({
-  projectId,
   studio,
   activeStage,
   statusLabel,
@@ -122,7 +20,9 @@ export function ConnectedProjectFrame({
   onExport,
   children,
 }: {
-  projectId: string;
+  // Callers still pass projectId; the frame no longer needs it (the stage rail
+  // and the continuous toggle that used it are both gone).
+  projectId?: string;
   studio: StudioSnapshot | null;
   activeStage: TabId;
   statusLabel: string;
@@ -141,7 +41,6 @@ export function ConnectedProjectFrame({
   useLayoutEffect(() => {
     useStudio.setState({ screen: "project", tab: activeStage });
   }, [activeStage]);
-  const state = connectedStageState(stableStudio);
   const sourceCount = stableStudio?.sources.length;
 
   // The cutting room is dark, and the whole shell goes with it — same as
@@ -149,16 +48,6 @@ export function ConnectedProjectFrame({
   // have arrived, which is the difference between opening dark and flashing
   // white first: the header paints before any fetch resolves.
   const editing = activeStage === "edit";
-
-  const selectStage = (tab: TabId, locked: boolean) => {
-    if (locked || !ROUTES[tab]) {
-      const studioState = useStudio.getState();
-      studioState.setThreadOpen(true);
-      studioState.say(LOCKED_NOTES[tab]);
-      return;
-    }
-    router.push(`/studio/projects/${projectId}/${ROUTES[tab]}`);
-  };
 
   return (
     <div
@@ -182,7 +71,7 @@ export function ConnectedProjectFrame({
       >
         <header
           className={cx(
-            "sticky top-0 z-30 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 border-b px-4 py-2.5",
+            "sticky top-0 z-30 flex items-center justify-between gap-3 border-b px-4 py-2.5",
             editing
               ? "border-[var(--nle-line)] bg-[var(--nle-panel)] text-[var(--nle-text)]"
               : "panel-glass border-line-head",
@@ -222,8 +111,6 @@ export function ConnectedProjectFrame({
           </nav>
           </div>
 
-          <StageRail variant="header" active={activeStage} state={state} onSelect={selectStage} dark={editing} />
-
           <div className="flex min-w-0 items-center justify-self-end gap-3">
           <span
             className={cx(
@@ -245,7 +132,6 @@ export function ConnectedProjectFrame({
               ? "Checking sources"
               : `${sourceCount} source${sourceCount === 1 ? "" : "s"}`}
           </span>
-          <ContinuousToggle projectId={projectId} studio={stableStudio} />
           {editing && (
             <button
               type="button"

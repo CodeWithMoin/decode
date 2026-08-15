@@ -263,7 +263,11 @@ class FakeVisualizer:
             ],
             component_source=_SAMPLE_SCENE,
         )
-        scenes = [fresh if s.beat_id == beat_id else s for s in prior_scenes]
+        scenes = (
+            [fresh if s.beat_id == beat_id else s for s in prior_scenes]
+            if any(s.beat_id == beat_id for s in prior_scenes)
+            else [*prior_scenes, fresh]
+        )
         return SceneVisuals(
             rationale=f"I redrew {beat_id} as a deterministic fixture following: {direction!r}.",
             scenes=scenes,

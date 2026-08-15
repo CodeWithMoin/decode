@@ -54,13 +54,3 @@ export function keyframedValue(scene: Scene, property: SceneKeyframeProperty, ba
   return points[points.length - 1].value;
 }
 
-export function hasVisualKeyframe(scene: Scene, property: SceneKeyframeProperty, progress: number) {
-  return (scene.visualKeyframes?.[property] ?? []).some((point) => Math.abs(point.at - progress) < 0.000001);
-}
-
-export function sceneFontVariable(font: SceneFont): string {
-  if (font === "Inter") return "var(--font-inter)";
-  if (font === "Bricolage Grotesque") return "var(--font-bricolage)";
-  if (font === "Geist Mono") return "var(--font-geist-mono)";
-  return "var(--font-space-grotesk)";
-}

@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 from ...config import Settings
 from ...schemas import BeatNarration, ProductionIntent, Script, TeachingPlan
 from .. import tracing
+from .._agent import OpenAIAgent
 from ..contracts import ProviderUsage
 from .prompt import SKILLS
 from .validation import repair_message, validate_script, word_count
@@ -42,35 +43,8 @@ class ScriptDraft(BaseModel):
     beats: list[BeatNarration] = Field(min_length=1)
 
 
-class OpenAIAuthor:
+class OpenAIAuthor(OpenAIAgent):
     identifier = f"author/{SKILLS.version}"
-
-    def __init__(self, settings: Settings):
-        from openai import AsyncOpenAI
-
-        self.settings = settings
-        self.model = settings.openai_model
-        # Traced or not depending on tracing.install_openai_tracing(), which
-        # patches this class in place at worker startup.
-        self.client = AsyncOpenAI(api_key=settings.openai_api_key)
-        self.last_usage: ProviderUsage | None = None
-
-    async def _draft(self, system: str, history: list) -> tuple[ScriptDraft, int, int]:
-        response = await self.client.responses.parse(
-            model=self.model,
-            instructions=system,
-            input=history,
-            text_format=ScriptDraft,
-        )
-        if response.output_parsed is None:
-            raise RuntimeError("author returned no parsed script")
-        history.extend(response.output)
-        usage = response.usage
-        return (
-            response.output_parsed,
-            usage.input_tokens if usage else 0,
-            usage.output_tokens if usage else 0,
-        )
 
     async def generate(self, intent: ProductionIntent, plan: TeachingPlan) -> Script:
         # Read the owner-authored skills before spending anything: a missing or
@@ -105,7 +79,7 @@ class OpenAIAuthor:
             metadata={"skills_version": SKILLS.version, "model": self.model},
         ) as run:
             with tracing.span("draft"):
-                draft, input_tokens, output_tokens = await self._draft(system, history)
+                draft, input_tokens, output_tokens = await self._draft(system, history, ScriptDraft)
             turns = 1
 
             violations = validate_script(draft.beats, plan)
@@ -124,7 +98,7 @@ class OpenAIAuthor:
                     }
                 )
                 with tracing.span("repair"):
-                    second, extra_in, extra_out = await self._draft(system, history)
+                    second, extra_in, extra_out = await self._draft(system, history, ScriptDraft)
                 remaining = validate_script(second.beats, plan)
                 repair = {
                     "ran": True,

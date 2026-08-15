@@ -497,26 +497,6 @@ export function Micro({
   );
 }
 
-/** Handwritten section kicker. */
-export function Kicker({
-  children,
-  className,
-  size = 19,
-}: {
-  children: ReactNode;
-  className?: string;
-  size?: number;
-}) {
-  return (
-    <div
-      className={cx("font-hand text-accent", className)}
-      style={{ fontSize: size }}
-    >
-      {children}
-    </div>
-  );
-}
-
 /** Product-stage label. The handwritten voice belongs to marketing; inside
  * the studio, labels use the editor's production vocabulary. */
 export function StageKicker({

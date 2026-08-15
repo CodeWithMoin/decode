@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 class StartRender(BaseModel):
     """Scene data the renderer needs. A complete cut as JSON."""
+
     scenes: list[dict]
     visual_pick: dict[int, str] = {}
 

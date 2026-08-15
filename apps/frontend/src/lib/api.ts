@@ -12,14 +12,11 @@
  */
 
 import type {
-  Dependency,
   ExampleSource,
-  Opportunity,
   ProcessingStep,
   ProjectCard,
   RecentFile,
   Scene,
-  SceneNote,
   Source,
   Template,
   ThreadMessage,
@@ -208,48 +205,6 @@ export const CONCEPTS = [
   "encoder–decoder",
   "beam search",
   "label smoothing",
-];
-
-export const PREREQS = [
-  "dot products",
-  "softmax",
-  "hidden states",
-  "gradient flow",
-  "embeddings",
-  "matrix shapes",
-];
-
-export const EQUATIONS = [
-  "Attention(Q,K,V) = softmax(QKᵀ/√dₖ)V",
-  "PE(pos,2i) = sin(pos / 10000^(2i/d))",
-  "MultiHead = Concat(head₁…head₈)Wᴼ",
-];
-
-export const OPPORTUNITIES: Opportunity[] = [
-  {
-    t: "Database analogy",
-    d: "Queries, keys, and values map cleanly onto lookups — fastest route into the mechanism.",
-  },
-  {
-    t: "Failure-first opening",
-    d: "Showing the RNN bottleneck first makes attention feel inevitable rather than clever.",
-  },
-  {
-    t: "Worked example",
-    d: "One sentence, eight heads, side by side — makes specialization visible.",
-  },
-  {
-    t: "Deferred detail",
-    d: "Positional encoding held back until order is visibly missing.",
-  },
-];
-
-export const DEPENDENCIES: Dependency[] = [
-  { a: "dot products", b: "attention scores" },
-  { a: "softmax", b: "attention weights" },
-  { a: "attention", b: "multi-head attention" },
-  { a: "no recurrence", b: "positional encoding" },
-  { a: "encoder blocks", b: "cross-attention" },
 ];
 
 export const PROJECT_DESCRIPTION =
@@ -502,71 +457,6 @@ export const RUNTIME_OPTIONS = [
  * an arbitrary string. These are shortcuts into that field, not a replacement
  * for it: one tap for the common case, typing for the specific one.
  */
-export const AUDIENCE_LEVELS = ["Beginner", "Intermediate", "Expert"];
 export const DEPTH_OPTIONS = ["Intuition first", "Balanced", "Rigorous"];
 export const TONE_OPTIONS = ["Professional", "Friendly", "Storyteller"];
 
-/* ------------------------------------------------------------------
-   Scene notes — where the crew disagrees and recommends
-   ------------------------------------------------------------------ */
-
-export const SCENE_NOTES: Record<number, SceneNote> = {
-  2: {
-    crew: "motion",
-    text: "The equation can carry this alone, or I can let the heat-map do the explaining. I lean toward the second — the scaling is easier to feel than to read.",
-    options: [
-      {
-        key: "A",
-        title: "Equation builds term by term",
-        desc: "Precise, but asks the viewer to read maths while listening.",
-      },
-      {
-        key: "B",
-        title: "Heat-map forms, then softens",
-        desc: "Shows what the scaling does before naming it. My pick.",
-      },
-    ],
-  },
-  4: {
-    crew: "motion",
-    text: "Sinusoids read abstract on their own. I could ground them in real tokens instead — slower, but it lands.",
-    options: [
-      {
-        key: "A",
-        title: "Layered sine waves",
-        desc: "Faithful to the paper, light on intuition.",
-      },
-      {
-        key: "B",
-        title: "Tokens with striped fingerprints",
-        desc: "Concrete, costs about four seconds. My pick.",
-      },
-    ],
-  },
-};
-
-/* ------------------------------------------------------------------
-   Landing
-   ------------------------------------------------------------------ */
-
-export const WORKFLOW_STEPS = [
-  { n: "01", t: "Upload", d: "Papers, docs, articles, notes, PDFs, plain text." },
-  {
-    n: "02",
-    t: "Understand",
-    d: "Concepts, prerequisites, dependencies — extracted and shown.",
-  },
-  { n: "03", t: "Teaching plan", d: "How it should be taught, not what it says." },
-  { n: "04", t: "Script", d: "Narration per beat, editable like a doc." },
-  { n: "05", t: "Storyboard", d: "One idea per scene. Split, merge, duplicate." },
-  { n: "06", t: "Visuals", d: "Generated per scene, regenerated per scene." },
-  { n: "07", t: "Narration", d: "Studio voices, retimed to your pacing." },
-  { n: "08", t: "Timeline", d: "Voice and visuals stay in sync on their own." },
-  { n: "09", t: "Export", d: "Your project stays editable. Video is one way to publish it." },
-];
-
-/** Waveform bar heights — deterministic, so server and client agree. */
-export const WAVE_BARS = Array.from(
-  { length: 110 },
-  (_, i) => 8 + Math.abs(Math.sin(i * 0.9) * 22 + Math.sin(i * 0.23) * 10),
-);

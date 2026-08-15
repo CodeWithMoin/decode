@@ -13,7 +13,14 @@ from typing import TYPE_CHECKING
 
 from ..departments import SourceInput
 from ..models import ArtifactVersion, JobInput
-from ..schemas import ProductionBrief, ProductionIntent, Script, TeachingPlan
+from ..schemas import (
+    ProductionBrief,
+    ProductionIntent,
+    SceneModule,
+    SceneVisuals,
+    Script,
+    TeachingPlan,
+)
 
 if TYPE_CHECKING:
     from .pipeline import Stage
@@ -59,8 +66,31 @@ class VoiceContext:
     input_version_ids: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class RegenerateVisualContext:
+    """The Visualizer's view when redrawing one scene under a creator's direction.
+
+    Same reading context as a full generation, plus the scenes as they stand now
+    (so every untouched beat is carried through) and the two per-request facts —
+    which beat, and the direction — that a full generation never has.
+    """
+
+    intent: ProductionIntent
+    plan: TeachingPlan
+    script: Script
+    prior_scenes: tuple[SceneModule, ...]
+    beat_id: str
+    direction: str
+    input_version_ids: tuple[str, ...]
+
+
 DepartmentContext = (
-    IntakeContext | ArchitectContext | AuthorContext | VisualizerContext | VoiceContext
+    IntakeContext
+    | ArchitectContext
+    | AuthorContext
+    | VisualizerContext
+    | VoiceContext
+    | RegenerateVisualContext
 )
 
 
@@ -72,6 +102,7 @@ class ContextAssembler:
         stage: Stage,
         inputs: list[JobInput],
         versions: dict[str, ArtifactVersion],
+        manifest: dict | None = None,
     ) -> DepartmentContext:
         roles = {item.role for item in inputs}
         if roles != set(stage.consumes):
@@ -137,6 +168,35 @@ class ContextAssembler:
                 plan=TeachingPlan.model_validate(plan_version.payload),
                 script=Script.model_validate(script_version.payload),
                 script_version_id=script_input.version_id,
+                input_version_ids=input_version_ids,
+            )
+
+        if stage.kind == "regenerate_scene_visual":
+            script_input = self._single(inputs, "script")
+            plan_input = self._single(inputs, "teaching_plan")
+            scenes_input = self._single(inputs, "scene_visuals")
+            script_version = versions[script_input.version_id]
+            plan_version = versions[plan_input.version_id]
+            scenes_version = versions[scenes_input.version_id]
+            if (
+                script_version.payload is None
+                or plan_version.payload is None
+                or scenes_version.payload is None
+            ):
+                raise ValueError("scene regeneration inputs have no payload")
+            details = manifest or {}
+            beat_id = details.get("beat_id")
+            direction = details.get("direction")
+            if not beat_id or not direction:
+                raise ValueError("scene regeneration requires a beat_id and direction")
+            prior = SceneVisuals.model_validate(scenes_version.payload)
+            return RegenerateVisualContext(
+                intent=intent,
+                plan=TeachingPlan.model_validate(plan_version.payload),
+                script=Script.model_validate(script_version.payload),
+                prior_scenes=tuple(prior.scenes),
+                beat_id=beat_id,
+                direction=direction,
                 input_version_ids=input_version_ids,
             )
 

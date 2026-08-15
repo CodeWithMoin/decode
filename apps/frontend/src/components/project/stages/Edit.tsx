@@ -35,7 +35,13 @@ let lastSplit = 55;
  * would be unreachable exactly when you need it. `--header-h` keeps that sum
  * honest if the header's padding ever changes.
  */
-export function Edit() {
+export function Edit({
+  onDirectScene,
+  onEditNarration,
+}: {
+  onDirectScene?: (beatId: string, direction: string) => void;
+  onEditNarration?: () => void;
+} = {}) {
   // Three columns, on purpose.
   //
   // The room used to stand in for Scene settings here, because as a floating
@@ -118,7 +124,7 @@ export function Edit() {
           </div>
         </div>
 
-        <Inspector />
+        <Inspector onDirectScene={onDirectScene} onEditNarration={onEditNarration} />
       </div>
 
       {/* Divider. A cutting room lets you trade picture height for track

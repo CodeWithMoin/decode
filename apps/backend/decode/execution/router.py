@@ -31,11 +31,51 @@ from ..schemas import (
     GenerateScript,
     GenerateTeachingPlan,
     GenerateVoice,
+    RegenerateSceneVisual,
     RetryRun,
 )
 from .pipeline import create_job, start_run
 
 router = APIRouter(prefix="/projects/{project_id}", tags=["execution"])
+
+
+async def verify_intent_informed(
+    session: AsyncSession,
+    project_id: str,
+    *,
+    intent_version_id: str,
+    informed_child_version_id: str,
+    informed_noun: str,
+) -> None:
+    """Confirm the named intent is a production intent that informed the approved input.
+
+    Every generation command needs the same gate: the intent in the command must
+    be a real production intent, and it must be the one recorded as informing the
+    approved brief/plan/script this stage builds on. It was pasted inline four
+    times; a drift in any one copy is a version-confusion hole, so it lives here.
+    """
+    intent_artifact_type = await session.scalar(
+        select(Artifact.artifact_type)
+        .join(ArtifactVersion, ArtifactVersion.artifact_id == Artifact.id)
+        .where(Artifact.project_id == project_id, ArtifactVersion.id == intent_version_id)
+    )
+    if intent_artifact_type != ArtifactType.PRODUCTION_INTENT:
+        raise AppProblem(
+            400, "invalid_command", "intent_version_id must be a production intent version."
+        )
+    informed_by_intent = await session.scalar(
+        select(ArtifactDependency.parent_version_id).where(
+            ArtifactDependency.child_version_id == informed_child_version_id,
+            ArtifactDependency.role == "production_intent",
+        )
+    )
+    if informed_by_intent != intent_version_id:
+        raise AppProblem(
+            409,
+            "artifact_version_conflict",
+            f"Use the production direction that informed the approved {informed_noun}.",
+            approved_intent_version_id=informed_by_intent,
+        )
 
 
 async def job_or_404(session: AsyncSession, project_id: str, job_id: str) -> Job:
@@ -200,28 +240,13 @@ async def generate_plan(
             approved_version_id=brief_artifact.approved_version_id,
         )
 
-    intent_artifact_type = await session.scalar(
-        select(Artifact.artifact_type)
-        .join(ArtifactVersion, ArtifactVersion.artifact_id == Artifact.id)
-        .where(Artifact.project_id == project_id, ArtifactVersion.id == command.intent_version_id)
+    await verify_intent_informed(
+        session,
+        project_id,
+        intent_version_id=command.intent_version_id,
+        informed_child_version_id=command.brief_version_id,
+        informed_noun="brief",
     )
-    if intent_artifact_type != ArtifactType.PRODUCTION_INTENT:
-        raise AppProblem(
-            400, "invalid_command", "intent_version_id must be a production intent version."
-        )
-    informed_by_intent = await session.scalar(
-        select(ArtifactDependency.parent_version_id).where(
-            ArtifactDependency.child_version_id == command.brief_version_id,
-            ArtifactDependency.role == "production_intent",
-        )
-    )
-    if informed_by_intent != command.intent_version_id:
-        raise AppProblem(
-            409,
-            "artifact_version_conflict",
-            "Use the production direction that informed the approved brief.",
-            approved_intent_version_id=informed_by_intent,
-        )
 
     manifest = {
         "brief_version_id": command.brief_version_id,
@@ -287,28 +312,13 @@ async def generate_script(
             approved_version_id=plan_artifact.approved_version_id,
         )
 
-    intent_artifact_type = await session.scalar(
-        select(Artifact.artifact_type)
-        .join(ArtifactVersion, ArtifactVersion.artifact_id == Artifact.id)
-        .where(Artifact.project_id == project_id, ArtifactVersion.id == command.intent_version_id)
+    await verify_intent_informed(
+        session,
+        project_id,
+        intent_version_id=command.intent_version_id,
+        informed_child_version_id=command.plan_version_id,
+        informed_noun="plan",
     )
-    if intent_artifact_type != ArtifactType.PRODUCTION_INTENT:
-        raise AppProblem(
-            400, "invalid_command", "intent_version_id must be a production intent version."
-        )
-    informed_by_intent = await session.scalar(
-        select(ArtifactDependency.parent_version_id).where(
-            ArtifactDependency.child_version_id == command.plan_version_id,
-            ArtifactDependency.role == "production_intent",
-        )
-    )
-    if informed_by_intent != command.intent_version_id:
-        raise AppProblem(
-            409,
-            "artifact_version_conflict",
-            "Use the production direction that informed the approved plan.",
-            approved_intent_version_id=informed_by_intent,
-        )
 
     manifest = {
         "plan_version_id": command.plan_version_id,
@@ -387,28 +397,13 @@ async def generate_scene_visuals(
             409, "artifact_version_conflict", "The approved Script has no Teaching Plan recorded."
         )
 
-    intent_artifact_type = await session.scalar(
-        select(Artifact.artifact_type)
-        .join(ArtifactVersion, ArtifactVersion.artifact_id == Artifact.id)
-        .where(Artifact.project_id == project_id, ArtifactVersion.id == command.intent_version_id)
+    await verify_intent_informed(
+        session,
+        project_id,
+        intent_version_id=command.intent_version_id,
+        informed_child_version_id=command.script_version_id,
+        informed_noun="script",
     )
-    if intent_artifact_type != ArtifactType.PRODUCTION_INTENT:
-        raise AppProblem(
-            400, "invalid_command", "intent_version_id must be a production intent version."
-        )
-    informed_by_intent = await session.scalar(
-        select(ArtifactDependency.parent_version_id).where(
-            ArtifactDependency.child_version_id == command.script_version_id,
-            ArtifactDependency.role == "production_intent",
-        )
-    )
-    if informed_by_intent != command.intent_version_id:
-        raise AppProblem(
-            409,
-            "artifact_version_conflict",
-            "Use the production direction that informed the approved script.",
-            approved_intent_version_id=informed_by_intent,
-        )
 
     manifest = {
         "script_version_id": command.script_version_id,
@@ -427,6 +422,107 @@ async def generate_scene_visuals(
         ],
         manifest=manifest,
         message="Motion Designer queued",
+    )
+    body = {
+        "job_id": job.id,
+        "run_id": run.id,
+        "status": ExecutionStatus.QUEUED,
+        "kind": job.kind,
+        "requested_input_versions": manifest,
+    }
+    save_idempotency(session, actor, scope, key, raw, 202, body)
+    await session.commit()
+    return body
+
+
+@router.post("/scene-visuals/regenerations", status_code=202)
+async def regenerate_scene_visual(
+    project_id: str,
+    command: RegenerateSceneVisual,
+    key: str = Depends(idempotency_key),
+    session: AsyncSession = Depends(get_session),
+):
+    """Redraw one scene under a creator's direction — the per-scene direction loop.
+
+    Only the named beat's module changes; every other scene is carried through and
+    the result publishes as one new scene_visuals version. This is not the full
+    generation and it does not chain: voice, approvals and the plan are untouched.
+    The script, plan and intent it reads are the ones that produced the version the
+    creator is editing, resolved from that version's lineage.
+    """
+    await project_or_404(session, project_id)
+    actor, scope, raw = (
+        actor_id(),
+        f"regenerate_scene_visual:{project_id}",
+        command.model_dump(mode="json"),
+    )
+    if replay := await idempotent_replay(session, actor, scope, key, raw):
+        return JSONResponse(replay["body"], replay["status_code"])
+
+    visuals_artifact = await session.scalar(
+        select(Artifact).where(
+            Artifact.project_id == project_id,
+            Artifact.artifact_type == ArtifactType.SCENE_VISUALS,
+        )
+    )
+    if not visuals_artifact or not visuals_artifact.latest_version_id:
+        raise AppProblem(
+            409, "scene_visuals_not_ready", "Build the scenes before directing one of them."
+        )
+    # Direct the scenes the creator is actually looking at. A newer set means the
+    # direction was written against a stale cut, so refuse rather than redraw the
+    # wrong version.
+    if visuals_artifact.latest_version_id != command.scene_visuals_version_id:
+        raise AppProblem(
+            409,
+            "artifact_version_conflict",
+            "These scenes have changed since you started. Refresh and direct the current cut.",
+            latest_version_id=visuals_artifact.latest_version_id,
+        )
+
+    # The script, plan and intent that produced this cut — resolved from its own
+    # lineage so the redraw reads exactly what the whole set was built from, and
+    # the creator never re-picks inputs the scenes already carry.
+    parents = {
+        role: parent
+        for role, parent in (
+            await session.execute(
+                select(ArtifactDependency.role, ArtifactDependency.parent_version_id).where(
+                    ArtifactDependency.child_version_id == command.scene_visuals_version_id,
+                    ArtifactDependency.role.in_(("script", "teaching_plan", "production_intent")),
+                )
+            )
+        ).all()
+    }
+    missing = sorted({"script", "teaching_plan", "production_intent"} - parents.keys())
+    if missing:
+        raise AppProblem(
+            409,
+            "artifact_version_conflict",
+            "These scenes are missing the lineage needed to redraw one of them.",
+        )
+
+    manifest = {
+        "scene_visuals_version_id": command.scene_visuals_version_id,
+        "script_version_id": parents["script"],
+        "teaching_plan_version_id": parents["teaching_plan"],
+        "intent_version_id": parents["production_intent"],
+        "beat_id": command.beat_id,
+        "direction": command.direction,
+        "schema": 1,
+    }
+    job, run = await create_job(
+        session,
+        project_id,
+        "regenerate_scene_visual",
+        inputs=[
+            (parents["script"], "script"),
+            (parents["teaching_plan"], "teaching_plan"),
+            (parents["production_intent"], "production_intent"),
+            (command.scene_visuals_version_id, "scene_visuals"),
+        ],
+        manifest=manifest,
+        message="Motion Designer redrawing one scene",
     )
     body = {
         "job_id": job.id,
@@ -475,28 +571,13 @@ async def generate_voice(
             approved_version_id=script_artifact.approved_version_id,
         )
 
-    intent_artifact_type = await session.scalar(
-        select(Artifact.artifact_type)
-        .join(ArtifactVersion, ArtifactVersion.artifact_id == Artifact.id)
-        .where(Artifact.project_id == project_id, ArtifactVersion.id == command.intent_version_id)
+    await verify_intent_informed(
+        session,
+        project_id,
+        intent_version_id=command.intent_version_id,
+        informed_child_version_id=command.script_version_id,
+        informed_noun="script",
     )
-    if intent_artifact_type != ArtifactType.PRODUCTION_INTENT:
-        raise AppProblem(
-            400, "invalid_command", "intent_version_id must be a production intent version."
-        )
-    informed_by_intent = await session.scalar(
-        select(ArtifactDependency.parent_version_id).where(
-            ArtifactDependency.child_version_id == command.script_version_id,
-            ArtifactDependency.role == "production_intent",
-        )
-    )
-    if informed_by_intent != command.intent_version_id:
-        raise AppProblem(
-            409,
-            "artifact_version_conflict",
-            "Use the production direction that informed the approved script.",
-            approved_intent_version_id=informed_by_intent,
-        )
 
     manifest = {
         "script_version_id": command.script_version_id,

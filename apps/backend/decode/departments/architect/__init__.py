@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 from ...config import Settings
 from ...schemas import Beat, PlanSection, ProductionBrief, ProductionIntent, TeachingPlan
 from .. import tracing
+from .._agent import OpenAIAgent
 from ..contracts import ProviderUsage
 from .prompt import SKILLS
 from .validation import repair_message, validate_plan
@@ -45,35 +46,8 @@ class TeachingPlanDraft(BaseModel):
     beats: list[Beat] = Field(min_length=1)
 
 
-class OpenAIArchitect:
+class OpenAIArchitect(OpenAIAgent):
     identifier = f"architect/{SKILLS.version}"
-
-    def __init__(self, settings: Settings):
-        from openai import AsyncOpenAI
-
-        self.settings = settings
-        self.model = settings.openai_model
-        # Traced or not depending on tracing.install_openai_tracing(), which
-        # patches this class in place at worker startup.
-        self.client = AsyncOpenAI(api_key=settings.openai_api_key)
-        self.last_usage: ProviderUsage | None = None
-
-    async def _draft(self, system: str, history: list) -> tuple[TeachingPlanDraft, int, int]:
-        response = await self.client.responses.parse(
-            model=self.model,
-            instructions=system,
-            input=history,
-            text_format=TeachingPlanDraft,
-        )
-        if response.output_parsed is None:
-            raise RuntimeError("architect returned no parsed plan")
-        history.extend(response.output)
-        usage = response.usage
-        return (
-            response.output_parsed,
-            usage.input_tokens if usage else 0,
-            usage.output_tokens if usage else 0,
-        )
 
     async def generate(self, intent: ProductionIntent, brief: ProductionBrief) -> TeachingPlan:
         # Read the owner-authored skills before spending anything: a missing or
@@ -110,7 +84,9 @@ class OpenAIArchitect:
             metadata={"skills_version": SKILLS.version, "model": self.model},
         ) as run:
             with tracing.span("draft"):
-                draft, input_tokens, output_tokens = await self._draft(system, history)
+                draft, input_tokens, output_tokens = await self._draft(
+                    system, history, TeachingPlanDraft
+                )
             turns = 1
 
             violations = validate_plan(draft.sections, draft.beats, intent, brief)
@@ -132,7 +108,9 @@ class OpenAIArchitect:
                     }
                 )
                 with tracing.span("repair"):
-                    second, extra_in, extra_out = await self._draft(system, history)
+                    second, extra_in, extra_out = await self._draft(
+                        system, history, TeachingPlanDraft
+                    )
                 remaining = validate_plan(second.sections, second.beats, intent, brief)
                 before, after = draft.model_dump(), second.model_dump()
                 repair = {

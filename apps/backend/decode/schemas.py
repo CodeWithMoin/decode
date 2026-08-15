@@ -226,6 +226,21 @@ class GenerateVoice(BaseModel):
     intent_version_id: str
 
 
+class RegenerateSceneVisual(BaseModel):
+    """Redraw one scene under a creator's direction.
+
+    The version id is the scenes the creator is looking at: if a newer set has
+    been published since, the direction was written against a stale cut and the
+    route refuses rather than silently regenerating the wrong scene. The script,
+    plan and intent the regeneration reads are resolved from that version's own
+    lineage, so the creator never re-picks inputs the scenes already carry.
+    """
+
+    scene_visuals_version_id: str
+    beat_id: str
+    direction: str = Field(min_length=1, max_length=2000)
+
+
 class EditArtifact(BaseModel):
     """A creator's complete replacement of one artifact version.
 

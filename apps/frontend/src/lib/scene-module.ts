@@ -165,11 +165,3 @@ export function loadSceneModule(source: string): Promise<SceneComponent> {
   loading.catch(() => cache.delete(source));
   return loading;
 }
-
-/** Release every blob this module made. For teardown in tests and unmount. */
-export function releaseSceneModules() {
-  urls.forEach((url) => URL.revokeObjectURL(url));
-  urls.clear();
-  shimUrls.clear();
-  cache.clear();
-}

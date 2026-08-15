@@ -221,3 +221,37 @@ async def test_regenerate_one_rebuilds_only_the_target_beat():
 
     with pytest.raises(ValueError):
         await fake.regenerate_one(INTENT, plan, script, prior, "beat-99", "x")
+
+
+async def test_regenerate_one_creates_a_scene_the_beat_never_had():
+    """A plan beat with no built scene yet must be *created* by a direction, not
+    silently dropped — replacing-only would republish an identical version and
+    report a change that never happened."""
+    from decode.schemas import BeatNarration, Script
+
+    plan = TeachingPlan(
+        structure_name="Two beats",
+        sections=[PlanSection(id="q", title="Q", purpose="Establish.")],
+        through_line="t",
+        rationale="r",
+        beats=[
+            Beat(id="beat-01", title="One", objective="First idea", target_duration_seconds=30,
+                 section_id="q", key_points=["k"],
+                 brief_support=BriefSupport(learning_objectives=[0])),
+            Beat(id="beat-02", title="Two", objective="Second idea", target_duration_seconds=30,
+                 section_id="q", key_points=["k"],
+                 brief_support=BriefSupport(learning_objectives=[0])),
+        ],
+    )
+    script = Script(rationale="r", beats=[
+        BeatNarration(beat_id="beat-01", narration="a"),
+        BeatNarration(beat_id="beat-02", narration="b"),
+    ])
+    # Only beat-01 has a module; beat-02 was never built.
+    prior = [SceneModule(beat_id="beat-01", controls=[], component_source="ORIGINAL_ONE")]
+    fake = build_visualizer(Settings(visualizer="fake"))
+
+    result = await fake.regenerate_one(INTENT, plan, script, prior, "beat-02", "build it")
+    by = {s.beat_id: s for s in result.scenes}
+    assert {*by} == {"beat-01", "beat-02"}                       # beat-02 created
+    assert by["beat-01"].component_source == "ORIGINAL_ONE"      # untouched

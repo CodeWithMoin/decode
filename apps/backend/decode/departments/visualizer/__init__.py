@@ -26,6 +26,7 @@ from pydantic import BaseModel, Field
 from ...config import Settings
 from ...schemas import ProductionIntent, SceneModule, SceneVisuals, Script, TeachingPlan
 from .. import tracing
+from .._agent import OpenAIAgent
 from ..contracts import ProviderUsage
 from .prompt import SKILLS
 from .validation import RUNTIME_VERSION, repair_message, validate_scenes
@@ -41,35 +42,8 @@ class SceneVisualsDraft(BaseModel):
     scenes: list[SceneModule] = Field(min_length=1)
 
 
-class OpenAIVisualizer:
+class OpenAIVisualizer(OpenAIAgent):
     identifier = f"visualizer/{SKILLS.version}"
-
-    def __init__(self, settings: Settings):
-        from openai import AsyncOpenAI
-
-        self.settings = settings
-        self.model = settings.openai_model
-        # Traced or not depending on tracing.install_openai_tracing(), which
-        # patches this class in place at worker startup.
-        self.client = AsyncOpenAI(api_key=settings.openai_api_key)
-        self.last_usage: ProviderUsage | None = None
-
-    async def _draft(self, system: str, history: list) -> tuple[SceneVisualsDraft, int, int]:
-        response = await self.client.responses.parse(
-            model=self.model,
-            instructions=system,
-            input=history,
-            text_format=SceneVisualsDraft,
-        )
-        if response.output_parsed is None:
-            raise RuntimeError("visualizer returned no parsed scenes")
-        history.extend(response.output)
-        usage = response.usage
-        return (
-            response.output_parsed,
-            usage.input_tokens if usage else 0,
-            usage.output_tokens if usage else 0,
-        )
 
     async def generate(
         self, intent: ProductionIntent, plan: TeachingPlan, script: Script
@@ -127,7 +101,9 @@ class OpenAIVisualizer:
             },
         ) as run:
             with tracing.span("draft"):
-                draft, input_tokens, output_tokens = await self._draft(system, history)
+                draft, input_tokens, output_tokens = await self._draft(
+                    system, history, SceneVisualsDraft
+                )
             turns = 1
 
             violations = validate_scenes(draft.scenes, plan)
@@ -146,7 +122,9 @@ class OpenAIVisualizer:
                     }
                 )
                 with tracing.span("repair"):
-                    second, extra_in, extra_out = await self._draft(system, history)
+                    second, extra_in, extra_out = await self._draft(
+                        system, history, SceneVisualsDraft
+                    )
                 remaining = validate_scenes(second.scenes, plan)
                 repair = {
                     "ran": True,
@@ -262,7 +240,13 @@ class OpenAIVisualizer:
         def merge(new_scenes: list[SceneModule]) -> list[SceneModule]:
             fresh = next((s for s in new_scenes if s.beat_id == beat_id), None) or new_scenes[0]
             fresh = fresh.model_copy(update={"beat_id": beat_id})
-            return [fresh if s.beat_id == beat_id else s for s in prior_scenes]
+            if any(s.beat_id == beat_id for s in prior_scenes):
+                return [fresh if s.beat_id == beat_id else s for s in prior_scenes]
+            # The beat had no scene yet — a plan beat that was never built, so the
+            # direction *creates* it. Replacing-only here would drop the fresh
+            # module and republish an identical version reporting a change that
+            # never happened.
+            return [*prior_scenes, fresh]
 
         with tracing.span(
             "visualizer-regenerate",
@@ -270,7 +254,9 @@ class OpenAIVisualizer:
             metadata={"skills_version": SKILLS.version, "model": self.model},
         ) as run:
             with tracing.span("draft"):
-                draft, input_tokens, output_tokens = await self._draft(system, history)
+                draft, input_tokens, output_tokens = await self._draft(
+                    system, history, SceneVisualsDraft
+                )
             turns = 1
 
             merged = merge(draft.scenes)
@@ -286,7 +272,9 @@ class OpenAIVisualizer:
                     }
                 )
                 with tracing.span("repair"):
-                    second, extra_in, extra_out = await self._draft(system, history)
+                    second, extra_in, extra_out = await self._draft(
+                        system, history, SceneVisualsDraft
+                    )
                 merged = merge(second.scenes)
                 remaining = validate_scenes(merged, plan)
                 if remaining:

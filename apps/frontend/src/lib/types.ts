@@ -130,8 +130,6 @@ export interface ProjectSummary {
   project_id: string;
   title: string;
   status: ProjectStatus;
-  /** Whether finishing one stage starts the next without being asked. */
-  auto_continue?: boolean;
   current_stage?: "processing" | "understanding" | string;
   source_count?: number;
   created_at: string;
@@ -606,23 +604,6 @@ export interface ExampleSource {
   name: string;
   meta: string;
   src: Source;
-}
-
-export interface Opportunity {
-  t: string;
-  d: string;
-}
-
-export interface Dependency {
-  a: string;
-  b: string;
-}
-
-/** The Motion Designer's open question on a scene. */
-export interface SceneNote {
-  crew: CrewId;
-  text: string;
-  options: { key: "A" | "B"; title: string; desc: string }[];
 }
 
 export type RenderState = "idle" | "rendering" | "done";

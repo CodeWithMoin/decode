@@ -61,6 +61,7 @@ from .context import (
     AuthorContext,
     DepartmentContext,
     IntakeContext,
+    RegenerateVisualContext,
     VisualizerContext,
     VoiceContext,
 )
@@ -87,13 +88,23 @@ def _discover() -> dict[str, Stage]:
 
 @dataclass(frozen=True)
 class Stage:
-    """One department's slot in the production, read from its manifest."""
+    """One department's slot in the production, read from its manifest.
+
+    A stage almost always *is* its manifest. The two overrides exist for the one
+    case that isn't a department of its own: a targeted regeneration reuses the
+    Visualizer's manifest — same department, produces, crew role and schema — but
+    runs under its own job kind (so it never triggers the chain) and reads an
+    extra input (the scenes it is revising). Everything else still comes from the
+    shared manifest, so the two can never drift on what a scene *is*.
+    """
 
     manifest: Manifest
+    kind_override: str | None = None
+    consumes_override: tuple[str, ...] | None = None
 
     @property
     def kind(self) -> str:
-        return self.manifest.job_kind
+        return self.kind_override or self.manifest.job_kind
 
     @property
     def produces(self) -> ArtifactType:
@@ -105,7 +116,7 @@ class Stage:
 
     @property
     def consumes(self) -> tuple[str, ...]:
-        return self.manifest.consumes
+        return self.consumes_override or self.manifest.consumes
 
     @property
     def owner_role(self) -> str:
@@ -125,6 +136,17 @@ class Stage:
 
 
 STAGES: dict[str, Stage] = _discover()
+
+# Regeneration is not a department — it is the Visualizer, invoked on one scene.
+# Registered here rather than discovered so it never appears in the CHAIN (a
+# per-scene redraw must not re-run voice) and reads the current scenes as an
+# extra input. Absent from CHAIN, `continue_chain` returns None for it.
+REGENERATE_SCENE_VISUAL = "regenerate_scene_visual"
+STAGES[REGENERATE_SCENE_VISUAL] = Stage(
+    STAGES["generate_scene_visuals"].manifest,
+    kind_override=REGENERATE_SCENE_VISUAL,
+    consumes_override=("script", "teaching_plan", "production_intent", "scene_visuals"),
+)
 
 
 def stage_provider(settings: Settings, kind: str) -> str:
@@ -170,6 +192,17 @@ async def run_department(
     if isinstance(context, VisualizerContext):
         designer = visualizer(settings)
         return designer, await designer.generate(context.intent, context.plan, context.script)
+
+    if isinstance(context, RegenerateVisualContext):
+        designer = visualizer(settings)
+        return designer, await designer.regenerate_one(
+            context.intent,
+            context.plan,
+            context.script,
+            list(context.prior_scenes),
+            context.beat_id,
+            context.direction,
+        )
 
     if isinstance(context, VoiceContext):
         narrator = voice(settings)
@@ -229,9 +262,7 @@ async def run_evaluation(
 
     judge = evaluator(settings)
     step = (
-        "evaluating_brief"
-        if stage.produces == ArtifactType.PRODUCTION_BRIEF
-        else "evaluating_plan"
+        "evaluating_brief" if stage.produces == ArtifactType.PRODUCTION_BRIEF else "evaluating_plan"
     )
     await emit(
         session,
@@ -415,6 +446,10 @@ async def continue_chain(
     and so paid for twice — because the stage after it was not satisfiable.
     """
     project = await session.get(Project, job.project_id)
+    # The user-facing Continuous / Stage-by-stage toggle is gone, so nothing sets
+    # this false anymore and every project chains in practice. The column and its
+    # honouring stay until the artifact/gates migration retires them (§8) — the
+    # server still respects an explicitly-set false so this stays testable.
     if project is None or not project.auto_continue:
         return None
     next_kind = CHAIN.get(job.kind)
