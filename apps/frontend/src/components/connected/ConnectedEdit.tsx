@@ -456,7 +456,10 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
         </div>
        ) : (
         <div className="min-h-0 lg:h-full">
-          <Edit onDirectScene={directScene} />
+          <Edit
+            onDirectScene={directScene}
+            onEditNarration={() => router.push(`/studio/projects/${projectId}/script`)}
+          />
           {(!hasVoice || renderState !== "idle") && (
             <div className="flex flex-none items-center gap-2 border-t border-[var(--nle-line)] bg-[var(--nle-panel)] px-4 py-2">
               {!hasVoice && (

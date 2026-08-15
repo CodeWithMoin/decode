@@ -30,10 +30,13 @@ type InspectorTab = "scene" | "plan" | "script";
 export function Inspector({
   inactive = false,
   onDirectScene,
+  onEditNarration,
 }: {
   inactive?: boolean;
   /** Connected only: direct one scene in words and rebuild just that scene. */
   onDirectScene?: (beatId: string, direction: string) => void;
+  /** Connected only: open the real Script editor (narration's one editable home). */
+  onEditNarration?: () => void;
 }) {
   const sc = useStudio((s) => s.sc);
   const sceneIdx = useStudio((s) => s.sceneIdx);
@@ -58,6 +61,10 @@ export function Inspector({
     lastInspectorTab = inspectorTab;
   }, [inspectorTab]);
   const showTab = setInspectorTab;
+  // Narration's one editable home. Connected passes a real route to the Script
+  // editor; the prototype falls back to its store-driven stage switch.
+  const editNarration =
+    onEditNarration ?? (() => changeProjectStage("edit", "script", () => setTab("script")));
 
   // The direction the creator is writing, tagged with the scene it belongs to.
   // Derived rather than reset in an effect: switching scenes shows an empty
@@ -163,7 +170,7 @@ export function Inspector({
           <PlanTab sc={sc} sceneIdx={sceneIdx} onSelect={(index) => { select(index); showTab("scene"); }} />
         )}
         {inspectorTab === "script" && (
-          <ScriptTab scene={scene} sceneIdx={sceneIdx} onEditInScript={() => changeProjectStage("edit", "script", () => setTab("script"))} />
+          <ScriptTab scene={scene} sceneIdx={sceneIdx} onEditInScript={editNarration} />
         )}
         {inspectorTab === "scene" && (<>
         <section className="px-3.5 pt-4 pb-3.5">
@@ -205,7 +212,7 @@ export function Inspector({
         <div className="border-t border-white/[0.06] px-3.5 py-4">
           <button
             type="button"
-            onClick={() => changeProjectStage("edit", "script", () => setTab("script"))}
+            onClick={editNarration}
             className="flex w-full items-center justify-between rounded-[5px] px-2 py-2 text-[12px] text-[var(--nle-muted)] transition-colors duration-[var(--t-fast)] hover:bg-white/[0.03] hover:text-[var(--nle-text)]"
           >
             <span>Edit narration in Script →</span>
