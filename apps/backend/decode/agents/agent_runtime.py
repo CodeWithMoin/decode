@@ -51,6 +51,7 @@ class AgentResult:
     output: Any  # a validated BaseModel (real) or a dict (fake) — the produced artifact
     usage: ProviderUsage
     skills_loaded: tuple[str, ...] = ()
+    tools_called: tuple[str, ...] = ()
     delegated_to: tuple[str, ...] = ()
 
 
@@ -190,6 +191,7 @@ class AgentRuntime:
         spec = TOOLS.get(name)
         if spec is None or not spec.read_only:
             return json.dumps({"error": f"{name} is not a readable tool"})
+        touched.tools.append(name)
         if self.observer is None or spec.target == "planned":
             return json.dumps({"unavailable": name, "reason": "not available yet"})
         return await self.observer.observe(name, {k: str(v) for k, v in args.items()})
@@ -228,6 +230,7 @@ class AgentRuntime:
                     response.output_parsed,
                     self.last_usage,
                     tuple(touched.skills),
+                    tuple(touched.tools),
                     tuple(touched.delegates),
                 )
             input_items.extend(response.output)
@@ -256,6 +259,7 @@ class AgentRuntime:
 @dataclass
 class _Touched:
     skills: list[str] = field(default_factory=list)
+    tools: list[str] = field(default_factory=list)
     delegates: list[str] = field(default_factory=list)
 
 
@@ -297,7 +301,9 @@ class FakeAgentRuntime:
             "delegations": delegations,
         }
         self.last_usage = ProviderUsage("fixture", 0, 0, 1)
-        return AgentResult(output, self.last_usage, tuple(skills_loaded), tuple(delegations))
+        return AgentResult(
+            output, self.last_usage, tuple(skills_loaded), (), tuple(delegations)
+        )
 
     def as_delegate(self, text_format: type[BaseModel] | None = None) -> Delegate:
         async def _run(assignment: str) -> str:

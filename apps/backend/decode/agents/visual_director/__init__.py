@@ -79,7 +79,11 @@ class ModelVisualDirector:
                 "fixture": False,
                 "model": self.model,
                 "skills_version": SKILLS.version,
+                # What the agent actually reached for this run — the dial-in trace.
+                "skills_available": list(self.config.skills),
                 "skills_loaded": list(result.skills_loaded),
+                "tools_called": list(result.tools_called),
+                "delegated_to": list(result.delegated_to),
             },
         )
 
