@@ -169,6 +169,30 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
       regen: null,
     });
     setReady(true);
+
+    // HyperFrames scenes carry a duration-agnostic template; fetch each one's
+    // resolved+stamped composition in the background (the backend owns the
+    // resolver) and swap it in when it lands, so Edit opens immediately and the
+    // real animation follows. A React scene has no composition and is skipped.
+    const hfBeats = (visualsVersion?.payload?.scenes ?? [])
+      .filter((module) => module.composition_html)
+      .map((module) => module.beat_id);
+    void Promise.all(
+      hfBeats.map((beatId) =>
+        decodeApi
+          .sceneComposition(projectId, beatId)
+          .then((composition) => [beatId, composition.html] as const)
+          .catch(() => [beatId, null] as const),
+      ),
+    ).then((entries) => {
+      const htmlByBeat = new Map(entries.filter((entry): entry is [string, string] => Boolean(entry[1])));
+      if (htmlByBeat.size === 0) return;
+      useStudio.setState((state) => ({
+        sc: state.sc.map((scene) =>
+          htmlByBeat.has(scene.id) ? { ...scene, compositionHtml: htmlByBeat.get(scene.id) } : scene,
+        ),
+      }));
+    });
   }, [projectId]);
 
   useEffect(() => {
@@ -357,8 +381,12 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
       const result = await decodeApi.startRender(
         projectId,
         sc.map((scene) => {
-          const { componentSource, controls, ...rest } = scene;
+          // The heavy render substrates never go back to the server: the export
+          // path does not re-render from them. (HyperFrames export is staged —
+          // it moves to `hyperframes render`, not this Remotion path.)
+          const { componentSource, compositionHtml, controls, ...rest } = scene;
           void componentSource;
+          void compositionHtml;
           void controls;
           return rest;
         }),

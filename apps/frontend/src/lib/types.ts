@@ -250,7 +250,18 @@ export interface SceneControl {
 export interface SceneModule {
   beat_id: string;
   controls: SceneControl[];
-  component_source: string;
+  /** Legacy React scene (Remotion). Optional during the HyperFrames migration. */
+  component_source?: string;
+  /** A HyperFrames composition (duration-agnostic template) — the new substrate. */
+  composition_html?: string;
+}
+
+/** The stamped composition for one scene, resolved by the backend for playback. */
+export interface SceneComposition {
+  html: string;
+  duration: number;
+  beats: { beat: string; start: number; duration: number }[];
+  unresolved: { name: string; reason: string }[];
 }
 
 export interface SceneVisualsPayload {
@@ -536,6 +547,14 @@ export interface Scene {
    * and still has to render something.
    */
   componentSource?: string;
+  /**
+   * A stamped HyperFrames composition (HTML + one seekable GSAP timeline), the
+   * render substrate replacing Remotion. Present only on a connected HyperFrames
+   * scene, already resolved by the backend (data-duration + injected timing). The
+   * player renders it in a sandboxed iframe seeked from the transport, in place of
+   * `componentSource`.
+   */
+  compositionHtml?: string;
   /** The knobs that module declares, read from its manifest — never executed. */
   controls?: SceneControl[];
   /** URL of this beat's narration audio, present only once voice is generated. */

@@ -19,6 +19,7 @@ import type {
   ScriptPayload,
   SourceUploadResult,
   OrchestratorTurn,
+  SceneComposition,
   StudioSnapshot,
   TeachingPlanPayload,
   UsageResponse,
@@ -268,6 +269,13 @@ export const decodeApi = {
 
   getStudio: (projectId: string) =>
     request<StudioSnapshot>(`/api/v1/projects/${projectId}/studio`),
+
+  // A scene's HyperFrames composition, resolved + stamped for playback: real
+  // data-duration and the beats' timing injected from the narration.
+  sceneComposition: (projectId: string, beatId: string) =>
+    request<SceneComposition>(
+      `/api/v1/projects/${projectId}/scene-visuals/${beatId}/composition`,
+    ),
 
   // The side chat's one turn: a natural-language message → a reply and, when it
   // maps to a tool, a scoped proposal. Read-only — the tool runs on Apply.

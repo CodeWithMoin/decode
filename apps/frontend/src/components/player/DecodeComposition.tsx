@@ -9,6 +9,7 @@ import { Audio, interpolate, Sequence, useCurrentFrame } from "remotion";
 import { AbsoluteFill, fontCss, Interactive } from "@decode/animation-api";
 import { SceneVisual } from "@/components/project/canvas/SceneVisual";
 import { GeneratedScene } from "@/components/player/GeneratedScene";
+import { HyperframesScene } from "@/components/player/HyperframesScene";
 import { startsAll, totalAll } from "@/lib/derive";
 import { sceneVisualStyleAt } from "@/lib/scene-style";
 import type { Scene } from "@/lib/types";
@@ -71,6 +72,16 @@ function DecodeScene({ scene, index, durationInFrames, pick }: { scene: Scene; i
     opacity: opacity * (style.opacity / 100),
     filter: style.blur > 0 ? `blur(${style.blur}px)` : undefined,
   };
+
+  // A HyperFrames scene is the render substrate replacing Remotion: play its
+  // stamped composition, seeked to this scene's local time. Legacy React scenes
+  // keep Remotion until they are migrated.
+  if (scene.compositionHtml)
+    return (
+      <AbsoluteFill style={hostStyle}>
+        <HyperframesScene scene={scene} timeSeconds={frame / DECODE_FPS} />
+      </AbsoluteFill>
+    );
 
   if (scene.componentSource) return <AbsoluteFill style={hostStyle}><GeneratedScene scene={scene} /></AbsoluteFill>;
 
