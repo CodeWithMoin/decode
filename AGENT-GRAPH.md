@@ -278,3 +278,15 @@ Checked against the code and confirmed, so the migration builds on them:
   own role.
 - **New tools are net-new.** Only `intake` declares a tool today (`record_finding`);
   `screenshot` / `check` / `alignment` (§4, §6, and the audio work) don't exist yet.
+- **The "Visualizer" role is the Motion Designer.** The responsibility is naming
+  *how* a beat's teaching intent becomes animated, positioned, and synced to
+  narration — Decode decides *what visual teaches*; the Motion Designer turns that
+  into motion; HyperFrames renders it. This is established in the department's
+  identity (SKILL.md / instructions) and docs. The persisted names stay put —
+  `scene_visuals` (artifact/output), `generate_scene_visuals` / `regenerate_scene_visual`
+  (job kinds), `DECODE_VISUALIZER` (provider), and the `visualizer/…` provenance
+  identifier are the contract, not the role, so renaming them would be a data/config
+  migration for no gain. Internal code symbols (`OpenAIVisualizer`, the `Visualizer`
+  protocol, the folder) may be renamed later as a cosmetic pass, or left.
+  **Storyboard Artist** ("what should appear") is a *future* split — today the
+  Motion Designer also carries it, seeded by the plan's `visual_opportunity`.
