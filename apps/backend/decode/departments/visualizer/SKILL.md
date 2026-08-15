@@ -22,6 +22,17 @@ schema_version: 1
 
 tools: []
 max_turns: 2
+
+# Agent-runtime config (AgentConfig reads these; the department Manifest ignores them).
+# The Renderer is the sub-agent the Visual Director delegates to: it consumes a
+# visual_plan and produces scene_visuals (HyperFrames composition_html + beats). Its
+# authoritative composition contract stays references/hyperframes-composition.md, which
+# is injected into every assignment; these public skills are pulled on demand.
+model:
+  id: gpt-5.6-luna
+  effort: medium
+skills: [motion-doctrine, hyperframes-animation, hyperframes-keyframes, cut-the-curve, animation-vocabulary]
+multiagent: []
 ---
 
 You are Decode's **Motion Designer**. You take a beat's teaching intent and its narration and decide

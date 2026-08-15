@@ -9,11 +9,10 @@ downstream can mistake a sample for a real read.
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from ..schemas import (
     Beat,
     BeatNarration,
+    BeatStoryboard,
     BriefSupport,
     PlanSection,
     ProductionBrief,
@@ -23,10 +22,13 @@ from ..schemas import (
     SceneVisuals,
     Script,
     TeachingPlan,
+    VisualBeat,
+    VisualMoment,
+    VisualPlan,
     Voice,
     VoiceNarration,
 )
-from ..timing import even_split_words
+from ..timing import Anchor, even_split_words
 from .author.validation import target_words
 from .contracts import ProviderUsage, SourceInput
 from .evaluator import deterministic_checks, deterministic_plan_checks
@@ -208,27 +210,32 @@ def _filler(words: int, title: str) -> str:
     return " ".join(out)
 
 
+def _fixture_scene(beat_id: str, label: str) -> SceneModule:
+    """One HyperFrames-native scene: a minimal, contract-valid composition plus one
+    anchored beat. Fake mode is HyperFrames, not React — the fixture exercises the
+    real composition/timing seam rather than the retired scene API."""
+    return SceneModule(
+        beat_id=beat_id,
+        controls=[
+            SceneControl(name="background", type="color", label="Background", default="#0B0B0B"),
+            SceneControl(name="label", type="string", label="Label", default=label),
+        ],
+        composition_html=_composition_html(label),
+        # Anchored to the scene's progress, never a hardcoded second: Decode resolves
+        # it against the narration and stamps window.__decodeTiming.
+        beats=[VisualBeat(name="reveal", anchor=Anchor(name="reveal", kind="progress", at=0.0))],
+    )
+
+
 class FakeVisualizer:
     identifier = "fixture-visualizer-v1"
 
     async def generate(
         self, intent: ProductionIntent, plan: TeachingPlan, script: Script
     ) -> SceneVisuals:
-        # Written against the real scene API and the real rules, so the fixture
-        # exercises validation rather than sailing past it.
-        scenes = [
-            SceneModule(
-                beat_id=beat.id,
-                controls=[
-                    SceneControl(
-                        name="background", type="color", label="Background", default="#0E0E10"
-                    ),
-                    SceneControl(name="label", type="string", label="Label", default=beat.title),
-                ],
-                component_source=_SAMPLE_SCENE,
-            )
-            for beat in plan.beats
-        ]
+        # Real HyperFrames compositions against the real timing markers, so the
+        # fixture exercises validation rather than sailing past it.
+        scenes = [_fixture_scene(beat.id, beat.title) for beat in plan.beats]
         return SceneVisuals(
             rationale=(
                 f"I drew {len(scenes)} sample scenes against the approved beats. These are a "
@@ -254,16 +261,7 @@ class FakeVisualizer:
         beat = next((item for item in plan.beats if item.id == beat_id), None)
         if beat is None:
             raise ValueError(f"no beat {beat_id!r} in the plan to regenerate")
-        fresh = SceneModule(
-            beat_id=beat_id,
-            controls=[
-                SceneControl(
-                    name="background", type="color", label="Background", default="#0E0E10"
-                ),
-                SceneControl(name="label", type="string", label="Label", default=beat.title),
-            ],
-            component_source=_SAMPLE_SCENE,
-        )
+        fresh = _fixture_scene(beat_id, beat.title)
         scenes = (
             [fresh if s.beat_id == beat_id else s for s in prior_scenes]
             if any(s.beat_id == beat_id for s in prior_scenes)
@@ -281,10 +279,121 @@ class FakeVisualizer:
         )
 
 
-# The sample lives beside the department as a real .tsx file rather than inside
-# a Python string: it has to stay valid JavaScript, and a formatter that wrapped
-# it to fit a Python line limit would silently break it.
-_SAMPLE_SCENE = (Path(__file__).parent / "visualizer" / "samples" / "scene.tsx").read_text()
+class FakeVisualDirector:
+    """The Visual Director as a deterministic fixture: an abstract `visual_plan`.
+
+    Produces one storyboard per beat — a metaphor and one narration-anchored moment —
+    with no HTML and no seconds. Labels itself a fixture, mirroring every other fake so
+    nothing downstream mistakes a sample for a real read. The Renderer (FakeRenderer)
+    turns this plan into scene_visuals; in the real runtime that hand-off is an
+    in-process delegation on the Agent abstraction.
+    """
+
+    identifier = "fixture-visual-director-v1"
+
+    async def generate(
+        self, intent: ProductionIntent, plan: TeachingPlan, script: Script
+    ) -> VisualPlan:
+        beats = [
+            BeatStoryboard(
+                beat_id=beat.id,
+                metaphor=f"A single lit surface carrying {beat.title.lower()}.",
+                moments=[
+                    VisualMoment(
+                        shows=f"The idea of '{beat.title}' as one focal surface on the stage.",
+                        transition="It eases up from nothing into place, settling.",
+                        overlays=[beat.title],
+                        anchor=Anchor(name="reveal", kind="progress", at=0.0),
+                    )
+                ],
+            )
+            for beat in plan.beats
+        ]
+        return VisualPlan(
+            rationale=(
+                f"I storyboarded {len(beats)} beats as single focal surfaces. This is a "
+                "deterministic fixture, not a reading of the script."
+            ),
+            beats=beats,
+            visual_findings={
+                "fixture": True,
+                "note": "Deterministic storyboard; no direction was performed.",
+            },
+        )
+
+
+class FakeRenderer:
+    """The Renderer as a deterministic fixture: a `visual_plan` → `scene_visuals`.
+
+    Consumes the abstract storyboard and emits the persisted contract unchanged —
+    HyperFrames `composition_html` plus one anchored beat per scene. Same output shape
+    as `FakeVisualizer.generate`, reached from the storyboard instead of the script.
+    """
+
+    identifier = "fixture-renderer-v1"
+
+    async def generate(
+        self, intent: ProductionIntent, plan: TeachingPlan, visual_plan: VisualPlan
+    ) -> SceneVisuals:
+        titles = {beat.id: beat.title for beat in plan.beats}
+        scenes = [
+            _fixture_scene(board.beat_id, titles.get(board.beat_id, board.beat_id))
+            for board in visual_plan.beats
+        ]
+        return SceneVisuals(
+            rationale=(
+                f"I rendered {len(scenes)} scenes from the Visual Director's storyboard. This is "
+                "a deterministic fixture, not a reading of the plan."
+            ),
+            scenes=scenes,
+            visual_findings={
+                "fixture": True,
+                "runtime_version": RUNTIME_VERSION,
+                "note": "Deterministic render from a visual_plan; no design was performed.",
+            },
+        )
+
+
+def _composition_html(label: str) -> str:
+    """A minimal, contract-valid HyperFrames composition: root with `data-*`, one
+    `.clip`, one paused timeline reading `window.__decodeTiming`, and the duration +
+    timing markers Decode fills. The label is inlined as text content so a creator
+    edits the thing they see."""
+    return f"""<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+      html, body {{ width: 1920px; height: 1080px; overflow: hidden; background: #000; }}
+      #stage-bg {{ position: absolute; inset: 0; background: #0b0b0b; }}
+      #label {{ position: absolute; inset: 0; display: grid; place-items: center;
+               font-family: system-ui, sans-serif; font-size: 56px; color: #f3f0ea;
+               will-change: transform, opacity; }}
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0"
+         data-duration="{{{{SCENE_DURATION}}}}" data-width="1920" data-height="1080">
+      <div id="stage-bg"></div>
+      <div id="label" class="clip" data-start="0"
+           data-duration="{{{{SCENE_DURATION}}}}" data-track-index="1">{label}</div>
+    </div>
+    <!-- decode:timing -->
+    <script>
+      window.__timelines = window.__timelines || {{}};
+      const timing = window.__decodeTiming || [];
+      const at = (name) => timing.find((t) => t.beat === name) || {{ start: 0, duration: 0.6 }};
+      const tl = gsap.timeline({{ paused: true }});
+      const reveal = at("reveal");
+      tl.fromTo("#label", {{ opacity: 0 }},
+        {{ opacity: 1, duration: reveal.duration, ease: "power4.out" }}, reveal.start);
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
+"""
 
 
 class FakeNarrator:

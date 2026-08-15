@@ -174,6 +174,47 @@ class VisualBeat(BaseModel):
     duration_s: float = Field(default=0.6, gt=0, le=30)
 
 
+class VisualMoment(BaseModel):
+    """One storyboard moment inside a beat: what is shown and how it moves.
+
+    Abstract, not markup. `shows` is what is on screen, `transition` the movement
+    from its A state to its B state, `overlays` the labels/captions riding on top.
+    `anchor` says *when* against the narration — a phrase the resilient kind — never
+    a hardcoded second (the Renderer turns this into a HyperFrames `VisualBeat`).
+    """
+
+    shows: str = Field(min_length=1, max_length=400)
+    transition: str = Field(min_length=1, max_length=400)
+    overlays: list[str] = Field(default_factory=list, max_length=6)
+    anchor: Anchor
+
+
+class BeatStoryboard(BaseModel):
+    """The Visual Director's direction for one beat: a metaphor and ordered moments.
+
+    No HTML, no scene length, no seconds. It is the abstract layer the Renderer
+    consumes to author the composition — the "what teaches" the Motion Designer
+    decides before "how it moves".
+    """
+
+    beat_id: str = Field(min_length=1)
+    metaphor: str = Field(min_length=1, max_length=400)
+    moments: list[VisualMoment] = Field(min_length=1, max_length=12)
+
+
+class VisualPlan(BaseModel):
+    """The storyboard for the whole video, produced by the Visual Director.
+
+    The abstract counterpart to `SceneVisuals`: it names the visual idea and its
+    anchored moments per beat, and the Renderer turns each beat into a HyperFrames
+    composition. Never carries markup — that is the Renderer's output, not this.
+    """
+
+    rationale: str = Field(min_length=1, max_length=1200)
+    beats: list[BeatStoryboard] = Field(min_length=1)
+    visual_findings: dict = Field(default_factory=dict)
+
+
 class SceneModule(BaseModel):
     """The animation for one beat.
 
