@@ -90,7 +90,10 @@ async def execute_run(_ctx: dict | None, run_id: str) -> dict:
                 ).all()
             }
             stage = stage_for(job.kind)
-            context = context_assembler.assemble(stage, inputs, versions)
+            # The run manifest carries the per-request facts a regeneration needs
+            # (which beat, what direction) that no immutable input encodes. Every
+            # other stage ignores it and builds from inputs alone.
+            context = context_assembler.assemble(stage, inputs, versions, run.context_manifest)
             intent = context.intent
             settings = get_settings()
             trace_context = tracing.run(

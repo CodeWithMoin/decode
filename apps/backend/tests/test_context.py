@@ -1,9 +1,25 @@
 import pytest
 
-from decode.execution.context import ArchitectContext, IntakeContext, context_assembler
-from decode.execution.pipeline import stage_for
-from decode.models import ArtifactVersion, JobInput
-from decode.schemas import ProductionBrief, ProductionIntent
+from decode.execution.context import (
+    ArchitectContext,
+    IntakeContext,
+    RegenerateVisualContext,
+    context_assembler,
+)
+from decode.execution.pipeline import CHAIN, stage_for
+from decode.models import ArtifactType, ArtifactVersion, JobInput
+from decode.schemas import (
+    Beat,
+    BeatNarration,
+    BriefSupport,
+    PlanSection,
+    ProductionBrief,
+    ProductionIntent,
+    SceneModule,
+    SceneVisuals,
+    Script,
+    TeachingPlan,
+)
 
 INTENT = ProductionIntent(
     audience="Curious beginners",
@@ -116,3 +132,72 @@ def test_context_rejects_missing_or_duplicate_required_versions():
         context_assembler.assemble(
             stage_for("generate_teaching_plan"), duplicate, duplicate_versions
         )
+
+
+PLAN = TeachingPlan(
+    structure_name="Two beats",
+    sections=[PlanSection(id="q", title="Q", purpose="Establish.")],
+    through_line="t",
+    rationale="r",
+    beats=[
+        Beat(id="beat-01", title="One", objective="First", target_duration_seconds=30,
+             section_id="q", key_points=["k"], brief_support=BriefSupport(learning_objectives=[0])),
+        Beat(id="beat-02", title="Two", objective="Second", target_duration_seconds=30,
+             section_id="q", key_points=["k"], brief_support=BriefSupport(learning_objectives=[0])),
+    ],
+)
+SCRIPT = Script(rationale="r", beats=[
+    BeatNarration(beat_id="beat-01", narration="a"),
+    BeatNarration(beat_id="beat-02", narration="b"),
+])
+SCENES = SceneVisuals(rationale="r", scenes=[
+    SceneModule(beat_id="beat-01", controls=[], component_source="ORIGINAL_ONE"),
+    SceneModule(beat_id="beat-02", controls=[], component_source="ORIGINAL_TWO"),
+], visual_findings={"fixture": False})
+
+
+def _regen_inputs_and_versions():
+    inputs = [
+        job_input("script-1", "script"),
+        job_input("plan-1", "teaching_plan"),
+        job_input("intent-1", "production_intent"),
+        job_input("scenes-1", "scene_visuals"),
+    ]
+    versions = {
+        "script-1": artifact_version("script-1", payload=SCRIPT.model_dump(mode="json")),
+        "plan-1": artifact_version("plan-1", payload=PLAN.model_dump(mode="json")),
+        "intent-1": artifact_version("intent-1", payload=INTENT.model_dump(mode="json")),
+        "scenes-1": artifact_version("scenes-1", payload=SCENES.model_dump(mode="json")),
+    }
+    return inputs, versions
+
+
+def test_regenerate_context_carries_prior_scenes_and_the_direction():
+    inputs, versions = _regen_inputs_and_versions()
+    context = context_assembler.assemble(
+        stage_for("regenerate_scene_visual"),
+        inputs,
+        versions,
+        {"beat_id": "beat-02", "direction": "make it a nested structure"},
+    )
+    assert isinstance(context, RegenerateVisualContext)
+    assert context.beat_id == "beat-02"
+    assert context.direction == "make it a nested structure"
+    # Every scene the creator is looking at travels forward — the department
+    # carries the untouched beats and only redraws the target.
+    assert [s.beat_id for s in context.prior_scenes] == ["beat-01", "beat-02"]
+
+
+def test_regenerate_context_requires_beat_and_direction_in_the_manifest():
+    inputs, versions = _regen_inputs_and_versions()
+    with pytest.raises(ValueError, match="beat_id and direction"):
+        context_assembler.assemble(stage_for("regenerate_scene_visual"), inputs, versions, {})
+
+
+def test_regenerate_stage_produces_scene_visuals_and_never_chains():
+    stage = stage_for("regenerate_scene_visual")
+    assert stage.produces == ArtifactType.SCENE_VISUALS
+    assert "scene_visuals" in stage.consumes
+    # A per-scene redraw must not trigger the chain — no re-running voice for one
+    # scene. Its absence from CHAIN is what makes continue_chain return None.
+    assert "regenerate_scene_visual" not in CHAIN
