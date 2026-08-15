@@ -21,17 +21,34 @@ progress_step: designing_visuals
 schema_version: 1
 
 tools: []
-max_turns: 2
+# Enough turns for the model to load a skill or two, drill into a reference, author,
+# and take one lint-repair pass — not the old 2-turn draft+repair budget.
+max_turns: 8
 
 # Agent-runtime config (AgentConfig reads these; the department Manifest ignores them).
 # The Renderer is the sub-agent the Visual Director delegates to: it consumes a
 # visual_plan and produces scene_visuals (HyperFrames composition_html + beats). Its
 # authoritative composition contract stays references/hyperframes-composition.md, which
-# is injected into every assignment; these public skills are pulled on demand.
+# is injected into every assignment. These public HyperFrames skills are ALL on-demand:
+# the model reads the storyboard, decides what craft this beat actually needs, and pulls
+# only that (each can drill into its own references). `why` is the task-relevant menu
+# line the model reads, not the skill's own UI-scoped description.
 model:
   id: gpt-5.6-luna
   effort: medium
-skills: [motion-doctrine, hyperframes-animation, hyperframes-keyframes, cut-the-curve, animation-vocabulary]
+skills:
+  - name: hyperframes-creative
+    why: Compose the frame — layout, balance, house style, typography; drill video-composition / composition-patterns for the deep detail.
+  - name: hyperframes-core
+    why: Composition structure — tracks, clips, sub-compositions, determinism rules for a seekable timeline.
+  - name: hyperframes-animation
+    why: Scene blueprints and motion techniques to realise a beat's moments (the reveals and the A→B transitions).
+  - name: hyperframes-keyframes
+    why: Advanced, seek-safe motion — FLIP, morph, paths, masks — when a transition needs more than a tween.
+  - name: cut-the-curve
+    why: Velocity-matched seams and transitions so one moment flows into the next instead of cutting.
+  - name: animation-vocabulary
+    why: The precise, buildable name for a move (pop-in, rubber-band settle, cross-dissolve).
 multiagent: []
 ---
 

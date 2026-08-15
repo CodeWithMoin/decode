@@ -40,7 +40,8 @@ from ...schemas import (
 )
 from .. import tracing
 from .._agent import ModelAgent
-from ..agent_runtime import _DEFAULT_SKILLS_ROOT
+from ..agent_config import AgentConfig
+from ..agent_runtime import AgentRuntime
 from ..contracts import ProviderUsage
 from .prompt import SKILLS
 from .validation import RUNTIME_VERSION, repair_message, validate_scenes
@@ -207,24 +208,63 @@ class ModelVisualizer(ModelAgent):
         self.last_usage = ProviderUsage(self.model, input_tokens, output_tokens, turns)
         return scenes, draft.rationale, repair
 
-    @staticmethod
-    def _composition_craft() -> str:
-        """The authoritative HyperFrames composition/motion guidance, read from the
-        vendored skills — how to compose and animate a frame (layout, balance,
-        connections, scene blueprints). Injected so the Renderer composes off real
-        HyperFrames craft, not just the Decode contract's structural rules."""
-        root = _DEFAULT_SKILLS_ROOT
-        parts = []
-        for path in (
-            root / "hyperframes-animation" / "SKILL.md",
-            root / "hyperframes-creative" / "references" / "video-composition.md",
-            root / "hyperframes-creative" / "references" / "composition-patterns.md",
-        ):
-            try:
-                parts.append(path.read_text())
-            except OSError:
-                continue
-        return "\n\n---\n\n".join(parts)
+    def _storyboard_assignment(
+        self, intent: ProductionIntent, visual_plan: VisualPlan, narration: dict[str, str]
+    ) -> str:
+        """The per-beat brief the runtime authors against: the Decode composition
+        contract (authoritative), the Visual Director's storyboard, and how to
+        realise it. The HyperFrames *craft* is not injected here — the model pulls
+        the skills it needs from its on-demand menu."""
+        return "".join(
+            [
+                "## The composition contract (authoritative — timing and structure)\n\n",
+                SKILLS.reference("hyperframes-composition"),
+                "\n\n## Art direction\n\n",
+                json.dumps(
+                    {
+                        "audience": intent.audience,
+                        "depth": intent.depth,
+                        "brand_colors": intent.brand.colors,
+                        "brand_guidelines": intent.brand.guidelines,
+                    },
+                    ensure_ascii=True,
+                    indent=2,
+                ),
+                "\n\n## The storyboard to render\n\n",
+                json.dumps(
+                    [
+                        {
+                            "beat_id": bs.beat_id,
+                            "metaphor": bs.metaphor,
+                            "moments": [
+                                {
+                                    "shows": m.shows,
+                                    "transition": m.transition,
+                                    "overlays": m.overlays,
+                                    "anchor": m.anchor.model_dump(),
+                                }
+                                for m in bs.moments
+                            ],
+                            "narration": narration.get(bs.beat_id, ""),
+                        }
+                        for bs in visual_plan.beats
+                    ],
+                    ensure_ascii=True,
+                    indent=2,
+                ),
+                "\n\n## Render the storyboard — do not reinvent it\n\n"
+                "Each beat is an approved storyboard from the Visual Director: a `metaphor` and "
+                "ordered `moments`. Build the composition that REALISES it — hold to the metaphor; "
+                "make each moment's `shows` appear and move by its `transition` (the A→B motion, "
+                "named precisely), place its `overlays` as the labels, and use its `anchor` as "
+                "that moment's beat anchor (reuse it verbatim — do not invent new anchors). Emit "
+                "one `beats` entry per storyboard moment.\n\n"
+                "Before you author, load the HyperFrames skills this beat needs from your menu: "
+                "compose the frame off real craft (balance the space, lead the eye to one focal "
+                "thing, connect related elements rather than scattering them), and pick motion "
+                "from the scene blueprints — do not fall back to a fixed template.\n",
+            ]
+        )
 
     async def generate_from_storyboard(
         self,
@@ -233,64 +273,58 @@ class ModelVisualizer(ModelAgent):
         script: Script,
         plan: TeachingPlan,
     ) -> SceneVisuals:
-        """Render the Visual Director's storyboard: realise each beat's metaphor and
-        its directed moments as a HyperFrames composition, reusing the moment anchors."""
-        system = SKILLS.system()
+        """Render the Visual Director's storyboard through the agent runtime: the
+        model reads the storyboard, pulls only the HyperFrames craft each beat needs
+        from its on-demand skill menu (composition, motion, transitions — drilling
+        into their references), authors the composition, and takes one lint-repair
+        pass gated by `validate_scenes`. Reusing the moment anchors verbatim."""
+        config = AgentConfig.from_skillset(SKILLS)
+        runtime = AgentRuntime(self.settings, config)
         narration = {item.beat_id: item.narration for item in script.beats}
-        instructions = SKILLS.instructions(
-            visual_direction=json.dumps(
-                {
-                    "audience": intent.audience,
-                    "depth": intent.depth,
-                    "brand_colors": intent.brand.colors,
-                    "brand_guidelines": intent.brand.guidelines,
-                },
-                ensure_ascii=True,
-                indent=2,
-            ),
-            beats=json.dumps(
-                [
-                    {
-                        "beat_id": bs.beat_id,
-                        "metaphor": bs.metaphor,
-                        "moments": [
-                            {
-                                "shows": m.shows,
-                                "transition": m.transition,
-                                "overlays": m.overlays,
-                                "anchor": m.anchor.model_dump(),
-                            }
-                            for m in bs.moments
-                        ],
-                        "narration": narration.get(bs.beat_id, ""),
-                    }
-                    for bs in visual_plan.beats
-                ],
-                ensure_ascii=True,
-                indent=2,
-            ),
-            composition_contract=SKILLS.reference("hyperframes-composition"),
+        assignment = self._storyboard_assignment(intent, visual_plan, narration)
+
+        def _validate(draft: SceneVisualsDraft) -> list[dict]:
+            return validate_scenes(draft.modules(), plan)
+
+        def _repair(problems: list) -> str:
+            guidance = SKILLS.reflection() or "Repair the scenes using the listed violations."
+            return repair_message(problems, guidance)
+
+        with tracing.span(
+            "renderer",
+            input={"audience": intent.audience, "beats": len(visual_plan.beats)},
+            metadata={
+                "skills_version": SKILLS.version,
+                "runtime_version": RUNTIME_VERSION,
+                "model": self.model,
+            },
+        ) as run:
+            result = await runtime.run(
+                assignment, SceneVisualsDraft, validate=_validate, repair_prompt=_repair
+            )
+            draft: SceneVisualsDraft = result.output
+            scenes = draft.modules()
+            run.update(
+                output={"scenes": len(scenes), "skills_loaded": list(result.skills_loaded)}
+            )
+
+        self.last_usage = result.usage
+        return SceneVisuals(
+            rationale=draft.rationale,
+            scenes=scenes,
+            visual_findings={
+                # What the run actually reached for — never claim more than it did.
+                "fixture": False,
+                "model": self.model,
+                "skills_version": SKILLS.version,
+                "runtime_version": RUNTIME_VERSION,
+                "skills_loaded": list(result.skills_loaded),
+                "references_read": list(result.references_read),
+                "tools_called": list(result.tools_called),
+                "delegated_to": list(result.delegated_to),
+                "repaired": result.repaired,
+            },
         )
-        instructions += (
-            "\n\n## Render the storyboard — do not reinvent it\n\n"
-            "Each beat above is an approved storyboard from the Visual Director: a `metaphor` "
-            "and ordered `moments`. Build the composition that REALISES it — hold to the "
-            "metaphor; make each moment's `shows` appear and move by its `transition` (the A→B "
-            "motion, named precisely), place its `overlays` as the labels, and use its `anchor` "
-            "as that moment's beat anchor (reuse it verbatim — do not invent new anchors). "
-            "Emit one `beats` entry per storyboard moment.\n"
-        )
-        instructions += (
-            "\n\n## HyperFrames composition craft — apply to LAYOUT and motion\n\n"
-            "Authoritative HyperFrames guidance follows. Use it to *compose* each frame, "
-            "not just place elements: balance the space, lead the eye to one focal thing, "
-            "connect related elements (a token to the gate it enters, a branch to its verdict) "
-            "rather than scattering them, and choose motion from the scene blueprints. The "
-            "Decode contract above still governs timing and structure.\n\n"
-            + self._composition_craft()
-        )
-        scenes, rationale, repair = await self._author(system, instructions, plan, intent.audience)
-        return self._visuals(scenes, rationale, repair)
 
     async def regenerate_one(
         self,

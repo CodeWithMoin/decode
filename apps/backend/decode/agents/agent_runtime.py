@@ -38,6 +38,7 @@ from .skills import SkillSet
 Delegate = Callable[[str], Awaitable[str]]
 
 LOAD_SKILL = "load_skill"
+READ_REFERENCE = "read_reference"
 DELEGATE_PREFIX = "delegate_"
 
 # The vendored public skills live at the repo root, not under the backend package.
@@ -51,8 +52,10 @@ class AgentResult:
     output: Any  # a validated BaseModel (real) or a dict (fake) — the produced artifact
     usage: ProviderUsage
     skills_loaded: tuple[str, ...] = ()
+    references_read: tuple[str, ...] = ()
     tools_called: tuple[str, ...] = ()
     delegated_to: tuple[str, ...] = ()
+    repaired: bool = False
 
 
 class SkillLibrary:
@@ -74,6 +77,20 @@ class SkillLibrary:
             _, body = SkillSet(self.root / name)._split()
             self._bodies[name] = body
         return self._bodies[name]
+
+    def references(self, name: str) -> list[str]:
+        """The reference files a skill ships — progressive disclosure *within* a skill.
+        A HyperFrames skill's SKILL.md is an index; the depth lives in these."""
+        ref_dir = self.root / name / "references"
+        return sorted(p.name for p in ref_dir.glob("*.md")) if ref_dir.is_dir() else []
+
+    def read_reference(self, name: str, file: str) -> str:
+        """One reference file's text, path-guarded to the skill's references dir."""
+        ref_dir = (self.root / name / "references").resolve()
+        target = (ref_dir / file).resolve()
+        if ref_dir not in target.parents or not target.is_file():
+            raise ValueError(f"{file!r} is not a reference of {name!r}")
+        return target.read_text()
 
 
 def _observe_tool(name: str, args: list[str]) -> dict[str, Any]:
@@ -133,7 +150,14 @@ class AgentRuntime:
         """The standing prompt: eager craft skills in full, plus a menu of the rest."""
         parts = [self.config.system]
         for ref in self._eager:
-            parts.append(f"## Skill — {ref.name}\n\n{self.library.load(ref.name)}")
+            body = self.library.load(ref.name)
+            refs = self.library.references(ref.name)
+            depth = (
+                f"\n\nReference files you can `{READ_REFERENCE}` for depth: {', '.join(refs)}"
+                if refs
+                else ""
+            )
+            parts.append(f"## Skill — {ref.name}\n\n{body}{depth}")
         if self._on_demand:
             # The agent's own `why` is shown, not the skill's self-description, so
             # a skill written for another context still reads as relevant here.
@@ -143,8 +167,9 @@ class AgentRuntime:
             )
             parts.append(
                 "## Skills you can load\n\n"
-                f"Call `{LOAD_SKILL}` with a name to read one in full when it applies.\n\n"
-                + menu
+                f"Call `{LOAD_SKILL}` with a name to read one in full when it applies; a "
+                f"loaded skill lists its reference files, which you read with `{READ_REFERENCE}` "
+                "for the deep detail.\n\n" + menu
             )
         return "\n\n".join(parts)
 
@@ -154,6 +179,10 @@ class AgentRuntime:
         tools: list[dict[str, Any]] = []
         if self._on_demand:
             tools.append(_observe_tool(LOAD_SKILL, ["name"]))
+        # Reference-reading is offered when any attached skill ships references
+        # (eager skills list theirs in the prompt; on-demand ones on load).
+        if any(self.library.references(ref.name) for ref in self.config.skills):
+            tools.append(_observe_tool(READ_REFERENCE, ["skill", "file"]))
         # Advertise only read-only tools that are actually built: a `planned`
         # (unbuilt) tool would be advertised, then `_dispatch` would return
         # "unavailable" — the model burns a turn on a tool that can never work.
@@ -188,7 +217,24 @@ class AgentRuntime:
             if skill not in {ref.name for ref in self._on_demand}:
                 return json.dumps({"error": f"{skill} is not a loadable skill"})
             touched.skills.append(skill)
-            return json.dumps({"skill": skill, "content": self.library.load(skill)})
+            return json.dumps(
+                {
+                    "skill": skill,
+                    "content": self.library.load(skill),
+                    # so the model knows what it can drill into next
+                    "references": self.library.references(skill),
+                }
+            )
+        if name == READ_REFERENCE:
+            skill, file = str(args.get("skill", "")), str(args.get("file", ""))
+            if skill not in {ref.name for ref in self.config.skills}:
+                return json.dumps({"error": f"{skill} is not a declared skill"})
+            try:
+                content = self.library.read_reference(skill, file)
+            except (ValueError, OSError) as exc:
+                return json.dumps({"error": str(exc)})
+            touched.references.append(f"{skill}/{file}")
+            return json.dumps({"skill": skill, "file": file, "content": content})
         if name.startswith(DELEGATE_PREFIX):
             sub = name[len(DELEGATE_PREFIX) :]
             delegate = self.delegates.get(sub)
@@ -204,10 +250,21 @@ class AgentRuntime:
             return json.dumps({"unavailable": name, "reason": "not available yet"})
         return await self.observer.observe(name, {k: str(v) for k, v in args.items()})
 
-    async def run(self, assignment: str, text_format: type[BaseModel]) -> AgentResult:
+    async def run(
+        self,
+        assignment: str,
+        text_format: type[BaseModel],
+        *,
+        validate: Callable[[Any], list[Any]] | None = None,
+        repair_prompt: Callable[[list[Any]], str] | None = None,
+    ) -> AgentResult:
+        """Run the observe-loop. `validate` gates the produced output (e.g. the
+        HyperFrames linter): a non-empty result triggers one repair turn, and a
+        still-failing output raises rather than returning something invalid."""
         system = self.system()
         tools = self.function_tools()
         touched = _Touched()
+        repaired = False
         input_items: list[Any] = [
             {"role": "user", "content": [{"type": "input_text", "text": assignment}]}
         ]
@@ -233,13 +290,33 @@ class AgentRuntime:
             if not calls:
                 if response.output_parsed is None:
                     raise RuntimeError(f"{self.config.name} returned no parsed output")
+                if validate is not None:
+                    problems = validate(response.output_parsed)
+                    if problems and not repaired:
+                        repaired = True
+                        message = (
+                            repair_prompt(problems)
+                            if repair_prompt
+                            else "Fix these and return the full corrected output:\n"
+                            + json.dumps(problems, default=str)
+                        )
+                        input_items.append(
+                            {"role": "user", "content": [{"type": "input_text", "text": message}]}
+                        )
+                        continue
+                    if problems:
+                        raise RuntimeError(
+                            f"{self.config.name} failed validation after repair: {problems}"
+                        )
                 self.last_usage = ProviderUsage(self.model, in_tokens, out_tokens, turns)
                 return AgentResult(
                     response.output_parsed,
                     self.last_usage,
                     tuple(touched.skills),
+                    tuple(touched.references),
                     tuple(touched.tools),
                     tuple(touched.delegates),
+                    repaired,
                 )
             input_items.extend(response.output)
             for call in calls:
@@ -267,6 +344,7 @@ class AgentRuntime:
 @dataclass
 class _Touched:
     skills: list[str] = field(default_factory=list)
+    references: list[str] = field(default_factory=list)
     tools: list[str] = field(default_factory=list)
     delegates: list[str] = field(default_factory=list)
 
@@ -293,7 +371,14 @@ class FakeAgentRuntime:
         self.delegates = delegates or {}
         self.last_usage: ProviderUsage | None = None
 
-    async def run(self, assignment: str, text_format: type[BaseModel] | None = None) -> AgentResult:
+    async def run(
+        self,
+        assignment: str,
+        text_format: type[BaseModel] | None = None,
+        *,
+        validate: Callable[[Any], list[Any]] | None = None,
+        repair_prompt: Callable[[list[Any]], str] | None = None,
+    ) -> AgentResult:
         skills_loaded = [ref.name for ref in self.config.skills if self.library.load(ref.name)]
         delegations: dict[str, Any] = {}
         for name in self.config.multiagent:
@@ -310,7 +395,7 @@ class FakeAgentRuntime:
         }
         self.last_usage = ProviderUsage("fixture", 0, 0, 1)
         return AgentResult(
-            output, self.last_usage, tuple(skills_loaded), (), tuple(delegations)
+            output, self.last_usage, tuple(skills_loaded), (), (), tuple(delegations)
         )
 
     def as_delegate(self, text_format: type[BaseModel] | None = None) -> Delegate:
