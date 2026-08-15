@@ -110,6 +110,9 @@ class AgentRuntime:
         self.settings = settings
         self.config = config
         self.model = config.model.id
+        # Core craft is loaded up front; the rest stays behind load_skill.
+        self._eager = tuple(ref for ref in config.skills if ref.eager)
+        self._on_demand = tuple(ref for ref in config.skills if not ref.eager)
         self.library = library or SkillLibrary()
         self.observer = observer
         self.delegates = delegates or {}
@@ -127,24 +130,29 @@ class AgentRuntime:
         return self._client
 
     def system(self) -> str:
-        """The standing prompt, plus the menu of skills the model may pull in."""
-        prompt = self.config.system
-        if self.config.skills:
+        """The standing prompt: eager craft skills in full, plus a menu of the rest."""
+        parts = [self.config.system]
+        for ref in self._eager:
+            parts.append(f"## Skill — {ref.name}\n\n{self.library.load(ref.name)}")
+        if self._on_demand:
+            # The agent's own `why` is shown, not the skill's self-description, so
+            # a skill written for another context still reads as relevant here.
             menu = "\n".join(
-                f"- {name}: {self.library.describe(name)}" for name in self.config.skills
+                f"- {ref.name}: {ref.why or self.library.describe(ref.name)}"
+                for ref in self._on_demand
             )
-            prompt += (
-                "\n\n## Skills you can load\n\n"
-                f"Call `{LOAD_SKILL}` with a name to read one in full when it applies — "
-                "they are not all loaded up front.\n\n" + menu
+            parts.append(
+                "## Skills you can load\n\n"
+                f"Call `{LOAD_SKILL}` with a name to read one in full when it applies.\n\n"
+                + menu
             )
-        return prompt
+        return "\n\n".join(parts)
 
     def function_tools(self) -> list[dict[str, Any]]:
         """Everything the model may call this run: skill loading, read-only tools, and
         one delegation tool per declared sub-agent."""
         tools: list[dict[str, Any]] = []
-        if self.config.skills:
+        if self._on_demand:
             tools.append(_observe_tool(LOAD_SKILL, ["name"]))
         # Advertise only read-only tools that are actually built: a `planned`
         # (unbuilt) tool would be advertised, then `_dispatch` would return
@@ -177,8 +185,8 @@ class AgentRuntime:
             args = {}
         if name == LOAD_SKILL:
             skill = str(args.get("name", ""))
-            if skill not in self.config.skills:
-                return json.dumps({"error": f"{skill} is not a declared skill"})
+            if skill not in {ref.name for ref in self._on_demand}:
+                return json.dumps({"error": f"{skill} is not a loadable skill"})
             touched.skills.append(skill)
             return json.dumps({"skill": skill, "content": self.library.load(skill)})
         if name.startswith(DELEGATE_PREFIX):
@@ -286,7 +294,7 @@ class FakeAgentRuntime:
         self.last_usage: ProviderUsage | None = None
 
     async def run(self, assignment: str, text_format: type[BaseModel] | None = None) -> AgentResult:
-        skills_loaded = [name for name in self.config.skills if self.library.load(name)]
+        skills_loaded = [ref.name for ref in self.config.skills if self.library.load(ref.name)]
         delegations: dict[str, Any] = {}
         for name in self.config.multiagent:
             delegate = self.delegates.get(name)

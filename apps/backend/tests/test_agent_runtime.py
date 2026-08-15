@@ -64,7 +64,7 @@ def test_agent_config_parses_frontmatter(tmp_path: Path) -> None:
     assert config.model.effort == "high"
     assert config.produces == "visual_plan"
     assert config.consumes == ("teaching_plan", "script")
-    assert config.skills == ("motion-doctrine", "apple-design")
+    assert tuple(ref.name for ref in config.skills) == ("motion-doctrine", "apple-design")
     assert config.tools == ("get_plan", "get_script", "render_export")
     assert config.multiagent == ("renderer", "animation-reviewer")
     assert config.metadata == {"team": "motion"}

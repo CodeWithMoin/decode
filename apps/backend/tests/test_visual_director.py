@@ -34,14 +34,14 @@ def test_visual_director_config_reads_its_skill_md():
     assert config.produces == "visual_plan"
     assert config.multiagent == ("renderer", "animation-reviewer")
     # The custom skill it directs with, plus the vendored public ones.
-    assert "visual-direction" in config.skills
-    assert "apple-design" in config.skills
+    assert "visual-direction" in {r.name for r in config.skills}
+    assert "apple-design" in {r.name for r in config.skills}
 
 
 def test_renderer_config_keeps_the_persisted_scene_visuals_name():
     config = AgentConfig.from_skillset(RENDERER)
     assert config.produces == "scene_visuals"  # persisted contract, unchanged
-    assert "hyperframes-animation" in config.skills
+    assert "hyperframes-animation" in {r.name for r in config.skills}
 
 
 def test_the_custom_visual_direction_skill_is_loadable():

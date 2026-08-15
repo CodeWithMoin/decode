@@ -80,8 +80,9 @@ class ModelVisualDirector:
                 "model": self.model,
                 "skills_version": SKILLS.version,
                 # What the agent actually reached for this run — the dial-in trace.
-                "skills_available": list(self.config.skills),
-                "skills_loaded": list(result.skills_loaded),
+                "skills_eager": [ref.name for ref in self.config.skills if ref.eager],
+                "skills_on_demand": [ref.name for ref in self.config.skills if not ref.eager],
+                "skills_loaded": list(result.skills_loaded),  # the on-demand ones it pulled
                 "tools_called": list(result.tools_called),
                 "delegated_to": list(result.delegated_to),
             },

@@ -28,6 +28,28 @@ class AgentModel(BaseModel):
     effort: str = "medium"
 
 
+class SkillRef(BaseModel):
+    """One skill an agent declares, and how it reaches it.
+
+    `eager` skills — the agent's core craft — are loaded into the system prompt up
+    front, no menu, no gamble. On-demand skills stay behind `load_skill`, and `why`
+    is the task-relevant one-liner shown in the menu instead of the skill's own
+    (often UI-scoped) description — so the model can tell when it applies.
+    """
+
+    name: str
+    eager: bool = False
+    why: str = ""
+
+    @classmethod
+    def parse(cls, item: object) -> SkillRef:
+        if isinstance(item, str):
+            return cls(name=item)
+        if isinstance(item, dict):
+            return cls(**item)
+        raise ValueError(f"a skill must be a name or a {{name, eager, why}} object, got {item!r}")
+
+
 class AgentConfig(BaseModel):
     """Everything the runtime needs to run one agent, read from its SKILL.md."""
 
@@ -37,7 +59,7 @@ class AgentConfig(BaseModel):
     description: str = ""
     consumes: tuple[str, ...] = ()
     produces: str
-    skills: tuple[str, ...] = ()  # skill names, loaded on demand (progressive disclosure)
+    skills: tuple[SkillRef, ...] = ()  # eager (always loaded) + on-demand (menu + load_skill)
     tools: tuple[str, ...] = ()  # names into the orchestrator's tool registry
     multiagent: tuple[str, ...] = ()  # sub-agent names this coordinator may delegate to
     max_turns: int = 6  # observe/load/delegate rounds before the agent must produce output
@@ -59,7 +81,7 @@ class AgentConfig(BaseModel):
                 description=str(front.get("description", "")).strip(),
                 consumes=tuple(front.get("consumes") or ()),
                 produces=front["produces"],
-                skills=tuple(front.get("skills") or ()),
+                skills=tuple(SkillRef.parse(item) for item in (front.get("skills") or ())),
                 tools=tuple(front.get("tools") or ()),
                 multiagent=tuple(front.get("multiagent") or ()),
                 max_turns=int(front.get("max_turns", 6)),
