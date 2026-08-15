@@ -18,6 +18,7 @@ import type {
   SceneVisualsPayload,
   ScriptPayload,
   SourceUploadResult,
+  OrchestratorTurn,
   StudioSnapshot,
   TeachingPlanPayload,
   UsageResponse,
@@ -267,6 +268,14 @@ export const decodeApi = {
 
   getStudio: (projectId: string) =>
     request<StudioSnapshot>(`/api/v1/projects/${projectId}/studio`),
+
+  // The side chat's one turn: a natural-language message → a reply and, when it
+  // maps to a tool, a scoped proposal. Read-only — the tool runs on Apply.
+  orchestratorTurn: (projectId: string, message: string) =>
+    request<OrchestratorTurn>(`/api/v1/projects/${projectId}/orchestrator/turn`, {
+      method: "POST",
+      body: JSON.stringify({ message }),
+    }),
 
   getJob: (projectId: string, jobId: string) =>
     request<JobDetail>(`/api/v1/projects/${projectId}/jobs/${jobId}`),

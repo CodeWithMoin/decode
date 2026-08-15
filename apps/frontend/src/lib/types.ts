@@ -606,6 +606,22 @@ export interface ExampleSource {
   src: Source;
 }
 
+/** A scoped change the orchestrator proposes; nothing runs until Apply. */
+export interface ProposedChange {
+  tool: string;
+  args: Record<string, string>;
+  summary: string;
+  changes: string;
+  untouched: string;
+  receipt: string;
+}
+
+/** One turn of the side-chat orchestrator: a reply, optionally a proposal. */
+export interface OrchestratorTurn {
+  reply: string;
+  proposal: ProposedChange | null;
+}
+
 export type RenderState = "idle" | "rendering" | "done";
 
 /** Downstream work that no longer matches the current scene source. */

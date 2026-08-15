@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, PaperPlaneTilt } from "@phosphor-icons/react";
 import { num, observations } from "@/lib/derive";
+import { decodeApi } from "@/lib/decode-api";
 import { useStudio } from "@/store/studio";
 import { AppMark, Ghost, Graphite, Spinner, cx } from "@/components/ui/primitives";
 
@@ -50,6 +51,8 @@ export function ProducerDrawer() {
   const shortenCurrent = useStudio((s) => s.shortenCurrent);
   const reorder = useStudio((s) => s.reorder);
   const applyRegen = useStudio((s) => s.applyRegen);
+  const connectedProjectId = useStudio((s) => s.connectedProjectId);
+  const directScene = useStudio((s) => s.directScene);
 
   /* Every pending reply is tracked so unmounting can never fire a setState
      into a dead component. */
@@ -326,6 +329,40 @@ export function ProducerDrawer() {
     setProposal(null);
     ask(t);
     setDraft("");
+
+    // Connected: the real orchestrator. A turn returns a reply and, when it maps
+    // to a tool, a scoped proposal — which reuses the same proposal card + Apply
+    // as the seeded actions. Apply runs the real per-scene tool; nothing has
+    // moved until then (propose → apply → receipt).
+    if (connectedProjectId) {
+      workingLine.current = "Reading that against the current cut…";
+      setThinking(true);
+      decodeApi
+        .orchestratorTurn(connectedProjectId, t)
+        .then((turn) => {
+          setThinking(false);
+          say(turn.reply);
+          const p = turn.proposal;
+          if (p) {
+            setProposal({
+              label: p.summary,
+              proposal: { title: p.summary, scope: p.changes, untouched: p.untouched },
+              run: () => {
+                if (p.tool === "direct_scene" && directScene) {
+                  void directScene(p.args.beat_id, p.args.direction);
+                }
+              },
+            });
+          }
+        })
+        .catch(() => {
+          setThinking(false);
+          say("I couldn’t reach the studio just now — nothing changed. Try again in a moment.");
+        });
+      return;
+    }
+
+    // Prototype: the seeded reply.
     workingLine.current = "Reading that against the current draft…";
     setThinking(true);
     after(900, () => {
@@ -336,7 +373,18 @@ export function ProducerDrawer() {
           : "I’ve got the direction. I’ll keep it with the project brief; nothing has changed yet.",
       );
     });
-  }, [draft, ask, setDraft, setThinking, say, after, screen, sceneIdx]);
+  }, [
+    draft,
+    ask,
+    setDraft,
+    setThinking,
+    say,
+    after,
+    screen,
+    sceneIdx,
+    connectedProjectId,
+    directScene,
+  ]);
 
   /* Newest message stays in view. Jump, don't animate — a second scroll
      animation would compete with the panel's own materialization. */

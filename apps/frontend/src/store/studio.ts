@@ -72,6 +72,11 @@ interface StudioState {
   thread: ThreadMessage[];
   draft: string;
   thinking: boolean;
+  /* Connected-only bridge: the connected Edit stage sets these so the docked
+     chat can reach the real orchestrator + the real per-scene apply. Null in the
+     prototype, where the chat stays its seeded self. */
+  connectedProjectId: string | null;
+  directScene: ((beatId: string, direction: string) => Promise<void>) | null;
 
   /* export */
   exportRes: string;
@@ -225,6 +230,8 @@ export const useStudio = create<StudioState>((set, get) => ({
   thread: SEED_THREAD(),
   draft: "",
   thinking: false,
+  connectedProjectId: null,
+  directScene: null,
 
   exportRes: "1080p",
   exportFmt: "MP4 · H.264",

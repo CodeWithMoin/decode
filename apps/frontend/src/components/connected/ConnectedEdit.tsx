@@ -339,6 +339,14 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
     [projectId, visualsVersionId, load],
   );
 
+  // Hand the docked chat the real project + the real per-scene apply, so the
+  // orchestrator's "direct_scene" proposal runs the same path the Inspector's
+  // direction field does. Cleared on unmount so the prototype chat stays seeded.
+  useEffect(() => {
+    useStudio.setState({ connectedProjectId: projectId, directScene });
+    return () => useStudio.setState({ connectedProjectId: null, directScene: null });
+  }, [projectId, directScene]);
+
   const startExport = async () => {
     if (!ready || renderState === "rendering") return;
     setRenderState("rendering");
