@@ -16,7 +16,25 @@ const STALE_LABEL: Record<StaleKind, string> = {
   voice: "Voice",
 };
 
-export function Inspector({ inactive = false }: { inactive?: boolean }) {
+/**
+ * Remembered across mounts, like the pane split.
+ *
+ * Edit unmounts on every stage switch, so a director who was reading the Plan
+ * tab lands back on Scene each time without this. Session-only, never project
+ * data.
+ */
+let lastInspectorTab: InspectorTab = "scene";
+
+type InspectorTab = "scene" | "plan" | "script";
+
+export function Inspector({
+  inactive = false,
+  onDirectScene,
+}: {
+  inactive?: boolean;
+  /** Connected only: direct one scene in words and rebuild just that scene. */
+  onDirectScene?: (beatId: string, direction: string) => void;
+}) {
   const sc = useStudio((s) => s.sc);
   const sceneIdx = useStudio((s) => s.sceneIdx);
   const regen = useStudio((s) => s.regen);
@@ -28,10 +46,27 @@ export function Inspector({ inactive = false }: { inactive?: boolean }) {
   const setClipFade = useStudio((s) => s.setClipFade);
   const checkpoint = useStudio((s) => s._pushHistory);
   const setTab = useStudio((s) => s.setTab);
+  const select = useStudio((s) => s.select);
   const setRegen = useStudio((s) => s.setRegen);
   const applyRegen = useStudio((s) => s.applyRegen);
   const say = useStudio((s) => s.say);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [inspectorTab, setInspectorTab] = useState<InspectorTab>(lastInspectorTab);
+  // Persist the chosen tab across mounts in an effect, not the click handler:
+  // reassigning a module global during render/handlers trips react-hooks/globals.
+  useEffect(() => {
+    lastInspectorTab = inspectorTab;
+  }, [inspectorTab]);
+  const showTab = setInspectorTab;
+
+  // The direction the creator is writing, tagged with the scene it belongs to.
+  // Derived rather than reset in an effect: switching scenes shows an empty
+  // field because the stored draft is for a different beat, with no setState in
+  // an effect (react-hooks/set-state-in-effect is load-bearing here).
+  const [directionDraft, setDirectionDraft] = useState<{ sceneId: string; text: string }>({
+    sceneId: "",
+    text: "",
+  });
 
   useEffect(
     () => () => {
@@ -45,6 +80,8 @@ export function Inspector({ inactive = false }: { inactive?: boolean }) {
 
   const style = { ...scene.visualStyle, font: scene.visualStyle?.font ?? "Space Grotesk" };
   const staleKinds = staleByScene[scene.id] ?? [];
+  const direction = directionDraft.sceneId === scene.id ? directionDraft.text : "";
+  const setDirection = (text: string) => setDirectionDraft({ sceneId: scene.id, text });
 
   const updateStyle = (fields: Partial<SceneVisualStyle>) =>
     patch(sceneIdx, { visualStyle: { ...scene.visualStyle, ...fields } });
@@ -79,6 +116,13 @@ export function Inspector({ inactive = false }: { inactive?: boolean }) {
     }, 900);
   };
 
+  const submitDirection = () => {
+    const text = direction.trim();
+    if (!text || regen !== null || !onDirectScene) return;
+    onDirectScene(scene.id, text);
+    setDirection("");
+  };
+
   return (
     <aside
       inert={inactive}
@@ -89,7 +133,39 @@ export function Inspector({ inactive = false }: { inactive?: boolean }) {
         inactive && "pointer-events-none",
       )}
     >
+      {/* Scene · Plan · Script — the whole production from the cutting room,
+          so a director reads the plan and the narration without leaving the
+          workspace. Scene is the settings for the frame in front of you; Plan
+          and Script are the two stages that shaped it, in view rather than a
+          route away. */}
+      <div role="tablist" aria-label="Inspector" className="flex flex-none border-b border-white/[0.06]">
+        {(["scene", "plan", "script"] as const).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            aria-selected={inspectorTab === tab}
+            onClick={() => showTab(tab)}
+            className={cx(
+              "flex-1 border-b-2 px-2 py-2.5 text-[11.5px] font-medium capitalize transition-colors duration-[var(--t-fast)]",
+              inspectorTab === tab
+                ? "border-[var(--accent)] text-[var(--nle-text)]"
+                : "border-transparent text-[var(--nle-faint)] hover:text-[var(--nle-muted)]",
+            )}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
       <div className="rail-y min-h-0 flex-1 overflow-y-auto">
+        {inspectorTab === "plan" && (
+          <PlanTab sc={sc} sceneIdx={sceneIdx} onSelect={(index) => { select(index); showTab("scene"); }} />
+        )}
+        {inspectorTab === "script" && (
+          <ScriptTab scene={scene} sceneIdx={sceneIdx} onEditInScript={() => changeProjectStage("edit", "script", () => setTab("script"))} />
+        )}
+        {inspectorTab === "scene" && (<>
         <section className="px-3.5 pt-4 pb-3.5">
           <div className="flex items-center gap-2.5">
             <span className="flex-none font-mono text-[10px] tabular-nums text-[var(--nle-faint)]">{num(sceneIdx)}</span>
@@ -149,6 +225,41 @@ export function Inspector({ inactive = false }: { inactive?: boolean }) {
             ))}
           </div>
         </div>
+
+        {/* Direct this scene — the per-scene direction loop. The creator says how
+            they want this one scene to look, in their words, and only this scene
+            is redrawn. Connected only: it needs a real backend to redraw against,
+            so the prototype (no onDirectScene) never shows it. */}
+        {onDirectScene && (
+          <div className="border-t border-white/[0.06] px-3.5 py-4">
+            <div className="mb-2 font-mono text-[8.5px] tracking-[0.12em] text-[var(--nle-faint)] uppercase">
+              Direct this scene
+            </div>
+            <textarea
+              value={direction}
+              onChange={(event) => setDirection(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                  event.preventDefault();
+                  submitDirection();
+                }
+              }}
+              rows={3}
+              disabled={regen !== null}
+              placeholder="Describe how this scene should look. Only this scene changes."
+              aria-label="Direct this scene"
+              className="nle-field w-full resize-none rounded-[7px] bg-[#151515] px-2.5 py-2 text-[12px] leading-[1.5] text-[var(--nle-text)] shadow-[inset_0_0_0_1px_rgb(255_255_255_/_0.04)] outline-none placeholder:text-[var(--nle-faint)] disabled:opacity-50"
+            />
+            <button
+              type="button"
+              onClick={submitDirection}
+              disabled={regen !== null || direction.trim().length === 0}
+              className="mt-2 w-full rounded-[6px] bg-[var(--accent)] px-3 py-2 text-center text-[11.5px] font-medium text-white transition-[opacity,transform] duration-[var(--t-fast)] hover:opacity-90 active:scale-[0.98] disabled:opacity-40"
+            >
+              {regen ? "Redrawing…" : "Redraw this scene"}
+            </button>
+          </div>
+        )}
 
         {scene.componentSource && scene.controls && scene.controls.length > 0 && (
           <div className="border-t border-white/[0.06] px-3.5 py-4">
@@ -231,8 +342,76 @@ export function Inspector({ inactive = false }: { inactive?: boolean }) {
             </div>
           </div>
         )}
+        </>)}
       </div>
     </aside>
+  );
+}
+
+/** Every beat at a glance, from the cutting room. Click to jump the playhead. */
+function PlanTab({ sc, sceneIdx, onSelect }: { sc: ReturnType<typeof useStudio.getState>["sc"]; sceneIdx: number; onSelect: (index: number) => void }) {
+  const total = sc.reduce((sum, scene) => sum + scene.dur, 0);
+  return (
+    <section className="px-3.5 py-4">
+      <div className="mb-3 flex items-baseline justify-between">
+        <span className="font-mono text-[8.5px] tracking-[0.12em] text-[var(--nle-faint)] uppercase">Teaching plan</span>
+        <span className="font-mono text-[9px] tabular-nums text-[var(--nle-faint)]">{sc.length} beats · {fmt(total)}</span>
+      </div>
+      <div className="grid gap-1.5">
+        {sc.map((scene, index) => (
+          <button
+            key={scene.id}
+            type="button"
+            onClick={() => onSelect(index)}
+            className={cx(
+              "grid grid-cols-[22px_minmax(0,1fr)_auto] items-center gap-2 rounded-[7px] border px-2 py-2 text-left transition-colors duration-[var(--t-fast)]",
+              index === sceneIdx
+                ? "border-white/[0.1] bg-[#181818]"
+                : "border-white/[0.06] bg-[#111111] hover:border-white/[0.1] hover:bg-[#161616]",
+            )}
+          >
+            <span className="font-mono text-[10px] tabular-nums text-[var(--nle-faint)]">{num(index)}</span>
+            <span className="min-w-0">
+              <span className="block truncate text-[12px] text-[var(--nle-text)]">{scene.title}</span>
+              {scene.objective && <span className="mt-0.5 block truncate text-[10.5px] text-[var(--nle-faint)]">{scene.objective}</span>}
+            </span>
+            <span className="font-mono text-[9.5px] tabular-nums text-[var(--nle-faint)]">{fmt(scene.dur)}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The selected scene's narration, in view. Read-only here on purpose —
+ * narration is editable in exactly one place, the Script stage, so this shows
+ * the words and links there rather than opening a second editable copy.
+ */
+function ScriptTab({ scene, sceneIdx, onEditInScript }: { scene: ReturnType<typeof useStudio.getState>["sc"][number]; sceneIdx: number; onEditInScript: () => void }) {
+  return (
+    <section className="px-3.5 py-4">
+      <div className="mb-3 flex items-baseline justify-between">
+        <span className="font-mono text-[8.5px] tracking-[0.12em] text-[var(--nle-faint)] uppercase">Scene {num(sceneIdx)} narration</span>
+        <span className="font-mono text-[9px] tabular-nums text-[var(--nle-faint)]">{wordCount(scene.narration)} words</span>
+      </div>
+      {scene.narration ? (
+        <p className="rounded-[8px] border border-white/[0.06] bg-[#111111] px-3 py-2.5 text-[12.5px] leading-[1.65] text-[var(--nle-muted)]">
+          {scene.narration}
+        </p>
+      ) : (
+        <p className="rounded-[8px] border border-dashed border-white/[0.08] px-3 py-2.5 text-[12px] text-[var(--nle-faint)]">
+          This scene has no narration yet.
+        </p>
+      )}
+      <button
+        type="button"
+        onClick={onEditInScript}
+        className="mt-3 flex w-full items-center justify-between rounded-[5px] px-2 py-2 text-[12px] text-[var(--nle-muted)] transition-colors duration-[var(--t-fast)] hover:bg-white/[0.03] hover:text-[var(--nle-text)]"
+      >
+        <span>Edit narration in Script →</span>
+      </button>
+    </section>
   );
 }
 

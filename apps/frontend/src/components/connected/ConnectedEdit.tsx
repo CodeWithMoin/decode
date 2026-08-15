@@ -81,6 +81,7 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
   const router = useRouter();
   const [studio, setStudio] = useState<StudioSnapshot | null>(null);
   const [artifactId, setArtifactId] = useState<string | null>(null);
+  const [visualsVersionId, setVisualsVersionId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -141,6 +142,9 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
     const visualsVersion =
       visualsResult.items.find((item) => item.version_id === visualsResult.latest_version_id) ??
       visualsResult.items[0];
+    // The cut the creator is editing — the version a per-scene direction is
+    // written against, so a stale one is refused rather than redrawn.
+    setVisualsVersionId(visualsVersion?.version_id ?? null);
     const voiceVersion =
       voiceResult?.items.find((item) => item.version_id === voiceResult.latest_version_id) ??
       voiceResult?.items[0];
@@ -288,6 +292,53 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
     (item) => item.artifact_type === "script" && item.approved_version_id,
   );
 
+  // The per-scene direction loop, wired to the backend. The creator directs one
+  // scene in words; only that scene is redrawn, and the receipt says so. Guarded
+  // by the store's `regen` line so a second direction can't overlap the first.
+  const directScene = useCallback(
+    async (beatId: string, direction: string) => {
+      const store = useStudio.getState();
+      if (!visualsVersionId || store.regen) return;
+      store.setRegen("Redrawing this scene to your direction…");
+      try {
+        const { job_id } = await decodeApi.regenerateSceneVisual(
+          projectId,
+          visualsVersionId,
+          beatId,
+          direction,
+          idempotencyKey(),
+        );
+        // Bounded poll — a job that never resolves must not leave the inspector
+        // locked in "Redrawing…" forever. ~3 minutes, then fail safe.
+        for (let attempt = 0; ; attempt += 1) {
+          await new Promise((resolve) => window.setTimeout(resolve, 1500));
+          const job = await decodeApi.getJob(projectId, job_id);
+          if (job.status === "succeeded") break;
+          if (job.status === "failed") throw new Error("regenerate_failed");
+          if (attempt >= 120) throw new Error("regenerate_timeout");
+        }
+        // Respect whatever scene the creator selected while the redraw ran; only
+        // fall back to where they started if they never moved.
+        const liveIdx = useStudio.getState().sceneIdx;
+        await load();
+        useStudio.setState({ sceneIdx: liveIdx });
+        useStudio
+          .getState()
+          .say(
+            "I redrew this scene to your direction and left every other scene as it was.",
+            "1 scene redrawn",
+          );
+      } catch {
+        useStudio
+          .getState()
+          .say("I couldn’t redraw that scene. Nothing changed — your other scenes are safe.");
+      } finally {
+        useStudio.getState().setRegen(null);
+      }
+    },
+    [projectId, visualsVersionId, load],
+  );
+
   const startExport = async () => {
     if (!ready || renderState === "rendering") return;
     setRenderState("rendering");
@@ -405,7 +456,7 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
         </div>
        ) : (
         <div className="min-h-0 lg:h-full">
-          <Edit />
+          <Edit onDirectScene={directScene} />
           {(!hasVoice || renderState !== "idle") && (
             <div className="flex flex-none items-center gap-2 border-t border-[var(--nle-line)] bg-[var(--nle-panel)] px-4 py-2">
               {!hasVoice && (

@@ -236,6 +236,29 @@ export const decodeApi = {
       `/api/v1/projects/${projectId}/artifacts/${artifactId}/versions?limit=50`,
     ),
 
+  // The per-scene direction loop: redraw one beat's scene under the creator's
+  // words. Only that scene changes; the version id is the cut they are editing,
+  // so a stale one is refused rather than silently redrawn.
+  regenerateSceneVisual: (
+    projectId: string,
+    sceneVisualsVersionId: string,
+    beatId: string,
+    direction: string,
+    key: string,
+  ) =>
+    request<{ job_id: string; run_id: string; status: string; kind: string }>(
+      `/api/v1/projects/${projectId}/scene-visuals/regenerations`,
+      {
+        method: "POST",
+        headers: { "Idempotency-Key": key },
+        body: JSON.stringify({
+          scene_visuals_version_id: sceneVisualsVersionId,
+          beat_id: beatId,
+          direction,
+        }),
+      },
+    ),
+
   generateVoice: (projectId: string, scriptVersionId: string, intentVersionId: string, key: string) =>
     request<{ job_id: string; run_id: string; status: string; kind: string }>(
       `/api/v1/projects/${projectId}/voice/generations`,
