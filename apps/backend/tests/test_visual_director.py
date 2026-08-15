@@ -9,13 +9,13 @@ from __future__ import annotations
 
 from test_visualizer import PLAN
 
-from decode.departments.agent_config import AgentConfig
-from decode.departments.agent_runtime import FakeAgentRuntime, SkillLibrary
-from decode.departments.fixtures import FakeRenderer, FakeVisualDirector
-from decode.departments.visual_director.prompt import SKILLS as VISUAL_DIRECTOR
-from decode.departments.visualizer.composition import resolve_scene
-from decode.departments.visualizer.prompt import SKILLS as RENDERER
-from decode.departments.visualizer.validation import validate_scenes
+from decode.agents.agent_config import AgentConfig
+from decode.agents.agent_runtime import FakeAgentRuntime, SkillLibrary
+from decode.agents.fixtures import FakeRenderer, FakeVisualDirector
+from decode.agents.visual_director.prompt import SKILLS as VISUAL_DIRECTOR
+from decode.agents.visualizer.composition import resolve_scene
+from decode.agents.visualizer.prompt import SKILLS as RENDERER
+from decode.agents.visualizer.validation import validate_scenes
 from decode.schemas import ProductionIntent, VisualBeat, VisualPlan
 from decode.timing import NarrationTiming, even_split_words
 

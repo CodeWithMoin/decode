@@ -11,13 +11,13 @@ import shutil
 
 import pytest
 
-from decode.departments.visualizer.composition import (
+from decode.agents.visualizer.composition import (
     DURATION_TOKEN,
     TIMING_MARKER,
     resolve_scene,
     stamp,
 )
-from decode.departments.visualizer.lint import lint_composition
+from decode.agents.visualizer.lint import lint_composition
 from decode.schemas import VisualBeat
 from decode.timing import Anchor, NarrationTiming, even_split_words
 

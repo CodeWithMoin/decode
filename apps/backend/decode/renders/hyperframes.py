@@ -21,8 +21,8 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..agents.visualizer.composition import resolve_scene, stamp
 from ..config import Settings
-from ..departments.visualizer.composition import resolve_scene, stamp
 from ..models import Artifact, ArtifactType, ArtifactVersion
 from ..providers.storage import object_store
 from ..schemas import SceneVisuals, Voice

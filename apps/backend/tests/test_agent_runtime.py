@@ -7,16 +7,16 @@ from pathlib import Path
 
 import pytest
 
-from decode.config import Settings
-from decode.departments.agent_config import AgentConfig
-from decode.departments.agent_runtime import (
+from decode.agents.agent_config import AgentConfig
+from decode.agents.agent_runtime import (
     DELEGATE_PREFIX,
     LOAD_SKILL,
     AgentRuntime,
     FakeAgentRuntime,
     SkillLibrary,
 )
-from decode.departments.skills import SkillSet
+from decode.agents.skills import SkillSet
+from decode.config import Settings
 
 COORDINATOR_SKILL = """---
 name: visual-director

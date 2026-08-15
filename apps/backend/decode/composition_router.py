@@ -17,8 +17,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from .agents.visualizer.composition import resolve_scene, stamp
 from .db import get_session
-from .departments.visualizer.composition import resolve_scene, stamp
 from .models import Artifact, ArtifactType, ArtifactVersion
 from .projects.router import project_or_404
 from .schemas import SceneVisuals, Voice

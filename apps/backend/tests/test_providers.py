@@ -1,8 +1,8 @@
 import pytest
 
+from decode.agents import SourceInput
+from decode.agents.registry import evaluator, intake
 from decode.config import Settings
-from decode.departments import SourceInput
-from decode.departments.registry import evaluator, intake
 from decode.providers.storage import LocalObjectStore
 
 

@@ -2,11 +2,11 @@ from types import SimpleNamespace
 
 import pytest
 
+from decode.agents import intake
+from decode.agents.intake import IntakeBriefDraft, OpenAIIntake, prompt
+from decode.agents.intake.tools import FindingLog
+from decode.agents.registry import intake as build_intake
 from decode.config import Settings
-from decode.departments import intake
-from decode.departments.intake import IntakeBriefDraft, OpenAIIntake, prompt
-from decode.departments.intake.tools import FindingLog
-from decode.departments.registry import intake as build_intake
 from decode.schemas import ProductionIntent
 
 INTENT = ProductionIntent(

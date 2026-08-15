@@ -3,9 +3,9 @@ from pathlib import Path
 import httpx
 import pytest
 
+from decode.agents.registry import voice as build_voice
+from decode.agents.voice import _mp3_duration_seconds, prompt
 from decode.config import Settings
-from decode.departments.registry import voice as build_voice
-from decode.departments.voice import _mp3_duration_seconds, prompt
 from decode.execution.pipeline import STAGES
 from decode.models import ArtifactType
 from decode.providers.storage import object_store

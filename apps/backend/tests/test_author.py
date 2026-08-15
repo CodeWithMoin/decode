@@ -2,15 +2,15 @@ from types import SimpleNamespace
 
 import pytest
 
-from decode.config import Settings
-from decode.departments.author import OpenAIAuthor, ScriptDraft, prompt
-from decode.departments.author.validation import (
+from decode.agents.author import OpenAIAuthor, ScriptDraft, prompt
+from decode.agents.author.validation import (
     TOLERANCE,
     target_words,
     validate_script,
     word_count,
 )
-from decode.departments.registry import author as build_author
+from decode.agents.registry import author as build_author
+from decode.config import Settings
 from decode.execution.pipeline import STAGES
 from decode.models import ArtifactType
 from decode.schemas import (
@@ -214,7 +214,7 @@ async def test_a_failed_repair_is_not_published(monkeypatch):
 async def test_the_fixture_writes_to_every_budget():
     # The fixture has to be arithmetically honest, or offline runs teach the
     # wrong lesson about what a script owes the plan.
-    from decode.departments.fixtures import FakeAuthor
+    from decode.agents.fixtures import FakeAuthor
 
     script = await FakeAuthor().generate(INTENT, PLAN)
     assert validate_script(script.beats, PLAN) == []

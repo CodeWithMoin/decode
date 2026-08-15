@@ -3,9 +3,9 @@ from time import perf_counter
 from arq.connections import RedisSettings
 from sqlalchemy import select
 
+from ..agents import tracing
 from ..config import get_settings
 from ..db import SessionLocal, utcnow
-from ..departments import tracing
 from ..domain import emit, publish_version
 from ..models import (
     Artifact,

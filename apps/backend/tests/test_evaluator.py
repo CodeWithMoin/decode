@@ -2,15 +2,15 @@ from types import SimpleNamespace
 
 import pytest
 
-from decode.config import Settings
-from decode.departments.evaluator import (
+from decode.agents.evaluator import (
     SYSTEM,
     CheckResult,
     EvaluationDraft,
     OpenAIEvaluator,
     PlanEvaluationDraft,
 )
-from decode.departments.registry import evaluator as build_evaluator
+from decode.agents.registry import evaluator as build_evaluator
+from decode.config import Settings
 from decode.schemas import Beat, PlanSection, ProductionBrief, ProductionIntent, TeachingPlan
 
 INTENT = ProductionIntent(

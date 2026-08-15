@@ -1,13 +1,13 @@
 import pytest
 
-from decode.config import Settings
-from decode.departments.registry import visualizer as build_visualizer
-from decode.departments.visualizer import prompt
-from decode.departments.visualizer.validation import (
+from decode.agents.registry import visualizer as build_visualizer
+from decode.agents.visualizer import prompt
+from decode.agents.visualizer.validation import (
     controls_export,
     module_source,
     validate_scenes,
 )
+from decode.config import Settings
 from decode.execution.pipeline import STAGES
 from decode.models import ArtifactType
 from decode.schemas import (
@@ -171,7 +171,7 @@ def test_decode_writes_the_controls_block_not_the_model():
 
 
 async def test_the_fixture_writes_scenes_that_pass_their_own_gate():
-    from decode.departments.fixtures import FakeAuthor, FakeVisualizer
+    from decode.agents.fixtures import FakeAuthor, FakeVisualizer
 
     script = await FakeAuthor().generate(INTENT, PLAN)
     visuals = await FakeVisualizer().generate(INTENT, PLAN, script)
