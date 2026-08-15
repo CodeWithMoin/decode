@@ -99,3 +99,79 @@ declares *when* it fires, never a second:
 `duration_s` is how long *that move* takes (e.g. `0.6`) — your choice, distinct
 from the scene length. Prefer `phrase` anchors so motion lands on the words that
 name it.
+
+## Composing a scene that teaches
+
+A valid composition is the floor, not the goal. This is how a scene earns its
+frame — the design intent in the assignment turned into concrete HTML/CSS/GSAP.
+
+### The stage and palette — use these exact values
+
+Everything sits on a near-black stage. Never invent flat colours.
+
+- **Stage** `#0B0B0B`, on a full-bleed child (`position:absolute; inset:0`), never
+  on `#root`. Negative space is composition; let the frame breathe.
+- **Diagram surfaces** — every box, node, card or panel is a *surface with an
+  edge*: `background:#232323; border:1px solid #484848; border-radius:16px` (14–20px).
+  Never a flat swatch. `#1C1C1C` is the quiet incidental chip only.
+- **Ink** — primary `#F3F0EA`, support `#98A0B3`.
+- **Accent** `#F2A47B` — the lit amber. It marks the **one** thing that matters in
+  the frame (the token being resolved, the answer, the active path). One accent
+  focus per scene. Accent is meaning, never decoration.
+- **Type** — a heavy sans system stack (`font-family: ui-sans-serif, system-ui,
+  -apple-system, "Segoe UI", Roboto, sans-serif`); do **not** add a Google Fonts
+  `<link>` (the linter warns and it adds render latency). Earn identity with
+  weight (600–800) and real scale contrast: a focal element at **56–120px**
+  against **22–30px** support, never one size.
+
+### Make it a picture, not a slide
+
+A title with a bulleted list fading in is the weakest possible scene. Aim higher:
+
+- **One idea, composed.** Build the whole frame around a single point, with layout
+  (CSS grid/flex) leading the eye to one focal element — a word, a number, a diagram.
+- **Draw the relationship.** If the narration compares, connects, transforms or
+  sequences, *show it*: two surfaces and a connector, a before/after, a labelled
+  flow. Not the sentence as text.
+- **Depth and hierarchy.** Layer surfaces, vary size and weight, use the `#484848`
+  edge to separate. Equal-sized flat chips read as a form, not a teaching frame.
+- **Draw the mechanism, not the narration.** The words are spoken *while* the scene
+  plays — repeating them on screen gives the viewer two copies to choose between.
+  A few words as labels or one short caption is right; a transcript is not.
+
+### Choreograph on the timeline
+
+- **Reveal in reading order**, staggered per element, each on its beat's resolved
+  start (`at("<beat>").start`) — not one uniform fade. Motion should explain the
+  sequence, not merely announce arrival.
+- **Motion carries meaning or it does not belong**: a value growing, attention
+  moving from one place to another, a structure assembling as it is understood.
+- Ease everything (`power4.out`-style), let it **settle** — a scene that never
+  rests is exhausting. Nothing flashes, strobes or jitters.
+
+### The shape of a composed scene (technique, not a template)
+
+```html
+<div id="bg"></div>                         <!-- #0B0B0B stage fill on a child -->
+<div id="stage" class="clip" data-start="0" data-duration="{{SCENE_DURATION}}" data-track-index="1"
+     style="position:absolute;inset:0;display:grid;place-items:center;gap:48px;grid-auto-flow:column">
+  <div id="q" style="background:#232323;border:1px solid #484848;border-radius:16px;padding:28px 36px;
+       font:600 96px ui-sans-serif;color:#F3F0EA">query</div>
+  <div id="k" style="background:#232323;border:1px solid #484848;border-radius:16px;padding:28px 36px;
+       font:600 96px ui-sans-serif;color:#F2A47B">key</div>   <!-- the one accent -->
+</div>
+<!-- decode:timing -->
+<script>
+  window.__timelines = window.__timelines || {};
+  const t = window.__decodeTiming || [];
+  const at = (n) => t.find((x) => x.beat === n) || { start: 0, duration: 0.6 };
+  const tl = gsap.timeline({ paused: true });
+  const q = at("query"), k = at("key");
+  tl.fromTo("#q", { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: q.duration, ease: "power4.out" }, q.start);
+  tl.fromTo("#k", { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: k.duration, ease: "power4.out" }, k.start);
+  window.__timelines["main"] = tl;
+</script>
+```
+
+Read the palette, hierarchy and choreography above off this shape — do not copy
+it. Build the composition the *specific* beat needs.
