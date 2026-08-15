@@ -348,8 +348,54 @@ export function ProducerDrawer() {
               label: p.summary,
               proposal: { title: p.summary, scope: p.changes, untouched: p.untouched },
               run: () => {
-                if (p.tool === "direct_scene" && directScene) {
-                  void directScene(p.args.beat_id, p.args.direction);
+                // Apply the proposal through the real operation the tool maps to.
+                // `store:*` tools dispatch the workspace's own actions (the hand
+                // controls); `direct_scene` runs the connected regenerate path.
+                // Endpoint tools and planned tools are no-ops for now.
+                const state = useStudio.getState();
+                const indexOf = (beatId: string) => state.sc.findIndex((s) => s.id === beatId);
+                const a = p.args;
+                switch (p.tool) {
+                  case "direct_scene":
+                    if (directScene) void directScene(a.beat_id, a.direction);
+                    return;
+                  case "split_scene":
+                    state.splitScene(indexOf(a.beat_id));
+                    return;
+                  case "merge_scenes":
+                    state.mergeScene(indexOf(a.beat_id));
+                    return;
+                  case "duplicate_scene":
+                    state.dupScene(indexOf(a.beat_id));
+                    return;
+                  case "delete_scene":
+                  case "cut_beat":
+                    state.removeScene(indexOf(a.beat_id));
+                    return;
+                  case "retime_scene":
+                  case "retime_beat":
+                    state.nudgeDur(indexOf(a.beat_id), Number(a.delta_seconds) || 0);
+                    return;
+                  case "set_fade":
+                    state.setClipFade(indexOf(a.beat_id), a.edge as "in" | "out", Number(a.seconds) || 0);
+                    return;
+                  case "set_control":
+                    state.setControlValue(a.beat_id, a.name, a.value);
+                    return;
+                  case "reorder_beats":
+                    state.reorder(indexOf(a.beat_id), Number(a.to_index) || 0);
+                    return;
+                  case "add_beat":
+                    state.addScene(Number(a.after_index));
+                    return;
+                  default:
+                    // Endpoint tools (record_narration, render_export, …) and
+                    // planned tools aren't wired from the chat yet. Never run
+                    // silently — post a receipt naming what stayed put.
+                    state.say(
+                      "That one isn't wired from the chat yet — use its direct control in the workspace. Nothing changed.",
+                    );
+                    return;
                 }
               },
             });

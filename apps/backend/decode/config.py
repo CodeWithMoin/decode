@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     author: str = "fake"
     visualizer: str = "fake"
     voice: str = "fake"
+    orchestrator: str = "fake"
     evaluator: str = "fake"
     openai_api_key: str | None = None
     openai_model: str = "gpt-5.6-luna"

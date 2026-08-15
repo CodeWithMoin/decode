@@ -10,11 +10,14 @@ creator clicks Apply, through that tool's own endpoint (e.g.
 
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from .config import get_settings
 from .db import get_session
 from .models import Artifact, ArtifactType, ArtifactVersion
 from .orchestrator import SceneRef, build_orchestrator
@@ -81,6 +84,38 @@ async def _current_scenes(session: AsyncSession, project_id: str) -> list[SceneR
     return scenes
 
 
+class _ProjectObserver:
+    """Serves the read-only observe tools on demand from the project's current
+    artifacts (the approved version, or the latest). Only the tools that map to
+    a real endpoint are served; the planned ones the orchestrator marks
+    unavailable itself, so this never fabricates data the backend can't produce.
+    """
+
+    def __init__(self, session: AsyncSession, project_id: str):
+        self.session = session
+        self.project_id = project_id
+
+    async def _payload(self, artifact_type: ArtifactType) -> dict | None:
+        return await _approved_or_latest_payload(self.session, self.project_id, artifact_type)
+
+    async def observe(self, name: str, args: dict[str, str]) -> str:
+        if name == "get_brief":
+            return json.dumps(await self._payload(ArtifactType.PRODUCTION_BRIEF) or {})
+        if name == "get_plan":
+            return json.dumps(await self._payload(ArtifactType.TEACHING_PLAN) or {})
+        if name == "get_script":
+            return json.dumps(await self._payload(ArtifactType.SCRIPT) or {})
+        if name == "get_project_state":
+            return json.dumps(
+                {
+                    "brief": await self._payload(ArtifactType.PRODUCTION_BRIEF),
+                    "plan": await self._payload(ArtifactType.TEACHING_PLAN),
+                    "script": await self._payload(ArtifactType.SCRIPT),
+                }
+            )
+        return json.dumps({"unavailable": name, "reason": "not available yet"})
+
+
 @router.post("/orchestrator/turn")
 async def orchestrator_turn(
     project_id: str,
@@ -89,5 +124,6 @@ async def orchestrator_turn(
 ):
     await project_or_404(session, project_id)
     scenes = await _current_scenes(session, project_id)
-    turn = await build_orchestrator().turn(command.message, scenes)
+    observer = _ProjectObserver(session, project_id)
+    turn = await build_orchestrator(get_settings()).turn(command.message, scenes, observer)
     return turn.model_dump()
