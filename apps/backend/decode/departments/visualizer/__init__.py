@@ -28,7 +28,15 @@ import json
 from pydantic import BaseModel, Field
 
 from ...config import Settings
-from ...schemas import ProductionIntent, SceneModule, SceneVisuals, Script, TeachingPlan
+from ...schemas import (
+    ProductionIntent,
+    SceneControl,
+    SceneModule,
+    SceneVisuals,
+    Script,
+    TeachingPlan,
+    VisualBeat,
+)
 from .. import tracing
 from .._agent import OpenAIAgent
 from ..contracts import ProviderUsage
@@ -39,11 +47,37 @@ from .validation import RUNTIME_VERSION, repair_message, validate_scenes
 MAX_TURNS = 2
 
 
+class SceneDraft(BaseModel):
+    """One scene the model authors — HyperFrames only.
+
+    `composition_html` is required and there is no `component_source` field, so
+    the model cannot fall back to React: the output schema forces a HyperFrames
+    composition. Converted to a `SceneModule` (which still carries the legacy
+    React field for migrated projects) before validation.
+    """
+
+    beat_id: str = Field(min_length=1)
+    controls: list[SceneControl] = Field(max_length=20)
+    composition_html: str = Field(min_length=1)
+    beats: list[VisualBeat] = Field(default_factory=list, max_length=40)
+
+    def to_module(self) -> SceneModule:
+        return SceneModule(
+            beat_id=self.beat_id,
+            controls=self.controls,
+            composition_html=self.composition_html,
+            beats=self.beats,
+        )
+
+
 class SceneVisualsDraft(BaseModel):
     """What the model produces, without the provenance the harness assembles."""
 
     rationale: str = Field(min_length=1, max_length=1200)
-    scenes: list[SceneModule] = Field(min_length=1)
+    scenes: list[SceneDraft] = Field(min_length=1)
+
+    def modules(self) -> list[SceneModule]:
+        return [scene.to_module() for scene in self.scenes]
 
 
 class OpenAIVisualizer(OpenAIAgent):
@@ -110,7 +144,8 @@ class OpenAIVisualizer(OpenAIAgent):
                 )
             turns = 1
 
-            violations = validate_scenes(draft.scenes, plan)
+            scenes = draft.modules()
+            violations = validate_scenes(scenes, plan)
             repair: dict = {
                 "ran": False,
                 "initial_violations": [item["code"] for item in violations],
@@ -129,7 +164,8 @@ class OpenAIVisualizer(OpenAIAgent):
                     second, extra_in, extra_out = await self._draft(
                         system, history, SceneVisualsDraft
                     )
-                remaining = validate_scenes(second.scenes, plan)
+                scenes = second.modules()
+                remaining = validate_scenes(scenes, plan)
                 repair = {
                     "ran": True,
                     "initial_violations": [item["code"] for item in violations],
@@ -159,7 +195,8 @@ class OpenAIVisualizer(OpenAIAgent):
         self.last_usage = ProviderUsage(self.model, input_tokens, output_tokens, turns)
 
         return SceneVisuals(
-            **draft.model_dump(),
+            rationale=draft.rationale,
+            scenes=scenes,
             visual_findings={
                 # Never claim more than the run actually did.
                 "fixture": False,
@@ -263,7 +300,7 @@ class OpenAIVisualizer(OpenAIAgent):
                 )
             turns = 1
 
-            merged = merge(draft.scenes)
+            merged = merge(draft.modules())
             violations = validate_scenes(merged, plan)
             if violations:
                 guidance = SKILLS.reflection() or "Repair the scene using the listed violations."
@@ -279,7 +316,7 @@ class OpenAIVisualizer(OpenAIAgent):
                     second, extra_in, extra_out = await self._draft(
                         system, history, SceneVisualsDraft
                     )
-                merged = merge(second.scenes)
+                merged = merge(second.modules())
                 remaining = validate_scenes(merged, plan)
                 if remaining:
                     codes = ", ".join(item["code"] for item in remaining)
