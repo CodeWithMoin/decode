@@ -9,6 +9,7 @@ from sqlalchemy import text
 
 from .api import request_context
 from .artifacts.router import router as artifacts_router
+from .composition_router import router as composition_router
 from .config import get_settings
 from .db import SessionLocal
 from .execution.router import router as execution_router
@@ -86,5 +87,6 @@ app.include_router(projects_router, prefix="/api/v1")
 app.include_router(artifacts_router, prefix="/api/v1")
 app.include_router(execution_router, prefix="/api/v1")
 app.include_router(orchestrator_router, prefix="/api/v1")
+app.include_router(composition_router, prefix="/api/v1")
 app.include_router(renders_router, prefix="/api/v1")
 app.include_router(voice_router, prefix="/api/v1")
