@@ -1,7 +1,7 @@
 """The in-process agent runtime — one generalization of the two loops we already run.
 
-`OpenAIAgent._draft` (_agent.py) is the structured draft call every generative
-department shares. `OpenAIOrchestrator.turn` (orchestrator.py) is the observe-loop:
+`ModelAgent._draft` (_agent.py) is the structured draft call every generative
+department shares. `ModelOrchestrator.turn` (orchestrator.py) is the observe-loop:
 call the model, run the tools it asks for, feed the results back, repeat until it
 answers. `AgentRuntime.run` is those two composed and parameterized by an `AgentConfig`,
 plus two capabilities the department loops did not have:

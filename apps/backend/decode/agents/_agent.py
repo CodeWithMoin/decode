@@ -1,4 +1,4 @@
-"""The shared runtime for the OpenAI-backed generative departments.
+"""The shared runtime for the model-backed generative agents.
 
 Every generative department was carrying a byte-identical `__init__` and
 `_draft` — the harness docs/AGENT-GRAPH.md §4 calls the part every agent shares (the
@@ -22,7 +22,7 @@ from .contracts import ProviderUsage
 DraftT = TypeVar("DraftT", bound=BaseModel)
 
 
-class OpenAIAgent:
+class ModelAgent:
     """Client + one structured draft call. Subclasses set `identifier`."""
 
     identifier: str

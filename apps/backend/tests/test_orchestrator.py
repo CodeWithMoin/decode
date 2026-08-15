@@ -7,7 +7,7 @@ from decode.orchestrator import (
     Clarification,
     ClarifyOption,
     FakeOrchestrator,
-    OpenAIOrchestrator,
+    ModelOrchestrator,
     OrchestratorTurn,
     ProposedChange,
     SceneRef,
@@ -249,7 +249,7 @@ def test_build_rejects_an_unknown_provider():
 
 
 def test_system_prompt_names_every_writable_tool():
-    orch = OpenAIOrchestrator(Settings(orchestrator="openai", openai_api_key="sk-test"))
+    orch = ModelOrchestrator(Settings(orchestrator="openai", openai_api_key="sk-test"))
     prompt = orch._system_prompt()
     for name, tool in TOOLS.items():
         if not tool.read_only:
@@ -268,7 +268,7 @@ def test_validate_coerces_args_to_strings_and_drops_extras():
             receipt="r",
         ),
     )
-    validated = OpenAIOrchestrator._validate(turn)
+    validated = ModelOrchestrator._validate(turn)
     assert validated.proposal is not None
     assert validated.proposal.args == {"beat_id": "beat-01", "edge": "in", "seconds": "3"}
 
@@ -284,7 +284,7 @@ def test_to_turn_decodes_a_clarifying_question():
             options=[_LLMClarifyOption(label="Scene 1", detail="Intro")],
         ),
     )
-    turn = OpenAIOrchestrator._to_turn(llm)
+    turn = ModelOrchestrator._to_turn(llm)
     assert turn.proposal is None
     assert turn.question is not None
     assert turn.question.options[0].label == "Scene 1"
@@ -303,7 +303,7 @@ def test_validate_drops_the_question_when_a_real_proposal_is_present():
         ),
         question=Clarification(prompt="Which?", options=[ClarifyOption(label="x")]),
     )
-    validated = OpenAIOrchestrator._validate(turn)
+    validated = ModelOrchestrator._validate(turn)
     assert validated.proposal is not None
     assert validated.question is None  # a scoped change wins over a question
 
@@ -320,7 +320,7 @@ def test_validate_rejects_an_unknown_tool():
             receipt="r",
         ),
     )
-    assert OpenAIOrchestrator._validate(turn).proposal is None
+    assert ModelOrchestrator._validate(turn).proposal is None
 
 
 # --- the on-demand observe loop: look before proposing ---
@@ -338,7 +338,7 @@ class _StubObserver:
 
 
 def test_observe_tools_are_exactly_the_read_only_ones():
-    orch = OpenAIOrchestrator(Settings(orchestrator="openai", openai_api_key="sk-test"))
+    orch = ModelOrchestrator(Settings(orchestrator="openai", openai_api_key="sk-test"))
     names = {tool["name"] for tool in orch._observe_tools()}
     assert names == OBSERVE_TOOLS
     for tool in orch._observe_tools():
@@ -349,32 +349,32 @@ def test_observe_tools_are_exactly_the_read_only_ones():
 
 async def test_run_observe_serves_a_real_read_tool_through_the_observer():
     observer = _StubObserver()
-    out = await OpenAIOrchestrator._run_observe("get_plan", "{}", observer)
+    out = await ModelOrchestrator._run_observe("get_plan", "{}", observer)
     assert out == "data-for-get_plan"
     assert observer.calls == [("get_plan", {})]
 
 
 async def test_run_observe_coerces_args_to_strings():
     observer = _StubObserver()
-    await OpenAIOrchestrator._run_observe("get_scene", '{"beat_id": 2}', observer)
+    await ModelOrchestrator._run_observe("get_scene", '{"beat_id": 2}', observer)
     # get_scene is planned -> unavailable, so the observer is never reached...
     assert observer.calls == []
     # ...but a served tool with args coerces them:
-    await OpenAIOrchestrator._run_observe("get_brief", '{"x": 5}', observer)
+    await ModelOrchestrator._run_observe("get_brief", '{"x": 5}', observer)
     assert observer.calls == [("get_brief", {"x": "5"})]
 
 
 async def test_run_observe_marks_a_planned_tool_unavailable_not_invented():
     import json
 
-    out = await OpenAIOrchestrator._run_observe("check_alignment", "{}", _StubObserver())
+    out = await ModelOrchestrator._run_observe("check_alignment", "{}", _StubObserver())
     assert json.loads(out)["unavailable"] == "check_alignment"
 
 
 async def test_run_observe_refuses_to_run_a_writable_tool_as_a_read():
     import json
 
-    out = await OpenAIOrchestrator._run_observe("direct_scene", "{}", _StubObserver())
+    out = await ModelOrchestrator._run_observe("direct_scene", "{}", _StubObserver())
     assert "error" in json.loads(out)
 
 
@@ -390,4 +390,4 @@ def test_validate_rejects_a_read_only_tool():
             receipt="r",
         ),
     )
-    assert OpenAIOrchestrator._validate(turn).proposal is None
+    assert ModelOrchestrator._validate(turn).proposal is None

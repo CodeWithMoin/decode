@@ -11,9 +11,9 @@ every tool the orchestrator may propose maps to a real operation a direct contro
 also exposes. One tool today — `direct_scene`, the per-scene direction loop
 (`regenerate_scene_visual`) — the registry grows as the workspace does.
 
-Fake-first, like every Decode department: a deterministic `FakeOrchestrator`
-drives the walking skeleton and the tests; an OpenAI orchestrator swaps in behind
-the same contract without the surface changing.
+Fake-first, like every Decode agent: a deterministic `FakeOrchestrator`
+drives the walking skeleton and the tests; a model-backed orchestrator swaps in
+behind the same contract without the surface changing.
 """
 
 from __future__ import annotations
@@ -499,7 +499,7 @@ class _LLMTurn(BaseModel):
     question: _LLMClarification | None = None
 
 
-class OpenAIOrchestrator:
+class ModelOrchestrator:
     """The real side-chat brain — an LLM reads the message and the scenes against
     the tool registry and returns a reply and, when the request maps to a tool, a
     scoped proposal.
@@ -713,5 +713,5 @@ def build_orchestrator(settings: Settings) -> Orchestrator:
     if settings.orchestrator == "fake":
         return FakeOrchestrator()
     if settings.orchestrator == "openai":
-        return OpenAIOrchestrator(settings)
+        return ModelOrchestrator(settings)
     raise ValueError(f"unknown orchestrator provider: {settings.orchestrator!r}")

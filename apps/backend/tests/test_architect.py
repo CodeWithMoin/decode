@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from decode.agents.architect import OpenAIArchitect, TeachingPlanDraft, prompt
+from decode.agents.architect import ModelArchitect, TeachingPlanDraft, prompt
 from decode.agents.registry import architect as build_architect
 from decode.config import Settings
 from decode.execution.pipeline import STAGES, stage_for
@@ -113,7 +113,7 @@ class FakeResponses:
 
 
 def architect_with(monkeypatch, drafts, reflection: str | None):
-    director = OpenAIArchitect.__new__(OpenAIArchitect)
+    director = ModelArchitect.__new__(ModelArchitect)
     director.model = "test-model"
     director.client = SimpleNamespace(responses=FakeResponses(drafts))
     director.last_usage = None

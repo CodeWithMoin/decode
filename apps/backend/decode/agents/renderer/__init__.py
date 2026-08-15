@@ -38,7 +38,7 @@ from ...schemas import (
     VisualBeat,
 )
 from .. import tracing
-from .._agent import OpenAIAgent
+from .._agent import ModelAgent
 from ..contracts import ProviderUsage
 from .prompt import SKILLS
 from .validation import RUNTIME_VERSION, repair_message, validate_scenes
@@ -80,7 +80,7 @@ class SceneVisualsDraft(BaseModel):
         return [scene.to_module() for scene in self.scenes]
 
 
-class OpenAIVisualizer(OpenAIAgent):
+class ModelVisualizer(ModelAgent):
     identifier = f"visualizer/{SKILLS.version}"
 
     async def generate(
@@ -345,7 +345,7 @@ class OpenAIVisualizer(OpenAIAgent):
         )
 
 
-def build(settings: Settings) -> OpenAIVisualizer:
+def build(settings: Settings) -> ModelVisualizer:
     if not settings.openai_api_key:
         raise ValueError("DECODE_OPENAI_API_KEY is required when DECODE_VISUALIZER=openai")
-    return OpenAIVisualizer(settings)
+    return ModelVisualizer(settings)

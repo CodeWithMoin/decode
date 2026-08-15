@@ -50,7 +50,7 @@ class IntakeBriefDraft(BaseModel):
     open_questions: list[str]
 
 
-class OpenAIIntake:
+class ModelIntake:
     identifier = f"intake/{SKILLS.version}/{TOOLS_VERSION}"
 
     def __init__(self, settings: Settings, store: ObjectStore):
@@ -254,7 +254,7 @@ class OpenAIIntake:
         )
 
 
-def build(settings: Settings) -> OpenAIIntake:
+def build(settings: Settings) -> ModelIntake:
     if not settings.openai_api_key:
         raise ValueError("DECODE_OPENAI_API_KEY is required when DECODE_INTAKE=openai")
-    return OpenAIIntake(settings, object_store(settings))
+    return ModelIntake(settings, object_store(settings))

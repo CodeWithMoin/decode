@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from decode.agents.author import OpenAIAuthor, ScriptDraft, prompt
+from decode.agents.author import ModelAuthor, ScriptDraft, prompt
 from decode.agents.author.validation import (
     TOLERANCE,
     target_words,
@@ -154,7 +154,7 @@ class FakeResponses:
 
 
 def author_with(monkeypatch, drafts, reflection: str | None):
-    writer = OpenAIAuthor.__new__(OpenAIAuthor)
+    writer = ModelAuthor.__new__(ModelAuthor)
     writer.model = "test-model"
     writer.client = SimpleNamespace(responses=FakeResponses(drafts))
     writer.last_usage = None

@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field
 from ...config import Settings
 from ...schemas import Beat, PlanSection, ProductionBrief, ProductionIntent, TeachingPlan
 from .. import tracing
-from .._agent import OpenAIAgent
+from .._agent import ModelAgent
 from ..contracts import ProviderUsage
 from .prompt import SKILLS
 from .validation import repair_message, validate_plan
@@ -46,7 +46,7 @@ class TeachingPlanDraft(BaseModel):
     beats: list[Beat] = Field(min_length=1)
 
 
-class OpenAIArchitect(OpenAIAgent):
+class ModelArchitect(ModelAgent):
     identifier = f"architect/{SKILLS.version}"
 
     async def generate(self, intent: ProductionIntent, brief: ProductionBrief) -> TeachingPlan:
@@ -157,7 +157,7 @@ class OpenAIArchitect(OpenAIAgent):
         )
 
 
-def build(settings: Settings) -> OpenAIArchitect:
+def build(settings: Settings) -> ModelArchitect:
     if not settings.openai_api_key:
         raise ValueError("DECODE_OPENAI_API_KEY is required when DECODE_ARCHITECT=openai")
-    return OpenAIArchitect(settings)
+    return ModelArchitect(settings)

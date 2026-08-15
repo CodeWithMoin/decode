@@ -119,7 +119,7 @@ def deterministic_plan_checks(
     ]
 
 
-class OpenAIEvaluator:
+class ModelEvaluator:
     identifier = "evaluator/multi-artifact-rubrics-v2"
 
     def __init__(self, settings: Settings):
@@ -331,7 +331,7 @@ def _decision(checks: list[dict]) -> str:
     )
 
 
-def build(settings: Settings) -> OpenAIEvaluator:
+def build(settings: Settings) -> ModelEvaluator:
     if not settings.openai_api_key:
         raise ValueError("DECODE_OPENAI_API_KEY is required when DECODE_EVALUATOR=openai")
-    return OpenAIEvaluator(settings)
+    return ModelEvaluator(settings)

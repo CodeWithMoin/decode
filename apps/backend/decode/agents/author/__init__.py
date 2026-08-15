@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field
 from ...config import Settings
 from ...schemas import BeatNarration, ProductionIntent, Script, TeachingPlan
 from .. import tracing
-from .._agent import OpenAIAgent
+from .._agent import ModelAgent
 from ..contracts import ProviderUsage
 from .prompt import SKILLS
 from .validation import repair_message, validate_script, word_count
@@ -43,7 +43,7 @@ class ScriptDraft(BaseModel):
     beats: list[BeatNarration] = Field(min_length=1)
 
 
-class OpenAIAuthor(OpenAIAgent):
+class ModelAuthor(ModelAgent):
     identifier = f"author/{SKILLS.version}"
 
     async def generate(self, intent: ProductionIntent, plan: TeachingPlan) -> Script:
@@ -142,7 +142,7 @@ class OpenAIAuthor(OpenAIAgent):
         )
 
 
-def build(settings: Settings) -> OpenAIAuthor:
+def build(settings: Settings) -> ModelAuthor:
     if not settings.openai_api_key:
         raise ValueError("DECODE_OPENAI_API_KEY is required when DECODE_AUTHOR=openai")
-    return OpenAIAuthor(settings)
+    return ModelAuthor(settings)
