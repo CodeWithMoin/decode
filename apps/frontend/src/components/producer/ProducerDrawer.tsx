@@ -4,8 +4,29 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, PaperPlaneTilt } from "@phosphor-icons/react";
 import { num, observations } from "@/lib/derive";
 import { decodeApi } from "@/lib/decode-api";
+import type { Clarification } from "@/lib/types";
 import { useStudio } from "@/store/studio";
 import { AppMark, Ghost, Graphite, Spinner, cx } from "@/components/ui/primitives";
+
+// What the room looked at, in the creator's words. Read-only observe tools
+// (orchestrator.py) map to a plain-language noun so "Looked at the plan" reads
+// as a step, not a function call.
+const OBSERVED_LABEL: Record<string, string> = {
+  get_plan: "the plan",
+  get_script: "the narration",
+  get_brief: "the brief",
+  get_project_state: "the whole project",
+};
+
+function observedNote(observed: string[] | undefined): string | undefined {
+  if (!observed || observed.length === 0) return undefined;
+  const seen = [...new Set(observed)].map((name) => OBSERVED_LABEL[name] ?? name);
+  const list =
+    seen.length === 1
+      ? seen[0]
+      : `${seen.slice(0, -1).join(", ")} and ${seen.at(-1)}`;
+  return `Looked at ${list}`;
+}
 
 /**
  * The Production room — conversation, scoped proposals and change receipts.
@@ -61,6 +82,7 @@ export function ProducerDrawer() {
   const scroller = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
   const [proposal, setProposal] = useState<QuickAction | null>(null);
+  const [question, setQuestion] = useState<Clarification | null>(null);
   const docked = screen === "project";
   const dark = docked && tab === "edit";
   const turns = useMemo(
@@ -91,6 +113,7 @@ export function ProducerDrawer() {
   // clear. Returning the same reference lets React bail out entirely.
   useEffect(() => {
     setProposal((current) => (current === null ? current : null));
+    setQuestion((current) => (current === null ? current : null));
   }, [screen, tab, sceneIdx]);
 
   const after = useCallback((ms: number, fn: () => void) => {
@@ -302,6 +325,16 @@ export function ProducerDrawer() {
     applyRegen,
   ]);
 
+  // In a connected project the seeded prototype actions would say untrue things
+  // and mutate local-only state, so the chat offers real starters instead —
+  // each is a plain instruction sent straight to the orchestrator, scoped to the
+  // selected scene, so the first thing you try actually maps to a tool.
+  const connectedStarters = useMemo<string[]>(() => {
+    if (!connectedProjectId || screen !== "project" || tab !== "edit") return [];
+    const n = num(sceneIdx);
+    return [`Make scene ${n} clearer`, `Split scene ${n}`, `Shorten scene ${n} by 5s`];
+  }, [connectedProjectId, screen, tab, sceneIdx]);
+
   const runAction = useCallback(
     (a: QuickAction) => {
       setProposal(null);
@@ -323,114 +356,115 @@ export function ProducerDrawer() {
     [ask, setThinking, say, after],
   );
 
+  const sendText = useCallback(
+    (t: string) => {
+      if (!t) return;
+      setProposal(null);
+      setQuestion(null);
+      ask(t);
+
+      // Connected: the real orchestrator. A turn returns a reply and, at most,
+      // one of a scoped proposal or a clarifying question. Apply runs the real
+      // tool and posts the receipt the orchestrator scoped; nothing moves until
+      // then (propose → apply → receipt). An ambiguous turn asks instead.
+      if (connectedProjectId) {
+        workingLine.current = "Reading that against the current cut…";
+        setThinking(true);
+        decodeApi
+          .orchestratorTurn(connectedProjectId, t)
+          .then((turn) => {
+            setThinking(false);
+            say(turn.reply, undefined, observedNote(turn.observed));
+            if (turn.question) setQuestion(turn.question);
+            const p = turn.proposal;
+            if (p) {
+              setProposal({
+                label: p.summary,
+                proposal: { title: p.summary, scope: p.changes, untouched: p.untouched },
+                run: () => {
+                  // Apply through the real operation the tool maps to. `store:*`
+                  // tools dispatch the workspace's own actions (the hand
+                  // controls); `direct_scene` runs the connected regenerate path
+                  // and narrates itself. Endpoint/planned tools aren't wired yet.
+                  const state = useStudio.getState();
+                  const indexOf = (beatId: string) => state.sc.findIndex((s) => s.id === beatId);
+                  const a = p.args;
+                  // Every applied change posts a receipt naming what changed.
+                  const done = () => state.say(`${p.summary}.`, p.receipt);
+                  switch (p.tool) {
+                    case "direct_scene":
+                      if (directScene) void directScene(a.beat_id, a.direction);
+                      return; // directScene posts its own progress + receipt
+                    case "split_scene":
+                      state.splitScene(indexOf(a.beat_id));
+                      return done();
+                    case "merge_scenes":
+                      state.mergeScene(indexOf(a.beat_id));
+                      return done();
+                    case "duplicate_scene":
+                      state.dupScene(indexOf(a.beat_id));
+                      return done();
+                    case "delete_scene":
+                    case "cut_beat":
+                      state.removeScene(indexOf(a.beat_id));
+                      return done();
+                    case "retime_scene":
+                    case "retime_beat":
+                      state.nudgeDur(indexOf(a.beat_id), Number(a.delta_seconds) || 0);
+                      return done();
+                    case "set_fade":
+                      state.setClipFade(indexOf(a.beat_id), a.edge as "in" | "out", Number(a.seconds) || 0);
+                      return done();
+                    case "set_control":
+                      state.setControlValue(a.beat_id, a.name, a.value);
+                      return done();
+                    case "reorder_beats":
+                      state.reorder(indexOf(a.beat_id), Number(a.to_index) || 0);
+                      return done();
+                    case "add_beat":
+                      state.addScene(Number(a.after_index));
+                      return done();
+                    default:
+                      // Endpoint tools (record_narration, render_export, …) and
+                      // planned tools aren't wired from the chat yet. Never run
+                      // silently — say what stayed put.
+                      state.say(
+                        "That one isn't wired from the chat yet — use its direct control in the workspace. Nothing changed.",
+                      );
+                      return;
+                  }
+                },
+              });
+            }
+          })
+          .catch(() => {
+            setThinking(false);
+            say("I couldn’t reach the studio just now — nothing changed. Try again in a moment.");
+          });
+        return;
+      }
+
+      // Prototype: the seeded reply.
+      workingLine.current = "Reading that against the current draft…";
+      setThinking(true);
+      after(900, () => {
+        setThinking(false);
+        say(
+          screen === "project"
+            ? `I’ve got the direction. Before I change anything: should this apply only to scene ${num(sceneIdx)}, or to every similar beat in this stage? Nothing has changed yet.`
+            : "I’ve got the direction. I’ll keep it with the project brief; nothing has changed yet.",
+        );
+      });
+    },
+    [ask, setThinking, say, after, screen, sceneIdx, connectedProjectId, directScene],
+  );
+
   const send = useCallback(() => {
     const t = draft.trim();
     if (!t) return;
-    setProposal(null);
-    ask(t);
     setDraft("");
-
-    // Connected: the real orchestrator. A turn returns a reply and, when it maps
-    // to a tool, a scoped proposal — which reuses the same proposal card + Apply
-    // as the seeded actions. Apply runs the real per-scene tool; nothing has
-    // moved until then (propose → apply → receipt).
-    if (connectedProjectId) {
-      workingLine.current = "Reading that against the current cut…";
-      setThinking(true);
-      decodeApi
-        .orchestratorTurn(connectedProjectId, t)
-        .then((turn) => {
-          setThinking(false);
-          say(turn.reply);
-          const p = turn.proposal;
-          if (p) {
-            setProposal({
-              label: p.summary,
-              proposal: { title: p.summary, scope: p.changes, untouched: p.untouched },
-              run: () => {
-                // Apply the proposal through the real operation the tool maps to.
-                // `store:*` tools dispatch the workspace's own actions (the hand
-                // controls); `direct_scene` runs the connected regenerate path.
-                // Endpoint tools and planned tools are no-ops for now.
-                const state = useStudio.getState();
-                const indexOf = (beatId: string) => state.sc.findIndex((s) => s.id === beatId);
-                const a = p.args;
-                switch (p.tool) {
-                  case "direct_scene":
-                    if (directScene) void directScene(a.beat_id, a.direction);
-                    return;
-                  case "split_scene":
-                    state.splitScene(indexOf(a.beat_id));
-                    return;
-                  case "merge_scenes":
-                    state.mergeScene(indexOf(a.beat_id));
-                    return;
-                  case "duplicate_scene":
-                    state.dupScene(indexOf(a.beat_id));
-                    return;
-                  case "delete_scene":
-                  case "cut_beat":
-                    state.removeScene(indexOf(a.beat_id));
-                    return;
-                  case "retime_scene":
-                  case "retime_beat":
-                    state.nudgeDur(indexOf(a.beat_id), Number(a.delta_seconds) || 0);
-                    return;
-                  case "set_fade":
-                    state.setClipFade(indexOf(a.beat_id), a.edge as "in" | "out", Number(a.seconds) || 0);
-                    return;
-                  case "set_control":
-                    state.setControlValue(a.beat_id, a.name, a.value);
-                    return;
-                  case "reorder_beats":
-                    state.reorder(indexOf(a.beat_id), Number(a.to_index) || 0);
-                    return;
-                  case "add_beat":
-                    state.addScene(Number(a.after_index));
-                    return;
-                  default:
-                    // Endpoint tools (record_narration, render_export, …) and
-                    // planned tools aren't wired from the chat yet. Never run
-                    // silently — post a receipt naming what stayed put.
-                    state.say(
-                      "That one isn't wired from the chat yet — use its direct control in the workspace. Nothing changed.",
-                    );
-                    return;
-                }
-              },
-            });
-          }
-        })
-        .catch(() => {
-          setThinking(false);
-          say("I couldn’t reach the studio just now — nothing changed. Try again in a moment.");
-        });
-      return;
-    }
-
-    // Prototype: the seeded reply.
-    workingLine.current = "Reading that against the current draft…";
-    setThinking(true);
-    after(900, () => {
-      setThinking(false);
-      say(
-        screen === "project"
-          ? `I’ve got the direction. Before I change anything: should this apply only to scene ${num(sceneIdx)}, or to every similar beat in this stage? Nothing has changed yet.`
-          : "I’ve got the direction. I’ll keep it with the project brief; nothing has changed yet.",
-      );
-    });
-  }, [
-    draft,
-    ask,
-    setDraft,
-    setThinking,
-    say,
-    after,
-    screen,
-    sceneIdx,
-    connectedProjectId,
-    directScene,
-  ]);
+    sendText(t);
+  }, [draft, setDraft, sendText]);
 
   /* Newest message stays in view. Jump, don't animate — a second scroll
      animation would compete with the panel's own materialization. */
@@ -530,6 +564,12 @@ export function ProducerDrawer() {
                   )}
                   {turn.messages.map((message) => (
                     <div key={message.id} className="grid gap-2">
+                      {message.note ? (
+                        <span className={cx("flex items-center gap-1.5 font-mono text-[9px] tracking-[0.1em] uppercase", dark ? "text-[var(--nle-faint)]" : "text-t9")}>
+                          <span aria-hidden className="inline-block h-1 w-1 rounded-full bg-current opacity-60" />
+                          {message.note}
+                        </span>
+                      ) : null}
                       <div>{message.text}</div>
                       {message.receipt ? (
                         <div className="flex items-center gap-1.5">
@@ -556,6 +596,50 @@ export function ProducerDrawer() {
 
       {/* quick actions + composer ---------------------------------- */}
       <div className={cx("flex-none px-4 pt-3 pb-3.5", dark ? "bg-[var(--nle-panel)] shadow-[0_-12px_28px_rgb(0_0_0_/_0.2)]" : "bg-drawer shadow-[0_-10px_24px_rgb(30_30_28_/_0.07)]")}>
+        {/* Asked only when the request was too ambiguous to scope. Picking an
+            option sends it as the next turn — the same as typing it — so the
+            answer resolves the ambiguity in one tap. */}
+        {question && !proposal && (
+          <div className={cx("mb-3 overflow-hidden rounded-[12px] border", dark ? "border-[var(--nle-line)] bg-[var(--nle-panel-raised)]" : "border-line-input bg-sunken")}>
+            <div className={cx("border-b px-3 py-2.5", dark ? "border-[var(--nle-line)]" : "border-line-div")}>
+              <div className={cx("font-mono text-[8.5px] tracking-[0.13em] uppercase", dark ? "text-[var(--nle-faint)]" : "text-t9")}>
+                One thing first
+              </div>
+              <div className={cx("mt-1 text-[12.5px] font-medium", dark ? "text-[var(--nle-text)]" : "text-ink")}>
+                {question.prompt}
+              </div>
+            </div>
+            <div className="grid gap-1.5 p-2.5">
+              {question.options.map((option) => (
+                <button
+                  key={option.label}
+                  type="button"
+                  disabled={thinking}
+                  onClick={() => {
+                    setQuestion(null);
+                    sendText(option.label);
+                  }}
+                  className={cx(
+                    "grid gap-0.5 rounded-lg border px-3 py-2 text-left transition-colors duration-[var(--t-fast)] disabled:opacity-50",
+                    dark
+                      ? "border-[var(--nle-line)] bg-[var(--nle-panel)] hover:border-[var(--nle-line-strong)]"
+                      : "border-line-input bg-card hover:border-line-strong",
+                  )}
+                >
+                  <span className={cx("text-[12px] font-medium", dark ? "text-[var(--nle-text)]" : "text-ink-2")}>
+                    {option.label}
+                  </span>
+                  {option.detail ? (
+                    <span className={cx("text-[10.5px] leading-[1.4]", dark ? "text-[var(--nle-muted)]" : "text-t6")}>
+                      {option.detail}
+                    </span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {proposal?.proposal && (
           <div className={cx("mb-3 overflow-hidden rounded-[12px] border border-[var(--accent-line)]", dark ? "bg-[var(--nle-panel-raised)]" : "bg-[var(--accent-tint)]")}>
             <div className="border-b border-[var(--accent-line)] px-3 py-2.5">
@@ -603,29 +687,53 @@ export function ProducerDrawer() {
             three suggestions reads as a truncated one — the second action
             looked broken rather than scrollable. */}
         <div className="-mx-1 mb-2.5 flex flex-wrap gap-1.5 px-1 pb-0.5">
-          {actions.map((a) => (
-            dark ? (
-              <button
-                key={a.label}
-                type="button"
-                onClick={() => runAction(a)}
-                disabled={thinking || proposal !== null}
-                className="max-w-full rounded-lg border border-[var(--nle-line)] bg-[var(--nle-panel-raised)] px-3 py-1.5 text-left text-[11.5px] font-medium text-[var(--nle-muted)] transition-[border-color,color,transform] duration-[var(--t-fast)] hover:border-[var(--nle-line-strong)] hover:text-[var(--nle-text)] active:scale-[0.98] disabled:opacity-50"
-              >
-                {a.label}
-              </button>
-            ) : (
-              <Ghost
-                key={a.label}
-                type="button"
-                onClick={() => runAction(a)}
-                disabled={thinking || proposal !== null}
-                className="max-w-full px-3 py-1.5 text-left text-[11.5px] disabled:opacity-50"
-              >
-                {a.label}
-              </Ghost>
-            )
-          ))}
+          {connectedStarters.length > 0
+            ? connectedStarters.map((label) =>
+                dark ? (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => sendText(label)}
+                    disabled={thinking || proposal !== null || question !== null}
+                    className="max-w-full rounded-lg border border-[var(--nle-line)] bg-[var(--nle-panel-raised)] px-3 py-1.5 text-left text-[11.5px] font-medium text-[var(--nle-muted)] transition-[border-color,color,transform] duration-[var(--t-fast)] hover:border-[var(--nle-line-strong)] hover:text-[var(--nle-text)] active:scale-[0.98] disabled:opacity-50"
+                  >
+                    {label}
+                  </button>
+                ) : (
+                  <Ghost
+                    key={label}
+                    type="button"
+                    onClick={() => sendText(label)}
+                    disabled={thinking || proposal !== null || question !== null}
+                    className="max-w-full px-3 py-1.5 text-left text-[11.5px] disabled:opacity-50"
+                  >
+                    {label}
+                  </Ghost>
+                ),
+              )
+            : actions.map((a) =>
+                dark ? (
+                  <button
+                    key={a.label}
+                    type="button"
+                    onClick={() => runAction(a)}
+                    disabled={thinking || proposal !== null}
+                    className="max-w-full rounded-lg border border-[var(--nle-line)] bg-[var(--nle-panel-raised)] px-3 py-1.5 text-left text-[11.5px] font-medium text-[var(--nle-muted)] transition-[border-color,color,transform] duration-[var(--t-fast)] hover:border-[var(--nle-line-strong)] hover:text-[var(--nle-text)] active:scale-[0.98] disabled:opacity-50"
+                  >
+                    {a.label}
+                  </button>
+                ) : (
+                  <Ghost
+                    key={a.label}
+                    type="button"
+                    onClick={() => runAction(a)}
+                    disabled={thinking || proposal !== null}
+                    className="max-w-full px-3 py-1.5 text-left text-[11.5px] disabled:opacity-50"
+                  >
+                    {a.label}
+                  </Ghost>
+                ),
+              )}
         </div>
 
         {/* The field grows with what you write.

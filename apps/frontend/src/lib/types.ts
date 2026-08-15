@@ -566,6 +566,8 @@ export interface ThreadMessage {
   text: string;
   /** A short proof that something actually changed. */
   receipt?: string;
+  /** What the room looked at before answering — e.g. "Looked at the plan". */
+  note?: string;
 }
 
 export interface ProcessingStep {
@@ -616,10 +618,27 @@ export interface ProposedChange {
   receipt: string;
 }
 
-/** One turn of the side-chat orchestrator: a reply, optionally a proposal. */
+/** One option in a clarifying question. `label` is sent back as the next turn. */
+export interface ClarifyOption {
+  label: string;
+  detail: string;
+}
+
+/** Asked only when a request is too ambiguous to scope — a prompt + picks. */
+export interface Clarification {
+  prompt: string;
+  options: ClarifyOption[];
+}
+
+/**
+ * One turn of the side-chat orchestrator: a reply, and at most one of a scoped
+ * proposal or a clarifying question. `observed` is what it looked at on demand.
+ */
 export interface OrchestratorTurn {
   reply: string;
   proposal: ProposedChange | null;
+  question?: Clarification | null;
+  observed?: string[];
 }
 
 export type RenderState = "idle" | "rendering" | "done";

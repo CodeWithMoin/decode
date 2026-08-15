@@ -4,6 +4,8 @@ reply — and never mutates (AGENT-GRAPH §2; propose -> apply -> receipt)."""
 from decode.config import Settings
 from decode.orchestrator import (
     TOOLS,
+    Clarification,
+    ClarifyOption,
     FakeOrchestrator,
     OpenAIOrchestrator,
     OrchestratorTurn,
@@ -37,11 +39,22 @@ async def test_a_scoped_request_becomes_a_direct_scene_proposal():
     assert "nothing has changed yet" in turn.reply.lower()
 
 
-async def test_a_request_with_no_scene_gets_a_reply_not_a_proposal():
+async def test_an_ambiguous_request_asks_a_pickable_question_not_a_dead_end():
     orch = FakeOrchestrator()
     turn = await orch.turn("make this more intuitive", SCENES)
     assert turn.proposal is None
     assert "name the scene" in turn.reply.lower()
+    # It offers the scenes to pick, so "which one?" is one tap, not typing.
+    assert turn.question is not None
+    assert [o.label for o in turn.question.options] == ["Scene 1", "Scene 2", "Scene 3"]
+    assert turn.question.options[0].detail  # each option names the scene
+
+
+async def test_a_clear_request_proposes_directly_and_never_asks():
+    orch = FakeOrchestrator()
+    turn = await orch.turn("split scene 2", SCENES)
+    assert turn.proposal is not None
+    assert turn.question is None  # unambiguous -> no question, straight to a scope
 
 
 async def test_an_out_of_range_scene_is_refused_not_guessed():
@@ -50,6 +63,7 @@ async def test_an_out_of_range_scene_is_refused_not_guessed():
     assert turn.proposal is None
     assert "no scene 9" in turn.reply.lower()
     assert "3 scene" in turn.reply  # tells them how many there are
+    assert turn.question is not None  # and offers the real scenes to pick from
 
 
 async def test_direction_survives_when_the_scene_ref_is_stripped():
@@ -116,6 +130,8 @@ async def test_turn_endpoint_is_wired_and_read_only(client):
     body = response.json()
     assert body["reply"]
     assert body["proposal"] is None
+    # The turn rides with an observe trace, even when empty (the fake never looks).
+    assert body["observed"] == []
 
 
 async def test_turn_endpoint_404_for_a_missing_project(client):
@@ -255,6 +271,41 @@ def test_validate_coerces_args_to_strings_and_drops_extras():
     validated = OpenAIOrchestrator._validate(turn)
     assert validated.proposal is not None
     assert validated.proposal.args == {"beat_id": "beat-01", "edge": "in", "seconds": "3"}
+
+
+def test_to_turn_decodes_a_clarifying_question():
+    from decode.orchestrator import _LLMClarification, _LLMClarifyOption, _LLMTurn
+
+    llm = _LLMTurn(
+        reply="Which one?",
+        proposal=None,
+        question=_LLMClarification(
+            prompt="Which scene?",
+            options=[_LLMClarifyOption(label="Scene 1", detail="Intro")],
+        ),
+    )
+    turn = OpenAIOrchestrator._to_turn(llm)
+    assert turn.proposal is None
+    assert turn.question is not None
+    assert turn.question.options[0].label == "Scene 1"
+
+
+def test_validate_drops_the_question_when_a_real_proposal_is_present():
+    turn = OrchestratorTurn(
+        reply="scoped",
+        proposal=ProposedChange(
+            tool="split_scene",
+            args={"beat_id": "beat-01"},
+            summary="s",
+            changes="c",
+            untouched="u",
+            receipt="r",
+        ),
+        question=Clarification(prompt="Which?", options=[ClarifyOption(label="x")]),
+    )
+    validated = OpenAIOrchestrator._validate(turn)
+    assert validated.proposal is not None
+    assert validated.question is None  # a scoped change wins over a question
 
 
 def test_validate_rejects_an_unknown_tool():

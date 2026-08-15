@@ -267,15 +267,36 @@ class ProposedChange(BaseModel):
     receipt: str  # posted after Apply — "Scene 2 · visual redrawn"
 
 
+class ClarifyOption(BaseModel):
+    """One pickable answer to a clarifying question. `label` is the complete
+    instruction sent back as the next turn — choosing it is the same as typing
+    it — so each option must, on its own, resolve the ambiguity that was asked."""
+
+    label: str
+    detail: str = ""
+
+
+class Clarification(BaseModel):
+    """A scoped question the room asks *only* when the request is genuinely
+    ambiguous — no clear target, or unclear what to change. It offers options to
+    pick rather than a dead-end 'which one?', so the creator answers in one tap.
+    A clear request never produces one; it goes straight to a proposal."""
+
+    prompt: str
+    options: list[ClarifyOption]
+
+
 class OrchestratorTurn(BaseModel):
-    """What the room says, and optionally a proposal awaiting Apply.
+    """What the room says, and at most one of a proposal or a question.
 
     `reply` is always present — the room speaks every turn. `proposal` is present
-    only when the request maps to a tool; nothing has changed yet either way.
+    only when the request maps cleanly to a tool. `question` is present instead
+    when the request is too ambiguous to scope. Never both; nothing has changed.
     """
 
     reply: str
     proposal: ProposedChange | None = None
+    question: Clarification | None = None
 
 
 class Orchestrator(Protocol):
@@ -330,6 +351,23 @@ class FakeOrchestrator:
             ),
         )
 
+    @staticmethod
+    def _pick_a_scene(scenes: list[SceneRef]) -> Clarification | None:
+        """A pickable list of the scenes, so 'which one?' is one tap, not typing.
+        None when there are no scenes yet — then there is nothing to offer."""
+        if not scenes:
+            return None
+        return Clarification(
+            prompt="Which scene?",
+            options=[
+                ClarifyOption(
+                    label=f"Scene {scene.index}",
+                    detail=scene.title or scene.narration[:48],
+                )
+                for scene in scenes[:4]
+            ],
+        )
+
     async def turn(
         self, message: str, scenes: list[SceneRef], observer: Observer | None = None
     ) -> OrchestratorTurn:
@@ -346,7 +384,8 @@ class FakeOrchestrator:
                     "retime one — name the scene and what to do, e.g. \"split scene 2\" "
                     'or "scene 2, make the fog thicker near the summit". '
                     "I'll scope the change and you approve before anything moves."
-                )
+                ),
+                question=self._pick_a_scene(scenes),
             )
 
         index = int(match.group(1))
@@ -357,7 +396,8 @@ class FakeOrchestrator:
                     f"There's no scene {index} — this cut has "
                     f"{len(scenes)} scene{'s' if len(scenes) != 1 else ''}. "
                     "Tell me which one and what to do."
-                )
+                ),
+                question=self._pick_a_scene(scenes),
             )
 
         n = scene.index
@@ -443,9 +483,20 @@ class _LLMProposal(BaseModel):
     receipt: str
 
 
+class _LLMClarifyOption(BaseModel):
+    label: str
+    detail: str
+
+
+class _LLMClarification(BaseModel):
+    prompt: str
+    options: list[_LLMClarifyOption]
+
+
 class _LLMTurn(BaseModel):
     reply: str
     proposal: _LLMProposal | None = None
+    question: _LLMClarification | None = None
 
 
 class OpenAIOrchestrator:
@@ -492,8 +543,14 @@ class OpenAIOrchestrator:
             "only that tool's declared args; every value is a string (indices and "
             "durations included). Encode the args as a JSON object in args_json, "
             'e.g. args_json = {\"beat_id\": \"beat-02\", \"direction\": \"...\"}.\n'
-            "- If it maps to no tool, reply with no proposal and ask which scene and "
-            "what to do.\n"
+            "- Propose directly when the request is clear. Do NOT ask a question "
+            "when the target and intent are already unambiguous (a stated scene "
+            "plus what to change is enough) — scope it and propose.\n"
+            "- Only when the request is genuinely ambiguous (no clear target, or "
+            "unclear what to change) return a `question` instead of a proposal: a "
+            "short prompt and 2–4 options. Each option's label is a complete "
+            "instruction that, sent back on its own, resolves the ambiguity. Never "
+            "return both a proposal and a question.\n"
             "- The reply is first person; past tense for finished work; states why.\n"
             "- summary/changes/untouched/receipt state the scope: what moves, what "
             "stays, and the receipt to post after Apply."
@@ -604,8 +661,19 @@ class OpenAIOrchestrator:
         """Decode the model's args_json string back into the dict the wire uses.
         A malformed or non-object args_json degrades to empty args — `_validate`
         then fills the tool's declared names with blanks rather than crashing."""
+        question = (
+            Clarification(
+                prompt=llm.question.prompt,
+                options=[
+                    ClarifyOption(label=opt.label, detail=opt.detail)
+                    for opt in llm.question.options
+                ],
+            )
+            if llm.question is not None
+            else None
+        )
         if llm.proposal is None:
-            return OrchestratorTurn(reply=llm.reply, proposal=None)
+            return OrchestratorTurn(reply=llm.reply, proposal=None, question=question)
         try:
             args = json.loads(llm.proposal.args_json or "{}")
         except json.JSONDecodeError:
@@ -622,6 +690,7 @@ class OpenAIOrchestrator:
                 untouched=llm.proposal.untouched,
                 receipt=llm.proposal.receipt,
             ),
+            question=question,
         )
 
     @staticmethod
@@ -631,8 +700,12 @@ class OpenAIOrchestrator:
         proposal = turn.proposal
         spec = TOOLS.get(proposal.tool)
         if spec is None or spec.read_only:
-            return OrchestratorTurn(reply=turn.reply, proposal=None)
+            # Not a runnable tool — keep the reply and any question, drop the
+            # would-be proposal rather than offering a button that does nothing.
+            return OrchestratorTurn(reply=turn.reply, proposal=None, question=turn.question)
         proposal.args = {name: str(proposal.args.get(name, "")) for name in spec.args}
+        # A proposal and a question are mutually exclusive; a scoped change wins.
+        turn.question = None
         return turn
 
 

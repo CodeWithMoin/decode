@@ -145,7 +145,7 @@ interface StudioState {
 
   toggleThread: () => void;
   setThreadOpen: (v: boolean) => void;
-  say: (text: string, receipt?: string) => void;
+  say: (text: string, receipt?: string, note?: string) => void;
   ask: (text: string) => void;
   setDraft: (v: string) => void;
   setThinking: (v: boolean) => void;
@@ -828,9 +828,9 @@ export const useStudio = create<StudioState>((set, get) => ({
   toggleThread: () => set((s) => ({ threadOpen: !s.threadOpen })),
   setThreadOpen: (threadOpen) => set({ threadOpen }),
 
-  say: (text, receipt) =>
+  say: (text, receipt, note) =>
     set((s) => ({
-      thread: [...s.thread, { id: uid("m"), who: "p", text, receipt }],
+      thread: [...s.thread, { id: uid("m"), who: "p", text, receipt, note }],
     })),
 
   ask: (text) =>

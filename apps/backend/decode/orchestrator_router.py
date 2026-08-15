@@ -94,11 +94,13 @@ class _ProjectObserver:
     def __init__(self, session: AsyncSession, project_id: str):
         self.session = session
         self.project_id = project_id
+        self.calls: list[str] = []  # what the orchestrator looked at, in order
 
     async def _payload(self, artifact_type: ArtifactType) -> dict | None:
         return await _approved_or_latest_payload(self.session, self.project_id, artifact_type)
 
     async def observe(self, name: str, args: dict[str, str]) -> str:
+        self.calls.append(name)
         if name == "get_brief":
             return json.dumps(await self._payload(ArtifactType.PRODUCTION_BRIEF) or {})
         if name == "get_plan":
@@ -126,4 +128,7 @@ async def orchestrator_turn(
     scenes = await _current_scenes(session, project_id)
     observer = _ProjectObserver(session, project_id)
     turn = await build_orchestrator(get_settings()).turn(command.message, scenes, observer)
-    return turn.model_dump()
+    # `observed` is what the room looked at on demand — surfaced so the chat can
+    # say "Looked at the plan" instead of a bare wait. Not part of the turn shape
+    # (it's a trace, not the model's answer), so it rides alongside it.
+    return turn.model_dump() | {"observed": observer.calls}
