@@ -61,6 +61,22 @@ the words that name it; never write a start second.
 
 You never write a scene length. The plan owns runtime and the narration owns timing.
 
+## Choose the palette
+
+You set the colour language for the whole video, once, and the Renderer paints every
+scene from it. Six roles: `stage` (the full-frame background), `surface` and
+`surface_edge` (a card/diagram surface and its brighter border — keep them a *distinct*
+pair so adjacent diagram shapes stay legible), `ink` (primary text), `support` (muted
+text), and `accent` (the single focal colour). Decide the temperature the subject wants:
+a warm human topic reads differently from a cold systems one. If the brand supplies
+colours, honour them.
+
+The default is Decode's calm dark house style — stage `#0B0B0B`, surface `#232323`,
+edge `#484848`, ink `#F3F0EA`, support `#98A0B3`, accent `#F2A47B`. **Omit `palette`
+entirely to keep it.** Only set `palette` when you are deliberately departing, and when
+you do, set all six roles to a coherent set (dark ground, legible ink, one accent that
+earns the eye) and say why in your rationale. Never emit an unreadable pair.
+
 ## Delegate the rendering
 
 You are a coordinator. Once the storyboard for a beat is settled, delegate to the

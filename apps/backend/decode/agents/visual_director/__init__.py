@@ -17,7 +17,14 @@ import json
 from pydantic import BaseModel, Field
 
 from ...config import Settings
-from ...schemas import BeatStoryboard, ProductionIntent, Script, TeachingPlan, VisualPlan
+from ...schemas import (
+    BeatStoryboard,
+    Palette,
+    ProductionIntent,
+    Script,
+    TeachingPlan,
+    VisualPlan,
+)
 from ..agent_config import AgentConfig
 from ..agent_runtime import AgentRuntime
 from .prompt import SKILLS
@@ -25,9 +32,11 @@ from .prompt import SKILLS
 
 class VisualPlanDraft(BaseModel):
     """What the model emits. No `visual_findings` — an open dict breaks strict
-    structured outputs — so provenance is stamped by `generate`, not the model."""
+    structured outputs — so provenance is stamped by `generate`, not the model.
+    `palette` is nullable: omit it to keep the Decode house style."""
 
     rationale: str = Field(min_length=1, max_length=1200)
+    palette: Palette | None = None
     beats: list[BeatStoryboard] = Field(min_length=1)
 
 
@@ -72,8 +81,10 @@ class ModelVisualDirector:
         )
         result = await self.runtime.run(assignment, VisualPlanDraft)
         draft = result.output
+        palette = draft.palette or Palette()
         return VisualPlan(
             rationale=draft.rationale,
+            palette=palette,
             beats=draft.beats,
             visual_findings={
                 "fixture": False,
@@ -85,6 +96,8 @@ class ModelVisualDirector:
                 "skills_loaded": list(result.skills_loaded),  # the on-demand ones it pulled
                 "tools_called": list(result.tools_called),
                 "delegated_to": list(result.delegated_to),
+                # Whether the Director departed from the house palette this video.
+                "palette_directed": draft.palette is not None,
             },
         )
 

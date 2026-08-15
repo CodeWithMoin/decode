@@ -202,15 +202,39 @@ class BeatStoryboard(BaseModel):
     moments: list[VisualMoment] = Field(min_length=1, max_length=12)
 
 
+_HEX = r"^#[0-9A-Fa-f]{6}$"
+
+
+class Palette(BaseModel):
+    """The colour language for one video, chosen by the Visual Director.
+
+    Six roles the composition contract already uses. The defaults are the Decode
+    house style (calm dark ground, warm amber focus, from MASTER.md); the Director
+    departs from them when the subject wants a different temperature, and the
+    Renderer paints every scene from *these* values instead of fixed hexes — so a
+    video's look is a directed decision, not a constant. `surface`/`surface_edge`
+    stay the distinct diagram pair the trap in CLAUDE.md protects.
+    """
+
+    stage: str = Field(default="#0B0B0B", pattern=_HEX)  # full-frame background
+    surface: str = Field(default="#232323", pattern=_HEX)  # card / diagram surface
+    surface_edge: str = Field(default="#484848", pattern=_HEX)  # its brighter border/pair
+    ink: str = Field(default="#F3F0EA", pattern=_HEX)  # primary text
+    support: str = Field(default="#98A0B3", pattern=_HEX)  # muted / support text
+    accent: str = Field(default="#F2A47B", pattern=_HEX)  # the one focal colour
+
+
 class VisualPlan(BaseModel):
     """The storyboard for the whole video, produced by the Visual Director.
 
-    The abstract counterpart to `SceneVisuals`: it names the visual idea and its
-    anchored moments per beat, and the Renderer turns each beat into a HyperFrames
-    composition. Never carries markup — that is the Renderer's output, not this.
+    The abstract counterpart to `SceneVisuals`: it names the visual idea, the
+    palette, and the anchored moments per beat, and the Renderer turns each beat
+    into a HyperFrames composition. Never carries markup — that is the Renderer's
+    output, not this.
     """
 
     rationale: str = Field(min_length=1, max_length=1200)
+    palette: Palette = Field(default_factory=Palette)
     beats: list[BeatStoryboard] = Field(min_length=1)
     visual_findings: dict = Field(default_factory=dict)
 

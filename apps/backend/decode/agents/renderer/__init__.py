@@ -219,12 +219,18 @@ class ModelVisualizer(ModelAgent):
             [
                 "## The composition contract (authoritative — timing and structure)\n\n",
                 SKILLS.reference("hyperframes-composition"),
+                "\n\n## The palette — paint every scene from these exact colours\n\n"
+                "The Visual Director chose this palette for the video. Use these values for "
+                "every fill, text and accent; they OVERRIDE any hex named in the contract "
+                "above. `stage` is the full-frame background, `surface`/`surface_edge` the "
+                "diagram surface and its border (keep them distinct), `ink` primary text, "
+                "`support` muted text, `accent` the one focal colour.\n\n",
+                json.dumps(visual_plan.palette.model_dump(), ensure_ascii=True, indent=2),
                 "\n\n## Art direction\n\n",
                 json.dumps(
                     {
                         "audience": intent.audience,
                         "depth": intent.depth,
-                        "brand_colors": intent.brand.colors,
                         "brand_guidelines": intent.brand.guidelines,
                     },
                     ensure_ascii=True,
