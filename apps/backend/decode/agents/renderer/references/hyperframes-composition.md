@@ -126,18 +126,35 @@ Everything sits on a near-black stage. Never invent flat colours.
 
 ### Make it a picture, not a slide
 
-A title with a bulleted list fading in is the weakest possible scene. Aim higher:
+A title with a bulleted list fading in is the weakest possible scene. A row of
+text cards is the *second* weakest — it looks composed but teaches nothing the
+narration doesn't already say. Aim higher:
 
+- **Draw the objects — do not name them.** This is the rule that matters most, and
+  the one most often broken. The things the beat is about must be *drawn as shapes* —
+  the actual structure rendered in geometry — not represented by their names inside a
+  box. A bit array is **a row of drawn cells** (small sized boxes in a grid), not a
+  card reading "bit row". A hash is **a drawn arrow** from the item to the cell it
+  lands on, not the word "hash". A set membership check is cells **flipping to the
+  accent** as they are read, not a card reading "checking". If you catch yourself
+  putting a noun in a box, draw the noun instead. Text on the frame is for **short
+  labels riding on the shapes** (≤3 words) and at most one caption — never the
+  mechanism itself.
 - **One idea, composed.** Build the whole frame around a single point, with layout
-  (CSS grid/flex) leading the eye to one focal element — a word, a number, a diagram.
+  (CSS grid/flex, or an inline `<svg>` for cells/arrows/paths) leading the eye to one
+  focal element — a number, a lit cell, a node.
 - **Draw the relationship.** If the narration compares, connects, transforms or
-  sequences, *show it*: two surfaces and a connector, a before/after, a labelled
-  flow. Not the sentence as text.
+  sequences, *show it*: two shapes and a connector, a before/after, arrows along a
+  flow. The connector is a drawn line or `<svg>` path, not the word "then".
 - **Depth and hierarchy.** Layer surfaces, vary size and weight, use the `#484848`
   edge to separate. Equal-sized flat chips read as a form, not a teaching frame.
 - **Draw the mechanism, not the narration.** The words are spoken *while* the scene
   plays — repeating them on screen gives the viewer two copies to choose between.
   A few words as labels or one short caption is right; a transcript is not.
+
+Inline `<svg>` is first-class here — use it for cells, grids, arrows, connectors,
+nodes and paths. Sized `<div>`s arranged on a grid are equally good for a row or
+matrix of cells. Reach for whichever draws the *actual object* most directly.
 
 ### Choreograph on the timeline
 
@@ -151,14 +168,29 @@ A title with a bulleted list fading in is the weakest possible scene. Aim higher
 
 ### The shape of a composed scene (technique, not a template)
 
+Note what this *draws*: an item, three hash arrows, and a row of bit cells — the
+three the item lands on flip to the accent as it is inserted. The objects are
+geometry, not words in boxes; the only text is one-word labels riding on shapes.
+
 ```html
 <div id="bg"></div>                         <!-- #0B0B0B stage fill on a child -->
+<style>
+  .cell{width:76px;height:76px;border-radius:12px;background:#232323;border:1px solid #484848;
+        display:grid;place-items:center;font:700 30px ui-sans-serif;color:#98A0B3}
+</style>
 <div id="stage" class="clip" data-start="0" data-duration="{{SCENE_DURATION}}" data-track-index="1"
-     style="position:absolute;inset:0;display:grid;place-items:center;gap:48px;grid-auto-flow:column">
-  <div id="q" style="background:#232323;border:1px solid #484848;border-radius:16px;padding:28px 36px;
-       font:600 96px ui-sans-serif;color:#F3F0EA">query</div>
-  <div id="k" style="background:#232323;border:1px solid #484848;border-radius:16px;padding:28px 36px;
-       font:600 96px ui-sans-serif;color:#F2A47B">key</div>   <!-- the one accent -->
+     style="position:absolute;inset:0;display:grid;place-items:center;gap:40px">
+  <div id="item" style="background:#232323;border:1px solid #484848;border-radius:14px;padding:14px 22px;
+       font:700 32px ui-sans-serif;color:#F3F0EA">x</div>            <!-- the item, drawn as a node -->
+  <svg id="wires" width="560" height="88" viewBox="0 0 560 88" fill="none"> <!-- hashes = drawn arrows -->
+    <path d="M280 2 C280 48 96 44 96 86"  stroke="#F2A47B" stroke-width="3"/>
+    <path d="M280 2 C280 48 280 44 280 86" stroke="#F2A47B" stroke-width="3"/>
+    <path d="M280 2 C280 48 464 44 464 86" stroke="#F2A47B" stroke-width="3"/>
+  </svg>
+  <div id="bits" style="display:grid;grid-auto-flow:column;gap:14px">  <!-- the array = a row of cells -->
+    <i class="cell">0</i><i class="cell" id="b1">0</i><i class="cell">0</i>
+    <i class="cell" id="b2">0</i><i class="cell">0</i><i class="cell" id="b3">0</i><i class="cell">0</i>
+  </div>
 </div>
 <!-- decode:timing -->
 <script>
@@ -166,12 +198,17 @@ A title with a bulleted list fading in is the weakest possible scene. Aim higher
   const t = window.__decodeTiming || [];
   const at = (n) => t.find((x) => x.beat === n) || { start: 0, duration: 0.6 };
   const tl = gsap.timeline({ paused: true });
-  const q = at("query"), k = at("key");
-  tl.fromTo("#q", { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: q.duration, ease: "power4.out" }, q.start);
-  tl.fromTo("#k", { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: k.duration, ease: "power4.out" }, k.start);
+  const arrive = at("item"), set = at("set");
+  // the item and the empty row arrive first, in reading order
+  tl.fromTo("#item", { autoAlpha: 0, y: -20 }, { autoAlpha: 1, y: 0, duration: arrive.duration, ease: "power4.out" }, arrive.start);
+  tl.fromTo("#bits > *", { autoAlpha: 0, y: 16 }, { autoAlpha: 1, y: 0, duration: 0.4, stagger: 0.05, ease: "power4.out" }, arrive.start);
+  // then the hashes fire and the three cells they land on flip to the accent — the mechanism, drawn
+  tl.fromTo("#wires path", { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.5, stagger: 0.08, ease: "power2.out" }, set.start);
+  tl.to("#b1, #b2, #b3", { backgroundColor: "#F2A47B", borderColor: "#F2A47B", color: "#0B0B0B", duration: 0.4, stagger: 0.1, ease: "power2.out" }, set.start + 0.15);
   window.__timelines["main"] = tl;
 </script>
 ```
 
 Read the palette, hierarchy and choreography above off this shape — do not copy
-it. Build the composition the *specific* beat needs.
+it, and do not fall back to labelled boxes when the beat is not about an array.
+Build the composition the *specific* beat needs: draw *its* objects.
