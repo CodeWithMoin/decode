@@ -2,6 +2,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from .timing import NarrationTiming, Word
+
 
 class Brand(BaseModel):
     colors: list[str] = Field(default_factory=list)
@@ -176,11 +178,23 @@ class SceneVisuals(BaseModel):
 
 
 class VoiceNarration(BaseModel):
-    """Spoken audio for one beat, referenced by object key."""
+    """Spoken audio for one beat, referenced by object key.
+
+    `words` carries per-word timings when the provider (or a forced-alignment
+    pass) supplies them; it is empty when no alignment was performed. It is what
+    turns this clip into a `NarrationTiming` — the authority sub-scene beats
+    resolve against (see `timing.py`). Absent words means phrase anchors in that
+    scene cannot resolve yet, which the resolver surfaces rather than guessing.
+    """
 
     beat_id: str = Field(min_length=1)
     audio_key: str = Field(min_length=1)
     duration_seconds: float = Field(gt=0)
+    words: list[Word] = Field(default_factory=list)
+
+    def narration_timing(self) -> NarrationTiming:
+        """This clip as the timing authority for its scene's beats."""
+        return NarrationTiming(duration=self.duration_seconds, words=self.words)
 
 
 class Voice(BaseModel):

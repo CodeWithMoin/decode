@@ -6,7 +6,7 @@ and a narration change re-resolves the same anchors to new times with nobody
 hand-fixing a number.
 """
 
-from decode.timing import Anchor, NarrationTiming, Word, resolve_beats
+from decode.timing import Anchor, NarrationTiming, Word, even_split_words, resolve_beats
 
 # "The trophy receives the largest attention weight." with per-word timings.
 NARRATION = NarrationTiming(
@@ -75,6 +75,21 @@ def test_a_missing_phrase_is_surfaced_not_guessed():
     assert [u.name for u in resolved.unresolved] == ["attention_weight_reveal"]
     # progress/time anchors still resolve — they do not depend on the words.
     assert resolved.times["tokens_fade"] == 1.8  # 0.9 * 2.0
+
+
+def test_even_split_words_span_the_duration_and_are_ordered():
+    words = even_split_words("The trophy receives the largest attention weight.", 3.5)
+    assert [w.text for w in words] == "The trophy receives the largest attention weight.".split()
+    assert words[0].start == 0.0
+    assert words[-1].end == 3.5
+    assert all(a.end <= b.start + 1e-9 for a, b in zip(words, words[1:], strict=False))  # monotonic
+    # A phrase anchor resolves against even-split words, just less precisely.
+    timing = NarrationTiming(duration=3.5, words=words)
+    resolved = resolve_beats([Anchor(name="a", kind="phrase", phrase="attention weight")], timing)
+    assert resolved.times["a"] == round(5 * (3.5 / 7), 3)  # start of the 6th word
+
+    assert even_split_words("", 3.0) == []
+    assert even_split_words("word", 0) == []
 
 
 def test_progress_and_time_anchors_clamp_into_the_scene():

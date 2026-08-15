@@ -26,6 +26,7 @@ from ..schemas import (
     Voice,
     VoiceNarration,
 )
+from ..timing import even_split_words
 from .author.validation import target_words
 from .contracts import ProviderUsage, SourceInput
 from .evaluator import deterministic_checks, deterministic_plan_checks
@@ -291,14 +292,20 @@ class FakeNarrator:
     last_usage: ProviderUsage | None = None
 
     async def generate(self, intent: ProductionIntent, script: Script) -> Voice:
-        clips = [
-            VoiceNarration(
-                beat_id=item.beat_id,
-                audio_key=f"fixture-voice/{item.beat_id}.mp3",
-                duration_seconds=max(1.0, round(len(item.narration) / 14.0, 2)),
+        clips = []
+        for item in script.beats:
+            duration = max(1.0, round(len(item.narration) / 14.0, 2))
+            clips.append(
+                VoiceNarration(
+                    beat_id=item.beat_id,
+                    audio_key=f"fixture-voice/{item.beat_id}.mp3",
+                    duration_seconds=duration,
+                    # Deterministic even-split timings so the beat-timing model has
+                    # real narration to resolve against in the walking skeleton. A
+                    # fixture, labelled as one — never a claim of measured alignment.
+                    words=even_split_words(item.narration, duration),
+                )
             )
-            for item in script.beats
-        ]
         return Voice(
             rationale=(
                 f"I read {len(clips)} passages as a deterministic fixture. No audio was "

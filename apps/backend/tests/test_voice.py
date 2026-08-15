@@ -52,6 +52,23 @@ async def test_fixture_narrator_labels_output():
     assert all(clip.duration_seconds > 0 for clip in voice.clips)
 
 
+async def test_fixture_narration_carries_resolvable_word_timings():
+    """The fake narrator emits deterministic word timings so the beat-timing model
+    has real narration to resolve against in the walking skeleton."""
+    from decode.timing import Anchor, resolve_beats
+
+    narrator = build_voice(Settings(voice="fake"))
+    voice = await narrator.generate(INTENT, SCRIPT)
+    clip = next(c for c in voice.clips if c.beat_id == "beat-01")
+    assert [w.text for w in clip.words] == "Attention lets a model weigh what matters.".split()
+
+    # The clip *is* the timing authority for its scene — a phrase anchor resolves.
+    timing = clip.narration_timing()
+    resolved = resolve_beats([Anchor(name="weigh", kind="phrase", phrase="weigh what")], timing)
+    assert "weigh" in resolved.times
+    assert 0 < resolved.times["weigh"] < clip.duration_seconds
+
+
 def test_unknown_provider_raises():
     with pytest.raises(ValueError):
         build_voice(Settings(voice="no_such_provider"))

@@ -37,6 +37,24 @@ class Word(BaseModel):
     end: float = Field(ge=0)
 
 
+def even_split_words(text: str, duration: float) -> list[Word]:
+    """Deterministic word timings spread evenly across the duration.
+
+    An **estimate**, not measured alignment — every word gets an equal slice. Real
+    speech does not land on even intervals, so this is for the fixture narrator and
+    as a last-resort fallback, never presented as a real read. Real timings come
+    from the TTS provider's alignment or a forced-alignment pass.
+    """
+    tokens = [token for token in text.split() if token.strip()]
+    if not tokens or duration <= 0:
+        return []
+    span = duration / len(tokens)
+    return [
+        Word(text=token, start=_q3(index * span), end=_q3((index + 1) * span))
+        for index, token in enumerate(tokens)
+    ]
+
+
 class NarrationTiming(BaseModel):
     """The transcript of one scene's narration, timed. The timing authority.
 
