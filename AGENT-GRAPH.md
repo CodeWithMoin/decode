@@ -243,3 +243,38 @@ happens *after* the current shipped work is committed.
    artifacts. The evaluator becomes an optional tool, not a gate.
 4. **Vision infra** — `screenshot_scene` needs Node/Remotion render + per-call
    cost; shared with the vision-loop backlog item.
+
+## 10. Settled from the current-setup review
+
+Checked against the code and confirmed, so the migration builds on them:
+
+- **What's user-provided vs generated.** `source` (upload) and `production_intent`
+  (audience / depth / brief choices) are the creator's — never generated.
+  Everything downstream — brief → teaching_plan → script → scene_visuals → voice —
+  is auto-generated *and* auto-approved (today via `continue_chain`, recording a
+  real `ApprovalDecision` under `decode:auto-continue`). In the snapshot model the
+  intent + sources are the inputs; the rest are sections the agents fill.
+- **Dependencies stay deterministic — do NOT hand them to the LLM.** The agent
+  decides *content*; the system records *what fed what* (today `parents = a job's
+  inputs`, set by the worker). Staleness — "what must regenerate when scene 5
+  changes" — is the whole reason the graph exists; if an LLM owns it, staleness
+  becomes unreliable and the "only regenerate downstream" guarantee breaks. Keep
+  content-decisions and dependency-tracking separate.
+- **Evaluation is an optional hook, not a per-stage gate.** Today it runs inline
+  after brief + plan only (`EVALUATED_TYPES`); script / visuals / voice aren't
+  evaluated. Target: evaluation becomes a tool the orchestrator can call (often at
+  the end, not every stage), plus per-tool validation hooks that extend the
+  pattern the Visualizer already has (`validate_scenes` + repair).
+- **One store, not a table per department.** Keep a single snapshot document with
+  per-scene sections; binary media (audio, later SFX/music) lives in the object
+  store with a small **asset table** for reuse/caching. N per-department tables
+  would fragment the one thing the migration unifies.
+- **`ArtifactVersion` → checkpoints/diffs**, `latest`/`approved` pointers and the
+  lineage DAG retire — see §8.
+- **`auto_continue`** — UI removed; the column retires in the §8 migration.
+- **Department gerund renames** (initiating / architecting / writing / visualising)
+  are cosmetic and optional — note `author` (writing) and `visualizer`
+  (visualising) are two departments, and `voice` presents as the Writer, not its
+  own role.
+- **New tools are net-new.** Only `intake` declares a tool today (`record_finding`);
+  `screenshot` / `check` / `alignment` (§4, §6, and the audio work) don't exist yet.
