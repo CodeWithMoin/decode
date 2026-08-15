@@ -110,14 +110,6 @@ export function sceneAtAll(scenes: Scene[], t: number): number {
   return 0;
 }
 
-/** Which scene is on screen at time t (enabled cut). */
-export function sceneAt(scenes: Scene[], t: number): number {
-  const st = starts(scenes);
-  for (let i = st.length - 1; i >= 0; i--) if (!scenes[i].disabled && t >= st[i] && t < st[i] + scenes[i].dur) return i;
-  for (let i = st.length - 1; i >= 0; i--) if (!scenes[i].disabled && t >= st[i]) return i;
-  return 0;
-}
-
 export interface TimedWord {
   t: string;
   /** Absolute start time in the full runtime. */

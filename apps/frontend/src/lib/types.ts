@@ -608,23 +608,6 @@ export interface ExampleSource {
   src: Source;
 }
 
-export interface Opportunity {
-  t: string;
-  d: string;
-}
-
-export interface Dependency {
-  a: string;
-  b: string;
-}
-
-/** The Motion Designer's open question on a scene. */
-export interface SceneNote {
-  crew: CrewId;
-  text: string;
-  options: { key: "A" | "B"; title: string; desc: string }[];
-}
-
 export type RenderState = "idle" | "rendering" | "done";
 
 /** Downstream work that no longer matches the current scene source. */

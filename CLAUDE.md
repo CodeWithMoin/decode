@@ -140,9 +140,12 @@ is on as a warning and exists to catch this; do not switch it off again.
 **Nothing is a bare loading state.** No unexplained spinner, no "Generating…", no
 "Thinking…". Progress is a named checklist with per-step detail lines.
 
-**The crew can disagree.** Scenes 3 and 5 offer two options with a stated
-preference (`SCENE_NOTES`). Picking one collapses to a teal confirmation and posts
-a receipt.
+**The crew can disagree** *(intended, not currently wired).* The design calls for
+scenes where the crew offers two options with a stated preference; picking one
+collapses to a teal confirmation and posts a receipt. The prototype's
+`SCENE_NOTES` / `SpecialistNote` implementation was removed as dead code (no
+consumer) — rebuild it on the connected side when the direction loop surfaces
+alternatives, rather than reviving the seeded version.
 
 **No entrance animations inside the studio.** Elements render at settled state, so
 nothing is invisible if a timeline never advances. Scroll motion is landing-only
