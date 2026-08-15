@@ -19,10 +19,14 @@ from types import SimpleNamespace
 from decode.agents.registry import architect as build_architect
 from decode.agents.registry import author as build_author
 from decode.agents.registry import intake as build_intake
+from decode.agents.renderer import build as build_renderer
+from decode.agents.renderer.composition import resolve_scene, stamp
 from decode.agents.visual_director import build as build_visual_director
 from decode.config import get_settings
 from decode.providers.storage import object_store
-from decode.schemas import ProductionIntent, Script, TeachingPlan
+from decode.renders.hyperframes import PreparedScene, render_cut_sync
+from decode.schemas import ProductionIntent, Script, TeachingPlan, VisualPlan
+from decode.timing import NarrationTiming, even_split_words
 
 # A small, real, teachable topic with an actual mechanism to explain.
 SOURCE = """
@@ -110,11 +114,37 @@ async def main() -> None:
         script = await build_author(settings).generate(INTENT, plan)
         _dump("script", script)
 
-    print("\n[4/4] Visual Director — directing the storyboard (what each beat shows + moves)…")
-    storyboard = await build_visual_director(settings).generate(INTENT, plan, script)
-    _dump("storyboard", storyboard)
+    cached_sb = Path("dial-in-storyboard.json")
+    if cached_sb.exists():
+        print("\nReusing cached storyboard (delete dial-in-storyboard.json to re-direct).")
+        storyboard = VisualPlan.model_validate_json(cached_sb.read_text())
+    else:
+        print("\n[4/5] Visual Director — directing the storyboard (what each beat shows + moves)…")
+        storyboard = await build_visual_director(settings).generate(INTENT, plan, script)
+        _dump("storyboard", storyboard)
 
-    print("\nDone. Inspect the four dial-in-*.json files; the storyboard is the new one.")
+    print("\n[5/5] Renderer — building HyperFrames compositions FROM the storyboard…")
+    renderer = build_renderer(settings)
+    visuals = await renderer.generate_from_storyboard(INTENT, storyboard, script, plan)
+    _dump("scene-visuals", visuals)
+
+    # Render the first scene to a video so we can SEE whether the storyboard landed.
+    first = visuals.scenes[0]
+    if first.composition_html:
+        text = {b.beat_id: b.narration for b in script.beats}.get(first.beat_id, "")
+        duration = 6.0
+        narration = NarrationTiming(duration=duration, words=even_split_words(text, duration))
+        resolved = resolve_scene(first.beats, narration)
+        html = stamp(first.composition_html, duration, resolved.metadata)
+        print(f"    rendering scene '{first.beat_id}' → MP4 (chromium)…")
+        out = render_cut_sync(
+            "dial_in_scene",
+            [PreparedScene(beat_id=first.beat_id, html=html, duration=duration, audio=None)],
+            settings,
+        )
+        print(f"    ✅ MP4: {out}" if out else "    ❌ render failed — see status file")
+
+    print("\nDone. Inspect the five dial-in-*.json files; scene-visuals + the MP4 are new.")
 
 
 asyncio.run(main())

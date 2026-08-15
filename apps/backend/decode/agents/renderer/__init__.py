@@ -36,9 +36,11 @@ from ...schemas import (
     Script,
     TeachingPlan,
     VisualBeat,
+    VisualPlan,
 )
 from .. import tracing
 from .._agent import ModelAgent
+from ..agent_runtime import _DEFAULT_SKILLS_ROOT
 from ..contracts import ProviderUsage
 from .prompt import SKILLS
 from .validation import RUNTIME_VERSION, repair_message, validate_scenes
@@ -121,14 +123,35 @@ class ModelVisualizer(ModelAgent):
             composition_contract=SKILLS.reference("hyperframes-composition"),
         )
 
+        scenes, rationale, repair = await self._author(system, instructions, plan, intent.audience)
+        return self._visuals(scenes, rationale, repair)
+
+    def _visuals(self, scenes: list[SceneModule], rationale: str, repair: dict) -> SceneVisuals:
+        return SceneVisuals(
+            rationale=rationale,
+            scenes=scenes,
+            visual_findings={
+                # Never claim more than the run actually did.
+                "fixture": False,
+                "model": self.model,
+                "skills_version": SKILLS.version,
+                "runtime_version": RUNTIME_VERSION,
+                "repair": repair,
+            },
+        )
+
+    async def _author(
+        self, system: str, instructions: str, plan: TeachingPlan, audience: str
+    ) -> tuple[list[SceneModule], str, dict]:
+        """Draft → validate → one repair → SceneModules. Shared by `generate()` and
+        `generate_from_storyboard()`; only the assignment differs, never the gate."""
         history: list = [
             {"role": "user", "content": [{"type": "input_text", "text": instructions}]}
         ]
-
         with tracing.span(
             "visualizer",
             input={
-                "audience": intent.audience,
+                "audience": audience,
                 "structure_name": plan.structure_name,
                 "beats": len(plan.beats),
             },
@@ -143,7 +166,6 @@ class ModelVisualizer(ModelAgent):
                     system, history, SceneVisualsDraft
                 )
             turns = 1
-
             scenes = draft.modules()
             violations = validate_scenes(scenes, plan)
             repair: dict = {
@@ -175,39 +197,100 @@ class ModelVisualizer(ModelAgent):
                 }
                 if remaining:
                     codes = ", ".join(item["code"] for item in remaining)
-                    # Never publish a module that failed a static check. This is
-                    # the gate that keeps the preview from loading code nobody
-                    # verified, so it fails the run rather than degrading.
+                    # Never publish a module that failed a static check.
                     raise ValueError(f"visualizer repair failed validation: {codes}")
                 draft = second
                 input_tokens += extra_in
                 output_tokens += extra_out
                 turns += 1
-
-            run.update(
-                output={
-                    "scenes": len(draft.scenes),
-                    "controls": sum(len(scene.controls) for scene in draft.scenes),
-                    "repair": repair,
-                }
-            )
-
+            run.update(output={"scenes": len(scenes), "repair": repair})
         self.last_usage = ProviderUsage(self.model, input_tokens, output_tokens, turns)
+        return scenes, draft.rationale, repair
 
-        return SceneVisuals(
-            rationale=draft.rationale,
-            scenes=scenes,
-            visual_findings={
-                # Never claim more than the run actually did.
-                "fixture": False,
-                "model": self.model,
-                "skills_version": SKILLS.version,
-                # Which API the scenes were written against, so a v1 scene stays
-                # readable when v2 lands.
-                "runtime_version": RUNTIME_VERSION,
-                "repair": repair,
-            },
+    @staticmethod
+    def _composition_craft() -> str:
+        """The authoritative HyperFrames composition/motion guidance, read from the
+        vendored skills — how to compose and animate a frame (layout, balance,
+        connections, scene blueprints). Injected so the Renderer composes off real
+        HyperFrames craft, not just the Decode contract's structural rules."""
+        root = _DEFAULT_SKILLS_ROOT
+        parts = []
+        for path in (
+            root / "hyperframes-animation" / "SKILL.md",
+            root / "hyperframes-creative" / "references" / "video-composition.md",
+            root / "hyperframes-creative" / "references" / "composition-patterns.md",
+        ):
+            try:
+                parts.append(path.read_text())
+            except OSError:
+                continue
+        return "\n\n---\n\n".join(parts)
+
+    async def generate_from_storyboard(
+        self,
+        intent: ProductionIntent,
+        visual_plan: VisualPlan,
+        script: Script,
+        plan: TeachingPlan,
+    ) -> SceneVisuals:
+        """Render the Visual Director's storyboard: realise each beat's metaphor and
+        its directed moments as a HyperFrames composition, reusing the moment anchors."""
+        system = SKILLS.system()
+        narration = {item.beat_id: item.narration for item in script.beats}
+        instructions = SKILLS.instructions(
+            visual_direction=json.dumps(
+                {
+                    "audience": intent.audience,
+                    "depth": intent.depth,
+                    "brand_colors": intent.brand.colors,
+                    "brand_guidelines": intent.brand.guidelines,
+                },
+                ensure_ascii=True,
+                indent=2,
+            ),
+            beats=json.dumps(
+                [
+                    {
+                        "beat_id": bs.beat_id,
+                        "metaphor": bs.metaphor,
+                        "moments": [
+                            {
+                                "shows": m.shows,
+                                "transition": m.transition,
+                                "overlays": m.overlays,
+                                "anchor": m.anchor.model_dump(),
+                            }
+                            for m in bs.moments
+                        ],
+                        "narration": narration.get(bs.beat_id, ""),
+                    }
+                    for bs in visual_plan.beats
+                ],
+                ensure_ascii=True,
+                indent=2,
+            ),
+            composition_contract=SKILLS.reference("hyperframes-composition"),
         )
+        instructions += (
+            "\n\n## Render the storyboard — do not reinvent it\n\n"
+            "Each beat above is an approved storyboard from the Visual Director: a `metaphor` "
+            "and ordered `moments`. Build the composition that REALISES it — hold to the "
+            "metaphor; make each moment's `shows` appear and move by its `transition` (the A→B "
+            "motion, named precisely), place its `overlays` as the labels, and use its `anchor` "
+            "as that moment's beat anchor (reuse it verbatim — do not invent new anchors). "
+            "Emit one `beats` entry per storyboard moment.\n"
+        )
+        instructions += (
+            "\n\n## HyperFrames composition craft — apply to LAYOUT and motion\n\n"
+            "Authoritative HyperFrames guidance follows. Use it to *compose* each frame, "
+            "not just place elements: balance the space, lead the eye to one focal thing, "
+            "connect related elements (a token to the gate it enters, a branch to its verdict) "
+            "rather than scattering them, and choose motion from the scene blueprints. The "
+            "Decode contract above still governs timing and structure.\n\n"
+            + self._composition_craft()
+        )
+        scenes, rationale, repair = await self._author(system, instructions, plan, intent.audience)
+        return self._visuals(scenes, rationale, repair)
 
     async def regenerate_one(
         self,
