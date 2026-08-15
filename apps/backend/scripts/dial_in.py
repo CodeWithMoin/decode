@@ -13,14 +13,16 @@ OpenAI-compatible endpoint via DECODE_OPENAI_BASE_URL, e.g. DeepSeek).
 
 import asyncio
 import uuid
+from pathlib import Path
 from types import SimpleNamespace
 
 from decode.agents.registry import architect as build_architect
 from decode.agents.registry import author as build_author
 from decode.agents.registry import intake as build_intake
+from decode.agents.visual_director import build as build_visual_director
 from decode.config import get_settings
 from decode.providers.storage import object_store
-from decode.schemas import ProductionIntent
+from decode.schemas import ProductionIntent, Script, TeachingPlan
 
 # A small, real, teachable topic with an actual mechanism to explain.
 SOURCE = """
@@ -74,33 +76,45 @@ async def main() -> None:
     )
     for provider in (settings.intake, settings.architect, settings.author):
         if provider != "openai":
-            print(f"!! a provider is still '{provider}' — set intake/architect/author to openai in .env")
+            print(f"!! provider still '{provider}' — set intake/architect/author to openai in .env")
             return
 
-    store = object_store(settings)
-    key = f"dial-in/{uuid.uuid4().hex}.txt"
-    size, _, sha = await store.put(key, _one_chunk(SOURCE.encode()), 10_000_000)
-    source = SimpleNamespace(
-        object_key=key,
-        media_type="text/plain",
-        filename="bloom-filters.txt",
-        size_bytes=size,
-        sha256=sha,
-    )
+    # Reuse a cached plan + script so we can iterate on the Visual Director for one
+    # model call instead of four. Delete dial-in-plan.json / dial-in-script.json to
+    # regenerate the reasoning chain from scratch.
+    cached_plan, cached_script = Path("dial-in-plan.json"), Path("dial-in-script.json")
+    if cached_plan.exists() and cached_script.exists():
+        print("\nReusing cached plan + script (delete dial-in-plan/script.json to regenerate).")
+        plan = TeachingPlan.model_validate_json(cached_plan.read_text())
+        script = Script.model_validate_json(cached_script.read_text())
+    else:
+        store = object_store(settings)
+        key = f"dial-in/{uuid.uuid4().hex}.txt"
+        size, _, sha = await store.put(key, _one_chunk(SOURCE.encode()), 10_000_000)
+        source = SimpleNamespace(
+            object_key=key,
+            media_type="text/plain",
+            filename="bloom-filters.txt",
+            size_bytes=size,
+            sha256=sha,
+        )
+        print("\n[1/4] Producer (Intake) — reading the source into a brief…")
+        brief = await build_intake(settings).generate(INTENT, [source])
+        _dump("brief", brief)
 
-    print("\n[1/3] Producer (Intake) — reading the source into a brief…")
-    brief = await build_intake(settings).generate(INTENT, [source])
-    _dump("brief", brief)
+        print("\n[2/4] Director (Architect) — structuring the teaching plan…")
+        plan = await build_architect(settings).generate(INTENT, brief)
+        _dump("plan", plan)
 
-    print("\n[2/3] Director (Architect) — structuring the teaching plan…")
-    plan = await build_architect(settings).generate(INTENT, brief)
-    _dump("plan", plan)
+        print("\n[3/4] Writer (Author) — writing the narration…")
+        script = await build_author(settings).generate(INTENT, plan)
+        _dump("script", script)
 
-    print("\n[3/3] Writer (Author) — writing the narration…")
-    script = await build_author(settings).generate(INTENT, plan)
-    _dump("script", script)
+    print("\n[4/4] Visual Director — directing the storyboard (what each beat shows + moves)…")
+    storyboard = await build_visual_director(settings).generate(INTENT, plan, script)
+    _dump("storyboard", storyboard)
 
-    print("\nDone. Inspect the three dial-in-*.json files; we tighten top-down from the brief.")
+    print("\nDone. Inspect the four dial-in-*.json files; the storyboard is the new one.")
 
 
 asyncio.run(main())

@@ -111,7 +111,10 @@ class SkillSet:
 
     @property
     def version(self) -> str:
-        return self.manifest.version
+        # Read straight from the frontmatter, not via `manifest`: an agent SKILL.md
+        # (AgentConfig) legitimately omits the pipeline fields the Manifest requires
+        # (provider_setting, max_turns), and versioning must work for it too.
+        return str(self._split()[0].get("version", ""))
 
     def system(self) -> str:
         """The standing system prompt: everything after the frontmatter."""

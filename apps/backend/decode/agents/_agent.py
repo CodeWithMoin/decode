@@ -34,7 +34,9 @@ class ModelAgent:
         self.model = settings.openai_model
         # Tracing patches `openai.AsyncOpenAI` in place (see tracing.py), so
         # constructing it here is the entire hook — no per-class patching.
-        self.client = AsyncOpenAI(api_key=settings.openai_api_key, base_url=settings.openai_base_url)
+        self.client = AsyncOpenAI(
+            api_key=settings.openai_api_key, base_url=settings.openai_base_url
+        )
         self.last_usage: ProviderUsage | None = None
 
     async def _draft(
