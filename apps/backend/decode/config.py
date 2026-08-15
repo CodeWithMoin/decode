@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     render_cwd: str = "apps/frontend"
     render_node_bin: str = "npx"
     render_timeout_seconds: int = 300
+    render_fps: int = 24  # HyperFrames export frame rate (matches DECODE_FPS)
 
     @model_validator(mode="after")
     def require_private_production_boundary(self):
