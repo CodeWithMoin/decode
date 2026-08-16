@@ -3,6 +3,90 @@
 _Recorded 2026-08-16. A strategic decision, not a proposal. Supersedes the
 "auto-director" ambition wherever the two conflict._
 
+## The bet — locked (2026-08-16)
+
+**Decode's one sentence:** the best tool in the world for **provably-correct
+technical explainers** — visuals that aid memory and understanding *because they
+are true*, structured the way people actually learn.
+
+This is a positioning + depth bet, not a mechanics bet. The mechanics — planning,
+a chat direction loop, screenshot-and-verify — are **table stakes**. Competitors
+(Osmo, Motion.so) already have them and will match anything we build there;
+Osmo's own transcripts show it plans a strong arc, screenshots, catches its own
+z-order/sync bugs, and reports honestly. The one edge a funded generalist won't
+follow is **correctness** — because their customer wants "looks like it explains,"
+and ours needs "is actually right." A wrong diagram teaches a wrong mental model,
+which is worse than none; for education that's the whole product, not a nicety.
+
+### The core mechanism: correctness by derivation
+
+**The visual is generated from a running model of the concept — not from the AI's
+impression of it.** Don't draw a plausible attention diagram; compute a real
+softmax and draw *those* weights. Don't guess which Bloom-filter cells light; run
+the hash functions and light *those*. The picture is a projection of the truth,
+so it cannot be wrong, and you can point at where every number came from.
+
+Why this actually works — the deepest reason:
+
+> LLMs are **reliable at writing correct executable code** (it's testable) and
+> **unreliable at drawing correct diagrams** (it isn't). So move the correctness
+> burden from "draw it right" to "implement it right." The diagram becomes a
+> projection of code we can test.
+
+**Facts are locked by the model; presentation is free for the human to direct.**
+The human owns metaphor, look and pacing; the indices, weights and verdicts come
+from running real code. Creative freedom on top of a truth that can't drift.
+
+**Boundary (be honest):** this applies to the large **executable** class —
+algorithms, data structures, ML mechanics, math, systems, protocols. Genuinely
+non-executable / conceptual topics have no trace to derive from and fall back to
+human-directed illustration *without* the provability guarantee. The wedge is the
+executable class; it's enormous in technical education, and it's where a
+generalist won't go.
+
+### Why it's better for memory (grounded, not vibes)
+
+- **Correct + derived → deep and interactive.** Change the input, the visual
+  updates correctly because it's driven by a real model. Manipulable + concrete is
+  what makes it stick.
+- **Dual coding.** Word and picture must hit the same idea at the same instant —
+  the narration-as-timing spine (ADR-005) is built for exactly this.
+- **Worked examples, one-idea-per-beat, concrete-before-abstract, cognitive-load
+  control** — the Director optimizes for retention, not runtime.
+
+The stack we built is **re-aimed, not rebuilt**: narration-timing → dual coding;
+Evaluator/DeepEval → accuracy + comprehension checks; the iterative f(frame)
+authoring loop → faithful execution; human direction → the creative.
+
+## First proof (depth-first, one concept)
+
+Prove the bet on ONE executable concept (Bloom filter or a sort) end to end:
+
+1. **Model.** The AI writes a real, tested implementation of the concept
+   (`bloom.py`) — correctness of the *model* is verified by running it / unit
+   tests, the thing LLMs are good at.
+2. **Trace.** Run it on chosen inputs → a ground-truth trace, e.g.:
+   `[{op:add, item:"geeks", indices:[1,4,7], bits_after:[…]}, …,
+     {op:query, item:"cat", indices:[1,3,7], read:[1,1,1],
+      verdict:"probably_present", truth:"absent", false_positive:true}]`
+3. **Direct.** Human directs presentation (metaphor, palette, pacing); the Director
+   structures the trace into learning beats. Facts stay locked to the trace.
+4. **Author.** The f(frame) scene is **data-bound to the trace** — cells lit =
+   `step.indices`, verdict = `step.verdict` — built iteratively, verified by sight
+   per step.
+5. **Verify — provably.** Assert the rendered scene's data equals the trace
+   (arrows land on `step.indices`, the verdict matches). Correctness is a *test*,
+   not an eyeball.
+
+If we can show "this diagram is provably right because it came from the real thing,
+it's directable, and it teaches" on one concept — the wedge is real, and the rest
+is generalizing `model → trace → present → verify` to the next concept.
+
+**Authoring-substrate note:** author in **f(frame)** (Remotion-style, where Decode
+started), built **iteratively with sight**, not one-shot GSAP timelines. Whether
+HyperFrames survives as a render/export target is a downstream infra call to make
+*after* the f(frame) loop proves the quality bar — not a blocker now.
+
 ## What we learned (the hard way, in one session)
 
 We spent a session trying to make the agent graph **auto-generate** a finished
