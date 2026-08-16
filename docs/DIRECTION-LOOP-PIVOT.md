@@ -87,6 +87,49 @@ started), built **iteratively with sight**, not one-shot GSAP timelines. Whether
 HyperFrames survives as a render/export target is a downstream infra call to make
 *after* the f(frame) loop proves the quality bar — not a blocker now.
 
+## Ablations — the evidence (2026-08-16)
+
+We stopped arguing and rendered the same Bloom-insertion scene under different
+conditions, looking at actual frames each time. Three runs:
+
+| Run | Substrate | Conditions | Result (looked at pixels) |
+|---|---|---|---|
+| **A. Old pipeline** | HyperFrames GSAP | bad — prose storyboard in, whole contract dumped, no trace, one-shot | **black frames, arrows into empty space** — broken |
+| **B. Renderer-conditions ablation** | **f(frame)** | bad — *same* (fed the real Visual Director storyboard, mega-context, no trace, one-shot) | **renders clean, but facts invented (lit cells chosen arbitrarily), arrows tangled/spaghetti, cluttered with 6+ labels, a ghosted item chip** — mediocre |
+| **C. Scene-author** | f(frame) | **good** — computed trace given, scoped to one beat, focused context, derivation required | **clean, correct, arrows land exactly on the derived cells** — good |
+
+All three used the same underlying model. B and C were *real model calls*, not
+hand-authored (A was the pipeline; the earlier hand-authored f(frame) matched C).
+
+**What the ablation isolates:** A→B holds the bad conditions constant and swaps
+only the substrate. B→C holds the substrate constant and swaps only the
+conditions. So:
+
+- **f(frame) is *necessary*** — A→B, swapping just the substrate, killed the
+  catastrophic breakage (black frames gone, cells drawn).
+- **f(frame) is *not sufficient*** — B still had invented facts, spaghetti arrows,
+  and clutter. Only B→C (adding the trace, scope, focus, id-referenced geometry)
+  produced correct, clean output.
+- **The edge is the derivation, not the substrate.** B literally reproduced the
+  Osmo result — "renders fine, not good enough." Osmo has f(frame) too. What Osmo
+  doesn't have is correctness-by-derivation, and that's the entire gap between B
+  (mediocre) and C (good).
+
+**Conclusion (empirical, not argued):** a substrate swap alone makes you Osmo. The
+`model → trace → direct → scene` rebuild — with the derived trace and scoped,
+focused authoring — is what turns mediocre into good, and it's the part that isn't
+copyable. The big rebuild is justified.
+
+Honest caveat: one trial per arm, qualitative (looked at hold frames). The signal
+is strong and consistent, but reliability at scale still needs the iterative+sight
+loop and more trials on harder scenes.
+
+**Also settled by the ablations:** the harness, not the model, was the problem.
+The *same model* that produced black frames in the pipeline produced a clean,
+correct scene when given the right conditions (run C, a plain model call). So the
+rebuild is "package the conditions the model already succeeds under," not "wait for
+better agents."
+
 ## What we learned (the hard way, in one session)
 
 We spent a session trying to make the agent graph **auto-generate** a finished
