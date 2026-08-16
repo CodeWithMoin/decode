@@ -124,6 +124,21 @@ Honest caveat: one trial per arm, qualitative (looked at hold frames). The signa
 is strong and consistent, but reliability at scale still needs the iterative+sight
 loop and more trials on harder scenes.
 
+**The geometry boundary (2026-08-16, proven by pixels).** Building the derived arc
+surfaced the sharpest architecture finding: **geometry is not the LLM's job.** The
+direction loop reliably preserves *correctness* (facts survive every edit), but it does
+**not** reliably fix *layout* — three escalating passes on one scene (vague note → exact
+pixel math handed over → a `rowCenters()` compute-helper) all still rendered overlapping
+cells, and one pass silently dropped the arrows. A math helper was insufficient because
+the LLM still wrote the cell `<div>`s and re-broke them around it. The fix that worked in
+one shot: a *rendering component* the scene composes — `<CellRow bits={...} ring={...}/>`,
+`<Wire from to/>` — so cells cannot overlap and arrows land by construction. The precise
+boundary: **the LLM composes and creatively animates opaque, correct components; the
+geometry components render themselves.** This is the structured-primitive idea from early
+in the session, scoped exactly to geometry (vindicated by the failures) and coexisting
+with f(frame) for the creative/animation layer. Kit + proof:
+`apps/frontend/.ablation/proof/arc/kit.tsx` (rowCenters, CellRow, Wire) and its scenes.
+
 **Also settled by the ablations:** the harness, not the model, was the problem.
 The *same model* that produced black frames in the pipeline produced a clean,
 correct scene when given the right conditions (run C, a plain model call). So the
