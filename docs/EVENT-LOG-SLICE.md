@@ -103,6 +103,22 @@ of seq N". Undo restores the snapshot; the events after N *are* the story of
 what undo discarded — which is what a receipt-driven editing product wants to
 show. Nothing in steps 1–5 has to change.
 
+## Status (checked against the code)
+
+Steps 1 and 3 largely **pre-existed**: `ProjectEvent` is an append-only-in-
+practice table with a global autoincrement id usable as a resume cursor, and
+the project events SSE endpoint already replays from `Last-Event-ID`. The
+per-project `seq` of step 1 is unnecessary while the id cursor serves — skip
+it unless multi-writer ordering ever matters.
+
+Step 2 is **done**: the orchestrator turn now emits durable `chat.turn.started`
+(committed before the model runs), `chat.observed` per read tool,
+`chat.replied` with the full turn payload, and `chat.turn.failed` on error —
+see `orchestrator_router.py` and `test_turn_writes_durable_chat_events`.
+Remaining in step 2's spirit: emit `chat.applied` / `chat.receipt` from the
+Apply endpoints, and have the frontend rebuild chat history from the events
+feed on load (that's step 4's first projection).
+
 ## Order and size
 
 1–2 are one small PR (migration + router edits) and immediately fix chat
