@@ -1,6 +1,6 @@
 ---
 name: renderer
-version: raw-remotion-v1
+version: raw-remotion-v2
 description: >
   The Motion Designer. Turns each approved beat's teaching intent into its
   animated composition — how elements appear, move, reveal, and synchronise to

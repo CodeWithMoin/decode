@@ -44,6 +44,15 @@ def build_instructions(*, visual_direction: dict, beats: list[dict]) -> str:
   randomness.
 - Use inline styles. Keep important content comfortably inside the frame and avoid collisions,
   clipping, tiny text, empty labelled boxes, and decorative dashboard clutter.
+- Elements must never overlap — at any frame, including while one element enters as another exits.
+  Give every element its own region of the frame and keep entering elements out of a region until
+  its previous occupant has fully left.
+- No slide furniture: no title-and-subheading block parked in a corner, no page or step counters
+  ("1/3", "step 2 of 5", progress dots), no footer strips, no bullet lists. The narration names the
+  beat — on-screen words are short labels inside the picture, never headings above it. A large word
+  or number appears only when it is itself the focal subject, staged center-stage.
+- Space the reveals across the full duration: the final segment's reveal lands in the last third of
+  the scene, never everything in the first second followed by a frozen frame.
 - Follow the creator's art direction and brand constraints. When they leave a choice open, make a
   deliberate choice that fits the subject rather than falling back to a house palette.
 - Show the relationship or mechanism in the beat. Keep on-screen copy to short labels.

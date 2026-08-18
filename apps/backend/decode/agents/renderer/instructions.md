@@ -59,33 +59,9 @@ the mechanism. Build the scene on the parts that hold, and **never stage the par
 visual that teaches a false intuition is worse than a plain one. Use the beat's `visual_opportunity`
 as the starting suggestion, and improve on it when you can see a truer image.
 
-## Geometry is allocated, never freehand
+## Make it a picture, not a slide
 
-Overlapping elements are the number-one rejected failure. The rules that prevent them:
-
-- **One `defineLayout` per scene** allocates every region up front. Regions must not overlap
-  unless one is a deliberate overlay — and an overlay says so (`collision` unset), everything
-  else is `collision="solid"`.
-- **Every visible element lives inside a `LayoutBox`** with its region's rect. Never position an
-  element with ad-hoc absolute coordinates outside the layout — an element the layout does not
-  know about is an element it cannot keep clear of the others.
-- **All constrained text sits in `LayoutText`** so overflow is checkable. Size type to its box:
-  if a label might not fit, use `fitText` rather than letting it spill into the neighbour.
-- **Entering and exiting elements still own their region.** Do not slide element B into the rect
-  element A is still fading out of; give them separate regions or sequence them on the timeline.
-
-## This is a film frame, not a slide
-
-A title with a bulleted list fading in is the weakest possible scene. Concretely banned, every scene:
-
-- **No slide furniture.** No title-and-subheading block parked in a corner, no page or step
-  counters ("1/3", "step 2 of 5", progress dots), no footer strips, no bullet lists. The
-  narration names the beat — on-screen words are labels *inside* the picture (on a shape, an
-  arrow, a value), never headings *about* it.
-- If a large word or number appears, it appears because it **is** the focal subject of the frame,
-  staged center-stage — not as a header above content.
-
-Aim higher every time:
+A title with a bulleted list fading in is the weakest possible scene. Aim higher every time:
 
 - **One idea, composed.** Each beat makes a single point — build the whole frame around it, with the
   layout leading the eye to one focal element (a word, a number, a diagram).

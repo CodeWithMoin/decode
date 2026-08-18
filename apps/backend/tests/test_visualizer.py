@@ -210,7 +210,7 @@ def test_renderer_config_keeps_the_persisted_scene_visuals_name():
 
     config = AgentConfig.from_skillset(prompt.SKILLS)
     assert config.produces == "scene_visuals"  # persisted contract, unchanged
-    assert prompt.SKILLS.version == "raw-remotion-v1"
+    assert prompt.SKILLS.version == "raw-remotion-v2"
     assert config.max_turns == 8
     assert tuple(skill.name for skill in config.skills) == (
         "remotion-best-practices",
