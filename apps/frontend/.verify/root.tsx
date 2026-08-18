@@ -7,13 +7,25 @@ import meta from "../../backend/scripts/verify_out/meta.json";
 
 const FPS = 30;
 
+// The host stage DecodeComposition paints under every scene — without it a
+// transparent scene renders on Remotion's white default and reads wrong.
+function staged(C: React.ComponentType<Record<string, unknown>>) {
+  return function Staged(props: Record<string, unknown>) {
+    return (
+      <div style={{ position: "absolute", inset: 0, backgroundColor: "#0B0B0B" }}>
+        <C {...props} />
+      </div>
+    );
+  };
+}
+
 function comp(id: string, C: React.ComponentType<Record<string, unknown>>) {
   const entry = (meta as Record<string, { duration_seconds: number; controls: Record<string, unknown> }>)[id];
   return (
     <Composition
       key={id}
       id={id}
-      component={C}
+      component={staged(C)}
       durationInFrames={entry.duration_seconds * FPS}
       fps={FPS}
       width={1920}
