@@ -34,6 +34,18 @@ class ExecutionStatus(StrEnum):
     RUNNING = "running"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class TaskStatus(StrEnum):
+    """A graph node waits for dependencies before it can enter the queue."""
+
+    PENDING = "pending"
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class ProjectStatus(StrEnum):
@@ -200,6 +212,42 @@ class Run(Base):
     failure: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
 
+class ProductionTask(Base):
+    """One durable, independently retryable node in a production run graph."""
+
+    __tablename__ = "production_tasks"
+    __table_args__ = (UniqueConstraint("run_id", "stable_key"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    run_id: Mapped[str] = mapped_column(ForeignKey("runs.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(60), index=True)
+    stable_key: Mapped[str] = mapped_column(String(100))
+    status: Mapped[str] = mapped_column(String(20), default=TaskStatus.PENDING, index=True)
+    priority: Mapped[int] = mapped_column(Integer, default=0)
+    attempt: Mapped[int] = mapped_column(Integer, default=0)
+    max_attempts: Mapped[int] = mapped_column(Integer, default=2)
+    input: Mapped[dict] = mapped_column(JSON, default=dict)
+    output: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    failure: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ProductionTaskDependency(Base):
+    """An edge from a task to one prerequisite task in the same run."""
+
+    __tablename__ = "production_task_dependencies"
+    __table_args__ = (UniqueConstraint("task_id", "prerequisite_task_id"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    task_id: Mapped[str] = mapped_column(
+        ForeignKey("production_tasks.id", ondelete="CASCADE"), index=True
+    )
+    prerequisite_task_id: Mapped[str] = mapped_column(
+        ForeignKey("production_tasks.id", ondelete="CASCADE"), index=True
+    )
+
+
 class JobInput(Base):
     __tablename__ = "job_inputs"
     __table_args__ = (UniqueConstraint("job_id", "version_id", "role"),)
@@ -215,6 +263,7 @@ class OutboxEvent(Base):
     topic: Mapped[str] = mapped_column(String(80))
     aggregate_id: Mapped[str] = mapped_column(String(36), index=True)
     payload: Mapped[dict] = mapped_column(JSON)
+    priority: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     attempts: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

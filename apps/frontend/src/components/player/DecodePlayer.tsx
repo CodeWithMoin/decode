@@ -113,6 +113,7 @@ export function DecodePlayer() {
         doubleClickToFullscreen={false}
         spaceKeyToPlayOrPause={false}
         playbackRate={playbackRate === 0 ? 1 : playbackRate}
+        loop={false}
         moveToBeginningWhenEnded={false}
         style={{ width: "100%", height: "100%" }}
       />
@@ -120,7 +121,7 @@ export function DecodePlayer() {
       {regen && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3.5 bg-black/80" role="status" aria-live="polite">
           <Spinner size={22} track="#303030" />
-          <div className="px-6 text-center font-mono text-[13.5px] text-[var(--nle-text)]">{regen}</div>
+          <div className="px-6 text-center font-mono text-[13.5px] text-[var(--color-canvas-cap)]">{regen}</div>
         </div>
       )}
     </div>

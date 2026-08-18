@@ -21,7 +21,9 @@ class Settings(BaseSettings):
     author: str = "fake"
     visualizer: str = "fake"
     voice: str = "fake"
-    orchestrator: str = "fake"
+    # Use the model when credentials are present, otherwise keep local/test
+    # environments deterministic without an extra switch.
+    orchestrator: str = "auto"
     evaluator: str = "fake"
     openai_api_key: str | None = None
     openai_model: str = "gpt-5.6-luna"

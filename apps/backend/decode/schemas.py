@@ -123,6 +123,12 @@ class BeatNarration(BaseModel):
 
     beat_id: str = Field(min_length=1)
     narration: str = Field(min_length=1)
+    # The narration split into ordered semantic moments — idea-units, not
+    # sentences by length. Each is one thing the beat's visual should stage, in
+    # spoken order, so the animation reveals a moment as its words are said rather
+    # than all at once (ADR-005, sub-scene timing). Empty on legacy scripts; the
+    # visual then treats the whole narration as a single moment.
+    segments: list[str] = Field(default_factory=list)
 
 
 class Script(BaseModel):
@@ -174,102 +180,17 @@ class VisualBeat(BaseModel):
     duration_s: float = Field(default=0.6, gt=0, le=30)
 
 
-class VisualMoment(BaseModel):
-    """One storyboard moment inside a beat: what is shown and how it moves.
-
-    Abstract, not markup. `shows` is what is on screen, `transition` the movement
-    from its A state to its B state, `overlays` the labels/captions riding on top.
-    `anchor` says *when* against the narration — a phrase the resilient kind — never
-    a hardcoded second (the Renderer turns this into a HyperFrames `VisualBeat`).
-    """
-
-    shows: str = Field(min_length=1, max_length=400)
-    transition: str = Field(min_length=1, max_length=400)
-    overlays: list[str] = Field(default_factory=list, max_length=6)
-    anchor: Anchor
-
-
-class BeatStoryboard(BaseModel):
-    """The Visual Director's direction for one beat: a metaphor and ordered moments.
-
-    No HTML, no scene length, no seconds. It is the abstract layer the Renderer
-    consumes to author the composition — the "what teaches" the Motion Designer
-    decides before "how it moves".
-    """
-
-    beat_id: str = Field(min_length=1)
-    metaphor: str = Field(min_length=1, max_length=400)
-    moments: list[VisualMoment] = Field(min_length=1, max_length=12)
-
-
-_HEX = r"^#[0-9A-Fa-f]{6}$"
-
-
-class Palette(BaseModel):
-    """The colour language for one video, chosen by the Visual Director.
-
-    Six roles the composition contract already uses. The defaults are the Decode
-    house style (calm dark ground, warm amber focus, from MASTER.md); the Director
-    departs from them when the subject wants a different temperature, and the
-    Renderer paints every scene from *these* values instead of fixed hexes — so a
-    video's look is a directed decision, not a constant. `surface`/`surface_edge`
-    stay the distinct diagram pair the trap in CLAUDE.md protects.
-    """
-
-    stage: str = Field(default="#0B0B0B", pattern=_HEX)  # full-frame background
-    surface: str = Field(default="#232323", pattern=_HEX)  # card / diagram surface
-    surface_edge: str = Field(default="#484848", pattern=_HEX)  # its brighter border/pair
-    ink: str = Field(default="#F3F0EA", pattern=_HEX)  # primary text
-    support: str = Field(default="#98A0B3", pattern=_HEX)  # muted / support text
-    accent: str = Field(default="#F2A47B", pattern=_HEX)  # the one focal colour
-
-
-class VisualPlan(BaseModel):
-    """The storyboard for the whole video, produced by the Visual Director.
-
-    The abstract counterpart to `SceneVisuals`: it names the visual idea, the
-    palette, and the anchored moments per beat, and the Renderer turns each beat
-    into a HyperFrames composition. Never carries markup — that is the Renderer's
-    output, not this.
-    """
-
-    rationale: str = Field(min_length=1, max_length=1200)
-    palette: Palette = Field(default_factory=Palette)
-    beats: list[BeatStoryboard] = Field(min_length=1)
-    visual_findings: dict = Field(default_factory=dict)
-
-
-class AnalogyMapping(BaseModel):
-    """One correspondence in an analogy: a part of the concept ↔ a part of the image."""
-
-    concept_part: str = Field(min_length=1, max_length=200)
-    analogy_part: str = Field(min_length=1, max_length=200)
-
-
-class Analogy(BaseModel):
-    """A concept framed as a concrete, everyday image — the shared Analogy helper's
-    inline output (never a stored artifact). The `mapping` is what makes it teachable
-    rather than decorative, and `where_it_breaks` keeps it honest: an analogy that is
-    allowed to lie teaches the wrong model. Consumed by the Director, Writer and
-    Visual Director to ground their own work."""
-
-    concept: str = Field(min_length=1, max_length=300)
-    framing: str = Field(min_length=1, max_length=600)  # the one memorable image
-    mapping: list[AnalogyMapping] = Field(min_length=1, max_length=8)
-    where_it_breaks: str = Field(min_length=1, max_length=600)
-
-
 class SceneModule(BaseModel):
     """The animation for one beat.
 
-    No duration. Osmo's clips declare their own length; ours cannot, because the
-    plan owns runtime and `total = Σ dur`. The scene is handed `progress` (React)
-    or resolved timing metadata (HyperFrames) and never learns its own seconds.
+    No declared duration. The plan owns runtime and `total = Σ dur`; a React scene
+    may read the enclosing Sequence's frame clock so motion scales to 24, 30 or 60
+    fps, but it cannot register or replace that duration.
 
     Two render substrates during the migration (VISUALIZER-TO-HYPERFRAMES): the
     legacy `component_source` (React against `@decode/animation-api`, played by
     Remotion) and `composition_html` (a HyperFrames composition + anchored
-    `beats`). A module carries at least one; new scenes emit HyperFrames.
+    `beats`). A module carries at least one during the migration window.
     """
 
     beat_id: str = Field(min_length=1)
@@ -369,6 +290,12 @@ class RegenerateSceneVisual(BaseModel):
     direction: str = Field(min_length=1, max_length=2000)
 
 
+class AcceptSceneCandidate(BaseModel):
+    """The exact candidate source the creator previewed and chose to apply."""
+
+    component_source: str = Field(min_length=1, max_length=200_000)
+
+
 class EditArtifact(BaseModel):
     """A creator's complete replacement of one artifact version.
 
@@ -390,3 +317,7 @@ class ApproveVersion(BaseModel):
 
 class RetryRun(BaseModel):
     expected_failed_run_id: str
+
+
+class CancelRun(BaseModel):
+    expected_active_run_id: str

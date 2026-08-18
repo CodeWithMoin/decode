@@ -149,23 +149,27 @@
   --sky-tint: rgb(75 142 161 / 0.1);
   --sky-ring: rgb(75 142 161 / 0.28);
 
-  /* Edit is a focused NLE workspace. These are neutral tool surfaces, not a
-     second product palette; burnt amber remains the only interaction accent. */
-  --nle-bg: #080808;
-  --nle-panel: #111111;
-  --nle-panel-raised: #1b1b1b;
-  --nle-line: #2d2d2d;
-  --nle-line-strong: #484848;
-  --nle-grid-line: rgb(255 255 255 / 0.04);
-  --nle-track: #101010;
-  --nle-track-active: #171513;
+  /* Edit uses the same warm editorial material as the rest of the studio.
+     The exported frame may be dark; the tool around it stays paper-light. */
+  --nle-bg: #f6f6f4;
+  --nle-panel: #ffffff;
+  --nle-panel-raised: #fbfbfa;
+  --nle-line: #e3e3df;
+  --nle-line-strong: #d4d4cf;
+  --nle-grid-line: rgb(20 20 20 / 0.07);
+  --nle-track: #f4f4f1;
+  --nle-track-active: #fdf7f3;
   --nle-clip: #c46a3b;
   --nle-clip-hover: #d47d4e;
   --nle-clip-line: #e0956c;
-  --nle-clip-selected: #ffe4d4;
-  --nle-text: #f5f5f5;
-  --nle-muted: #b8b8b8;
-  --nle-faint: #7e7e7e;
+  --nle-clip-selected: #9a3412;
+  --nle-audio-clip: #5e776d;
+  --nle-audio-clip-hover: #6e887d;
+  --nle-audio-line: #83998f;
+  --nle-audio-waveform: #dce8e2;
+  --nle-text: #141414;
+  --nle-muted: #6b6b68;
+  --nle-faint: #9a9a96;
 
   /* Three durations, nothing between them.
      fast   — hover, toggles, tint changes
@@ -264,20 +268,19 @@
     border-radius: 6px;
   }
 
-  /* Edit is a separate dark instrument, not the light studio with dark paint.
-     Native selection, focus, form controls and scrollbars follow that material. */
+  /* Edit shares the light studio material and native control treatment. */
   [data-editing] {
-    color-scheme: dark;
+    color-scheme: light;
   }
 
   [data-editing] ::selection {
-    background: rgb(194 65 12 / 0.42);
-    color: #fff;
+    background: var(--accent-line);
+    color: var(--color-ink);
   }
 
   [data-editing] input,
   [data-editing] textarea {
-    caret-color: var(--accent-lit);
+    caret-color: var(--color-accent-deep);
   }
 
   [data-editing] :focus-visible {
@@ -293,8 +296,8 @@
   }
 
   [data-editing] .nle-field:focus-within {
-    border-color: var(--nle-line-strong);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
+    border-color: var(--accent-ring);
+    box-shadow: 0 0 0 3px var(--accent-tint);
   }
 
   [data-editing] ::-webkit-scrollbar-thumb {
@@ -606,7 +609,7 @@
     background: var(--nle-panel-raised);
     border: 1px solid var(--nle-line);
     color: var(--nle-text);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.035);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.85);
   }
 
   .timeline-scroll {
@@ -647,6 +650,12 @@
   .nle-preview-frame {
     width: min(100cqw, calc(100cqh * 16 / 9));
     aspect-ratio: 16 / 9;
+  }
+
+  .edit-preview-field {
+    background:
+      radial-gradient(circle at 52% 42%, #ffffff 0, rgba(255, 255, 255, 0.72) 34%, transparent 68%),
+      var(--nle-bg);
   }
 
   .project-workspace {

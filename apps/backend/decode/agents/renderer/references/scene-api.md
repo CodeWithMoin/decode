@@ -1,239 +1,258 @@
-# `@decode/animation-api`
+# `@decode/animation-api` — Remotion plus Decode's scene tools
 
-The only module a scene may import from. Behind it is Remotion, re-exported
-under its own names, so everything here works exactly as you already know it.
-
-One thing is different, and only one: a scene has no frame clock and cannot ask
-how long it runs.
-
-```ts
-/** Where the beat is: 0 at its first frame, 1 at its last.
- *
- *  This replaces `useCurrentFrame()`. There is deliberately no `useVideoConfig`
- *  and no way to reach `fps` or `durationInFrames` — the approved plan owns
- *  runtime, and a scene that knew its own length could contradict it. */
-export function useProgress(): number;
-
-/** The rendered frame's size. Size is not duration, so this one is safe. */
-export function useCanvas(): { width: number; height: number };
-
-/** A physical spring, in progress units. Returns 0→1 by default; `delay` and
- *  `duration` are fractions of the beat (0–1), not frames. Reach for this over
- *  `interpolate` when motion should *settle* — entrances, emphasis, anything
- *  physical. `useProgress()` still runs the timeline; this is just an easier
- *  value to feed a `translate`/`scale`/`opacity`. */
-export function useSpring(options?: {
-  config?: { damping?: number; mass?: number; stiffness?: number; overshootClamping?: boolean };
-  from?: number;
-  to?: number;
-  delay?: number;
-  duration?: number;
-}): number;
-
-/** Named spring feels, if you would rather not tune damping by hand. */
-export const SPRING_PRESETS: { gentle; smooth; bouncy; stiff };
-
-/** A slice of the beat, in progress units. Replaces `<Sequence from={frames}>`,
- *  which is not available because it is written in frames you may not see.
- *  `useProgress()` inside a Segment restarts at 0. */
-export const Segment: React.FC<{
-  from?: number;
-  to?: number;
-  name?: string;
-  children?: React.ReactNode;
-}>;
-
-// Everything below is Remotion's, unchanged.
-export { interpolate, Easing, AbsoluteFill, Series, Freeze, Interactive, Img, staticFile, random };
-
-/** A font, resolved against the fonts the studio has already loaded. */
-export function fontCss(font: {
-  family: "Bricolage Grotesque" | "Inter" | "Space Grotesk" | "Geist Mono";
-  variant?: "normal" | "italic";
-  weight?: string | number;
-}): React.CSSProperties;
-
-/** Named curves, if you would rather not write the bezier by hand. */
-export const EASE_PRESETS: { linear; easeOut; easeInOut; soft };
-
-/** An SVG `<path>`, for diagrams and connectors. */
-export const Path: React.FC<React.SVGProps<SVGPathElement>>;
-```
-
-## Drive motion with `interpolate`, over progress
-
-Same function, same options. The first argument is progress, so the input range
-is a fraction of the beat rather than a frame number.
+A scene is a self-contained React component and a pure function of Remotion's frame clock. Import
+only from `@decode/animation-api`. It re-exports the useful Remotion APIs unchanged and adds the
+format, layout, typography and deterministic geometry tools generated scenes need.
 
 ```tsx
-interpolate(progress, [0, 0.3], [0, 1], {
-  extrapolateLeft: "clamp",
-  extrapolateRight: "clamp",
-  easing: Easing.bezier(0.22, 1, 0.36, 1),
+import {
+  AbsoluteFill,
+  DesignCanvas,
+  useCurrentFrame,
+  useVideoConfig,
+  interpolate,
+  Easing,
+} from "@decode/animation-api";
+
+export default function Scene(props) {
+  const frame = useCurrentFrame();
+  const {fps, durationInFrames} = useVideoConfig();
+  // ...
+}
+```
+
+No raw `remotion` or `react` import, relative module, UI kit, CSS import, network, timers, `eval`,
+`new Function` or `dangerouslySetInnerHTML`. Decode supplies the JSX runtime and mounts the component.
+
+## Core Remotion exports
+
+Use these exactly as in Remotion:
+
+```ts
+useCurrentFrame();
+useVideoConfig(); // width, height, fps, durationInFrames
+interpolate();
+interpolateColors();
+spring();
+measureSpring();
+Easing;
+AbsoluteFill;
+Sequence;
+Series;
+Freeze;
+Interactive;
+Img;
+Audio;
+Video;
+staticFile();
+random(seed);
+```
+
+For transforms, prefer separate CSS properties because they remain editable and do not affect
+layout:
+
+```tsx
+style={{
+  opacity,
+  translate: `${x}px ${y}px`,
+  scale,
+  rotate: `${degrees}deg`,
+}}
+```
+
+When an order-sensitive transform string is actually necessary, the API also exports
+`makeTransform`, `translate`, `translateX`, `translateY`, `scale`, `scaleX`, `scaleY`, `rotate`,
+`rotateX`, `rotateY`, `rotateZ`, `skew`, `skewX`, `skewY` and `perspective` from Remotion's official
+animation utilities.
+
+## Formats and design canvas
+
+The project chooses widescreen, vertical, square, portrait or custom dimensions and 24, 30 or 60
+fps. `useVideoConfig()` gives the actual render settings. `useFormat()` additionally gives a
+canonical design canvas and safe area:
+
+```ts
+const format = useFormat();
+// family, width, height, designWidth, designHeight, fps,
+// durationInFrames, aspectRatio, safeArea
+```
+
+Wrap authored coordinates in `DesignCanvas`. A widescreen scene is always designed at 1920x1080 and
+is scaled to 720p, 1080p or 4K by the wrapper. Vertical is 1080x1920, square 1080x1080 and portrait
+1080x1350. A custom aspect ratio uses its actual dimensions.
+
+```tsx
+<AbsoluteFill style={{background: "#0B0B0B"}}>
+  <DesignCanvas>
+    {/* canonical design-pixel coordinates */}
+  </DesignCanvas>
+</AbsoluteFill>
+```
+
+`useSafeArea()` returns the content-safe rectangle in canonical design pixels. Backgrounds, glows
+and connectors may leave it. Text, diagrams and focal objects stay inside it.
+
+## Plan regions before drawing
+
+Use normalized regions to allocate the composition before writing components:
+
+```tsx
+const format = useFormat();
+const layout = defineLayout(format, {
+  hub: {x: 0.35, y: 0.32, width: 0.30, height: 0.36, space: "safe"},
+  left: {x: 0, y: 0.2, width: 0.22, height: 0.6, space: "safe"},
+  right: {x: 0.78, y: 0.2, width: 0.22, height: 0.6, space: "safe"},
 });
 ```
 
-`Easing.bezier(0.22, 1, 0.36, 1)` is Decode's curve and the right default.
-`Easing.spring({ damping: 200 })` gives a push with no bounce.
+`x` and `y` are always the region's **top-left**, never its center. `width` and `height` are normalized
+sizes in the same space. A region outside `0..1` is rejected instead of rendering partly outside the
+frame. For intentional point anchoring outside `defineLayout`, use `anchorRect()` explicitly.
 
-## Keep `interpolate` inline in `style`
+Use absolute positioning for those major regions and flex/grid inside each component. Do not place
+every label and icon with unrelated magic numbers.
 
-Put the call in the style object rather than computing a constant above. Use the
-individual `translate`, `scale` and `rotate` properties instead of building a
-`transform` string.
+Annotate important boxes so preview validation can report clipping and collisions:
 
 ```tsx
-// Good
-style={{
-  translate: interpolate(progress, [0, 0.35], ["0px 20px", "0px 0px"], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.bezier(0.22, 1, 0.36, 1),
-  }),
-}}
-
-// Bad — the value is hidden and the scene stops being directly editable
-const rise = interpolate(progress, [0, 0.35], [20, 0]);
-style={{ transform: `translateY(${rise}px)` }}
+<LayoutBox id="platform-hub" rect={layout.hub} collision="solid" safe>
+  <div style={{position: "absolute", inset: 0, display: "flex", alignItems: "center", gap: 16}}>...</div>
+</LayoutBox>
 ```
 
-Reach for a `transform` string only for things the individual properties do not
-cover, such as `skew` or `perspective`.
+`LayoutBox` already applies `left`, `top`, `width` and `height`. Its child uses `inset: 0`; never apply
+the same rectangle or `rectStyle(layout.hub)` to the child, which would double the offset.
 
-## Let motion settle with `useSpring`
+Collision policies are `solid`, `overlay`, `background` and `connector`. Glows and connectors are not
+solid. Intentional overlays must say so. Wrap constrained text in `LayoutText`; the preview checks its
+scroll dimensions for overflow.
 
-For entrances and emphasis, a spring reads more alive than a timed curve. It
-returns 0→1; scale or offset from it exactly as with `interpolate`'s output.
+Geometry helpers:
 
-```tsx
-const enter = useSpring({ config: SPRING_PRESETS.smooth, duration: 0.4 });
-// …
-style={{ opacity: enter, translate: `0px ${(1 - enter) * 24}px` }}
+```ts
+q(value);                         // deterministic quantisation
+clamp(value, minimum, maximum);
+mix(from, to, progress);
+insetRect(rect, insetX, insetY?);
+anchorRect(point, width, height, anchor?);
+rectStyle(rect);
+radialLayout({center, count, radiusX, radiusY?, startAngle?});
+distributeHorizontal(rect, count, gap?);
+distributeVertical(rect, count, gap?);
+pointOnRectEdge(rect, target, padding?);
+intersects(first, second, minimumGap?);
+contains(outer, inner, tolerance?);
 ```
 
-`delay` and `duration` are fractions of the beat (`0.4` = the first 40%), never
-frames. Stagger elements by giving each a larger `delay`.
+Use `pointOnRectEdge` for arrows and lines so connectors meet a surface edge rather than its center.
 
-## Never use CSS transitions or animations
+## Timing
 
-`transition`, `animation`, `@keyframes` and Tailwind's `animate-` classes do not
-render. They will look correct in the preview and produce wrong frames in the
-exported file, which is the worst way for a scene to be broken.
-
-Every moving value is driven by the frame clock — `interpolate(progress, …)` or
-`useSpring(…)`, and nothing else. Both read the timeline Decode owns; CSS motion
-does not.
-
-## Name the elements you want to be editable
-
-Wrap anything a person might want to select or restyle in `Interactive.Div` with
-a fixed, descriptive `name`. Keep its styles inline and plain.
+Use frames and fps for ordinary Remotion timing. Duration comes from the enclosing narration-sized
+Sequence; read it, never replace it with a competing `DURATION_IN_FRAMES` constant.
 
 ```tsx
-<Interactive.Div name="Hero title" style={{ fontSize: 72, color: "#E8E8EC" }}>
-  Attention
-</Interactive.Div>
+const frame = useCurrentFrame();
+const {fps, durationInFrames} = useVideoConfig();
+const enter = interpolate(frame, [0, 0.45 * fps], [0, 1], {
+  extrapolateLeft: "clamp",
+  extrapolateRight: "clamp",
+  easing: EASE_PRESETS.easeOut,
+});
 ```
 
-Write fixed copy directly inside the element rather than lifting it into a
-constant. Use a control prop only when the text is something a creator would
-reasonably want to change.
+The beat arrives with ordered narration segments. Spread their visible moments across the whole
+scene; do not reveal everything in the first second and hold a frozen picture.
 
-## Quantise anything from a curve
-
-Values from `Math.sin`, `Math.cos` or `Math.pow` differ in their last decimal
-between the render host and the browser. Round before it reaches a style value.
+For named normalized moments, use `useSceneTiming`:
 
 ```tsx
-const wobble = Number((Math.sin(progress * Math.PI) * 40).toFixed(3));
+const timing = useSceneTiming({
+  establish: {at: 0.02, duration: 0.12},
+  connect: {at: 0.28, duration: 0.30},
+  resolve: {at: 0.72, duration: 0.16},
+});
+
+const connect = timing.progressOf("connect");
 ```
 
-Use `random(seed)` rather than `Math.random`, which would make two renders of the
-same frame differ.
+`useProgress()` and `useSpring()` remain available for normalized animation. `EASE_PRESETS` contains
+`linear`, `easeOut`, `easeInOut` and `soft`; `SPRING_PRESETS` contains `gentle`, `smooth`, `bouncy`
+and `stiff`.
 
-## Shape of a scene
+## Determinism
+
+Every moving value is derived from `useCurrentFrame()`, `interpolate()` or `spring()`. Never use CSS
+transitions, CSS animations or keyframes: they do not render correctly frame by frame.
+
+Pass every `Math.sin`, `Math.cos`, `Math.pow` or other platform curve through `q()` before it reaches
+a style or SVG attribute. Use `random(seed)`, never `Math.random()`.
 
 ```tsx
-import { useProgress, interpolate, Easing, AbsoluteFill, Interactive, fontCss } from "@decode/animation-api";
+const bob = q(Math.sin(frame / fps) * 4);
+```
 
+## Typography
+
+`fontCss()` resolves fonts loaded by Decode. Available families are `Inter`, `Space Grotesk`,
+`Bricolage Grotesque` and `Geist Mono`.
+
+The API re-exports Remotion's official `measureText`, `fitText`, `fitTextOnNLines` and `fillTextBox`
+from `@remotion/layout-utils`. Match measurement properties to rendered properties and keep text in a
+`LayoutText` so overflow is still checked after a creator edits a control.
+
+```tsx
+const fitted = fitText({
+  text: props.title,
+  withinWidth: layout.hub.width - 64,
+  fontFamily: "Inter",
+  fontWeight: 700,
+});
+const titleSize = Math.min(72, fitted.fontSize);
+```
+
+## Icons and paths
+
+`Icon` keeps scenes on one dependency-safe icon vocabulary:
+
+```tsx
+<Icon name="database" size={32} weight="light" color={props.accent} />
+```
+
+Names: `address-book`, `arrow-right`, `brain`, `chart-bar`, `check`, `cloud`, `code`, `credit-card`,
+`cube`, `database`, `file-text`, `flow-arrow`, `gear-six`, `globe`, `lightning`, `lock`,
+`magnifying-glass`, `play`, `plug`, `pulse`, `question`, `stack`, `users`, `warning`, `x`.
+
+`Path` is an SVG path with normalized draw-on controls:
+
+```tsx
+<svg viewBox="0 0 400 200">
+  <Path d="M 20 100 C 120 20 280 180 380 100" trimEnd={progress} fill="none" stroke={props.accent} />
+</svg>
+```
+
+## Scene structure
+
+One default export, but compose it from coordinated internal layers:
+
+```tsx
 export default function Scene(props) {
-  const progress = useProgress();
-
   return (
-    <AbsoluteFill style={{ background: props.background, display: "grid", placeItems: "center" }}>
-      <Interactive.Div
-        name="Label"
-        style={{
-          ...fontCss({ family: "Bricolage Grotesque", weight: 600 }),
-          fontSize: props.labelSize,
-          color: "#E8E8EC",
-          opacity: interpolate(progress, [0, 0.25], [0, 1], {
-            extrapolateLeft: "clamp",
-            extrapolateRight: "clamp",
-            easing: Easing.bezier(0.22, 1, 0.36, 1),
-          }),
-          translate: interpolate(progress, [0, 0.35], ["0px 20px", "0px 0px"], {
-            extrapolateLeft: "clamp",
-            extrapolateRight: "clamp",
-            easing: Easing.bezier(0.22, 1, 0.36, 1),
-          }),
-        }}
-      >
-        {props.label}
-      </Interactive.Div>
+    <AbsoluteFill style={{background: props.background}}>
+      <DesignCanvas>
+        <AtmosphereLayer />
+        <ConnectionLayer />
+        <SubjectLayer />
+        <EvidenceLayer />
+        <AnnotationLayer />
+      </DesignCanvas>
     </AbsoluteFill>
   );
 }
 ```
 
-No `CONTROLS` block. `props.background`, `props.label` and `props.labelSize` are
-declared as structured controls alongside the component, and Decode writes the
-manifest from them.
+Not every scene needs every layer. Motion must explain a relationship or state change. After a scene
+settles, allow at most one continuous motion system, and only when it communicates an ongoing process.
 
-The example above shows the *mechanics* — a single label. It is not the quality
-bar. Aim for the one below.
-
-## The quality bar — a relationship, composed
-
-This is the standard: real surfaces with edges, a drawn relationship rather than a
-list, spring choreography in reading order, type hierarchy, and one accent on the
-single thing that matters. A scene should look like this, not like a fading title.
-
-```tsx
-import { AbsoluteFill, Interactive, useSpring, SPRING_PRESETS, fontCss } from "@decode/animation-api";
-
-export default function Scene(props) {
-  const query = useSpring({ config: SPRING_PRESETS.smooth, duration: 0.35 });
-  const link = useSpring({ config: SPRING_PRESETS.gentle, delay: 0.35, duration: 0.4 });
-  const surface = { background: "#232323", border: "1px solid #484848", borderRadius: 16, padding: "22px 28px" };
-  const label = { ...fontCss({ family: "Geist Mono" }), fontSize: 14, letterSpacing: 1 };
-
-  return (
-    <AbsoluteFill style={{ background: "#0B0B0B", padding: 96, justifyContent: "center", color: "#F3F0EA", ...fontCss({ family: "Bricolage Grotesque" }) }}>
-      <Interactive.Div name="Eyebrow" style={{ ...label, color: "#98A0B3", marginBottom: 40, opacity: query }}>
-        {props.eyebrow}
-      </Interactive.Div>
-
-      <div style={{ display: "flex", alignItems: "center", gap: 40 }}>
-        <Interactive.Div name="Query" style={{ ...surface, opacity: query, translate: `${(1 - query) * -28}px 0px` }}>
-          <div style={{ ...label, color: "#98A0B3" }}>QUERY</div>
-          <div style={{ fontSize: 56, marginTop: 8 }}>{props.query}</div>
-        </Interactive.Div>
-
-        <Interactive.Div name="Link" style={{ fontSize: 52, color: "#F2A47B", opacity: link, scale: 0.6 + link * 0.4 }}>→</Interactive.Div>
-
-        <Interactive.Div name="Target" style={{ ...surface, borderColor: "#F2A47B", opacity: link, translate: `${(1 - link) * 28}px 0px` }}>
-          <div style={{ ...label, color: "#F2A47B" }}>ATTENDS TO</div>
-          <div style={{ fontSize: 56, marginTop: 8 }}>{props.target}</div>
-        </Interactive.Div>
-      </div>
-    </AbsoluteFill>
-  );
-}
-```
-
-What makes it the bar: two real surfaces (`#232323`/`#484848`) instead of flat
-chips; the accent on the *target* alone — the one thing the beat is about; a
-`useSpring` sequence that brings the query in, then draws the link and the target,
-so the motion *is* the explanation; and mono labels against large display values
-for hierarchy. The relationship is drawn, not written.
+Do not export `CONTROLS`; Decode writes it from the structured controls beside the source. Every
+`props.<name>` used by the component must have a declared control.

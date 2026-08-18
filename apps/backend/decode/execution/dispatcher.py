@@ -3,7 +3,7 @@ import logging
 
 from arq import create_pool
 from arq.connections import ArqRedis, RedisSettings
-from sqlalchemy import select
+from sqlalchemy import desc, select
 
 from ..config import get_settings
 from ..db import SessionLocal, utcnow
@@ -26,16 +26,26 @@ async def dispatch_once(redis: ArqRedis) -> int:
                 await session.scalars(
                     select(OutboxEvent)
                     .where(OutboxEvent.published_at.is_(None))
-                    .order_by(OutboxEvent.created_at)
+                    .order_by(desc(OutboxEvent.priority), OutboxEvent.created_at)
                     .with_for_update(skip_locked=True)
                     .limit(100)
                 )
             ).all()
         )
         for event in rows:
-            await redis.enqueue_job(
-                "execute_run", event.payload["run_id"], _job_id=f"run:{event.payload['run_id']}"
-            )
+            if event.topic == "run.execute":
+                run_id = event.payload["run_id"]
+                await redis.enqueue_job("execute_run", run_id, _job_id=f"run:{run_id}")
+            elif event.topic == "task.execute":
+                task_id, attempt = event.payload["task_id"], event.payload["attempt"]
+                await redis.enqueue_job(
+                    "execute_task",
+                    task_id,
+                    attempt,
+                    _job_id=f"task:{task_id}:attempt:{attempt}",
+                )
+            else:
+                raise ValueError(f"unknown outbox topic {event.topic!r}")
             event.published_at = utcnow()
             event.attempts += 1
             count += 1

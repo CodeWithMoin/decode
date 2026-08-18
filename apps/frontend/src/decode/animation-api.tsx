@@ -1,14 +1,69 @@
-import type { CSSProperties, ReactNode, SVGProps } from "react";
+import type { CSSProperties, HTMLAttributes, ReactNode, SVGProps } from "react";
+import {
+  AddressBook,
+  ArrowRight,
+  Brain,
+  ChartBar,
+  Check,
+  Cloud,
+  Code,
+  CreditCard,
+  Cube,
+  Database,
+  FileText,
+  FlowArrow,
+  GearSix,
+  Globe,
+  Lightning,
+  Lock,
+  MagnifyingGlass,
+  Play,
+  Plug,
+  Pulse,
+  Question,
+  Stack,
+  Users,
+  Warning,
+  X,
+  type IconProps as PhosphorIconProps,
+} from "@phosphor-icons/react";
+import {
+  fillTextBox,
+  fitText,
+  fitTextOnNLines,
+  measureText,
+} from "@remotion/layout-utils";
+import {
+  makeTransform,
+  perspective,
+  rotate,
+  rotateX,
+  rotateY,
+  rotateZ,
+  scale,
+  scaleX,
+  scaleY,
+  skew,
+  skewX,
+  skewY,
+  translate,
+  translateX,
+  translateY,
+} from "@remotion/animation-utils";
 import {
   AbsoluteFill,
+  Audio,
   Easing,
   Freeze,
   Img,
   Interactive,
   Sequence,
   Series,
+  Video,
   type SpringConfig,
   interpolate,
+  interpolateColors,
+  measureSpring,
   random,
   spring,
   staticFile,
@@ -17,41 +72,49 @@ import {
 } from "remotion";
 
 /**
- * `@decode/animation-api` — the only module a generated scene may import from.
- *
- * In front it is ours. Behind it is Remotion, re-exported under Remotion's own
- * names, so a model writing a scene writes the Remotion it already knows.
- *
- * Three things are deliberately not re-exported, and the withholding is the
- * point. `validation.py` in the Visualizer department checks for them as well,
- * but that check is a backstop. This file is the lock.
- *
- *   useCurrentFrame, useVideoConfig — the clock. A scene calls `useProgress()`
- *     and has no way to reach `fps` or `durationInFrames`. The approved
- *     Teaching Plan owns runtime; a scene that knew its own length could
- *     contradict it, and `total = Σ dur` would stop being true.
- *
- *   Sequence — takes frames. `Segment` is the same capability in progress
- *     units, with the arithmetic on this side of the door.
- *
- *   Composition, Player — these belong to the host that mounts a scene. Decode
- *     passes `durationInFrames` in from the plan.
- *
- * Everything else Remotion offers can be added here as it is needed. It goes
- * through this one door rather than becoming a second specifier a scene may
- * name, which is what keeps the import allowlist a one-line check.
+ * `@decode/animation-api` is the only module generated scenes import. It keeps
+ * Remotion's familiar frame-based APIs intact and adds Decode's format, layout,
+ * typography and deterministic-geometry helpers. Composition registration,
+ * players and render infrastructure remain host concerns and are not exported.
  */
 
 export {
   AbsoluteFill,
+  Audio,
   Easing,
   Freeze,
   Img,
   Interactive,
+  Sequence,
   Series,
+  Video,
+  fillTextBox,
+  fitText,
+  fitTextOnNLines,
   interpolate,
+  interpolateColors,
+  makeTransform,
+  measureSpring,
+  measureText,
+  perspective,
   random,
+  rotate,
+  rotateX,
+  rotateY,
+  rotateZ,
+  scale,
+  scaleX,
+  scaleY,
+  skew,
+  skewX,
+  skewY,
+  spring,
   staticFile,
+  translate,
+  translateX,
+  translateY,
+  useCurrentFrame,
+  useVideoConfig,
 };
 
 /**
@@ -75,14 +138,180 @@ export function useCanvas(): { width: number; height: number } {
   return { width, height };
 }
 
+export type FormatFamily = "widescreen" | "vertical" | "square" | "portrait" | "custom";
+
+export type Point = { x: number; y: number };
+
+export type Rect = Point & {
+  width: number;
+  height: number;
+};
+
+export type SceneFormat = {
+  family: FormatFamily;
+  width: number;
+  height: number;
+  designWidth: number;
+  designHeight: number;
+  fps: number;
+  durationInFrames: number;
+  aspectRatio: number;
+  safeArea: Rect;
+};
+
+const FORMAT_PROFILES: Record<Exclude<FormatFamily, "custom">, {
+  ratio: number;
+  designWidth: number;
+  designHeight: number;
+  safeInsetX: number;
+  safeInsetY: number;
+}> = {
+  widescreen: {
+    ratio: 16 / 9,
+    designWidth: 1920,
+    designHeight: 1080,
+    safeInsetX: 0.05,
+    safeInsetY: 0.06,
+  },
+  vertical: {
+    ratio: 9 / 16,
+    designWidth: 1080,
+    designHeight: 1920,
+    safeInsetX: 0.07,
+    safeInsetY: 0.045,
+  },
+  square: {
+    ratio: 1,
+    designWidth: 1080,
+    designHeight: 1080,
+    safeInsetX: 0.06,
+    safeInsetY: 0.06,
+  },
+  portrait: {
+    ratio: 4 / 5,
+    designWidth: 1080,
+    designHeight: 1350,
+    safeInsetX: 0.06,
+    safeInsetY: 0.05,
+  },
+};
+
+const FORMAT_TOLERANCE = 0.015;
+
+function formatFamily(width: number, height: number): FormatFamily {
+  const ratio = width / height;
+  const match = (Object.entries(FORMAT_PROFILES) as Array<
+    [Exclude<FormatFamily, "custom">, (typeof FORMAT_PROFILES)[Exclude<FormatFamily, "custom">]]
+  >).find(([, profile]) => Math.abs(ratio - profile.ratio) <= FORMAT_TOLERANCE);
+  return match?.[0] ?? "custom";
+}
+
+function safeAreaForDesign(designWidth: number, designHeight: number): Rect {
+  const family = formatFamily(designWidth, designHeight);
+  const profile = family === "custom" ? null : FORMAT_PROFILES[family];
+  const insetX = profile?.safeInsetX ?? 0.06;
+  const insetY = profile?.safeInsetY ?? 0.06;
+  return {
+    x: q(designWidth * insetX),
+    y: q(designHeight * insetY),
+    width: q(designWidth * (1 - insetX * 2)),
+    height: q(designHeight * (1 - insetY * 2)),
+  };
+}
+
+function formatFromVideoConfig({
+  width,
+  height,
+  fps,
+  durationInFrames,
+}: {
+  width: number;
+  height: number;
+  fps: number;
+  durationInFrames: number;
+}): SceneFormat {
+  const family = formatFamily(width, height);
+  const profile = family === "custom" ? null : FORMAT_PROFILES[family];
+  const designWidth = profile?.designWidth ?? width;
+  const designHeight = profile?.designHeight ?? height;
+  const safeArea = safeAreaForDesign(designWidth, designHeight);
+
+  return {
+    family,
+    width,
+    height,
+    designWidth,
+    designHeight,
+    fps,
+    durationInFrames,
+    aspectRatio: q(width / height),
+    safeArea,
+  };
+}
+
+/** Project format plus a canonical design canvas for resolution-independent layouts. */
+export function useFormat(): SceneFormat {
+  return formatFromVideoConfig(useVideoConfig());
+}
+
+/** The format-specific content-safe rectangle in canonical design pixels. */
+export function useSafeArea(): Rect {
+  return useFormat().safeArea;
+}
+
+/**
+ * A fixed logical canvas scaled to the actual render resolution. Author a 16:9
+ * scene once at 1920x1080 and render it at 720p, 1080p or 4K without changing
+ * coordinates. Custom aspect ratios use their actual dimensions.
+ */
+export function DesignCanvas({
+  children,
+  style,
+}: {
+  children?: ReactNode;
+  style?: CSSProperties;
+}) {
+  const format = useFormat();
+  const canvasScale = Math.min(
+    format.width / format.designWidth,
+    format.height / format.designHeight,
+  );
+  const renderedWidth = format.designWidth * canvasScale;
+  const renderedHeight = format.designHeight * canvasScale;
+
+  return (
+    <div
+      data-decode-design-canvas="true"
+      data-design-width={format.designWidth}
+      data-design-height={format.designHeight}
+      data-safe-x={format.safeArea.x}
+      data-safe-y={format.safeArea.y}
+      data-safe-width={format.safeArea.width}
+      data-safe-height={format.safeArea.height}
+      style={{
+        ...style,
+        position: "absolute",
+        left: q((format.width - renderedWidth) / 2),
+        top: q((format.height - renderedHeight) / 2),
+        width: format.designWidth,
+        height: format.designHeight,
+        scale: q(canvasScale),
+        transformOrigin: "top left",
+        overflow: "hidden",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 export type { SpringConfig };
 
 /**
  * A physical spring, in progress units.
  *
- * Remotion's `spring()` is written in frames + fps a scene may not see, the same
- * reason `Segment` exists — so this reads the clock on our side and exposes only
- * progress. `delay` and `duration` are fractions of the beat (0–1), not frames.
+ * A normalized convenience over Remotion's frame-based `spring()`. `delay` and
+ * `duration` are fractions of the beat (0–1), not frames.
  * Returns the eased value (0→1 by default); multiply or feed it into a `translate`
  * the way you would `useProgress()`.
  *
@@ -122,11 +351,9 @@ export function useSpring(
 }
 
 /**
- * A slice of the beat, in progress units.
- *
- * Remotion's `<Sequence from={1 * fps}>` is how you delay or trim inside a
- * scene, and it is written in frames a scene may not see. This is the same
- * thing with the conversion on our side.
+ * A slice of the beat in progress units. Use Remotion's re-exported `<Sequence>`
+ * when frame units are clearer; use this when the slice should scale with a
+ * narration-driven scene duration.
  *
  * NOTE: this assumes Remotion scopes `useVideoConfig().durationInFrames` to the
  * enclosing Sequence, so `useProgress()` inside a Segment measures the slice
@@ -159,6 +386,292 @@ export function Segment({
       {children}
     </Sequence>
   );
+}
+
+/** Quantise values before they reach the DOM so preview and render agree. */
+export function q(value: number, decimals = 6): number {
+  if (!Number.isFinite(value)) return 0;
+  return Number(value.toFixed(clamp(Math.round(decimals), 0, 12)));
+}
+
+export function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
+export function mix(from: number, to: number, progress: number): number {
+  return q(from + (to - from) * progress);
+}
+
+export function insetRect(rect: Rect, insetX: number, insetY = insetX): Rect {
+  return {
+    x: q(rect.x + insetX),
+    y: q(rect.y + insetY),
+    width: q(Math.max(0, rect.width - insetX * 2)),
+    height: q(Math.max(0, rect.height - insetY * 2)),
+  };
+}
+
+export type RectAnchor =
+  | "top-left"
+  | "top"
+  | "top-right"
+  | "left"
+  | "center"
+  | "right"
+  | "bottom-left"
+  | "bottom"
+  | "bottom-right";
+
+export function anchorRect(
+  point: Point,
+  width: number,
+  height: number,
+  anchor: RectAnchor = "top-left",
+): Rect {
+  const horizontal = anchor.endsWith("right") || anchor === "right"
+    ? 1
+    : anchor.endsWith("left") || anchor === "left"
+      ? 0
+      : 0.5;
+  const vertical = anchor.startsWith("bottom") || anchor === "bottom"
+    ? 1
+    : anchor.startsWith("top") || anchor === "top"
+      ? 0
+      : 0.5;
+
+  return {
+    x: q(point.x - width * horizontal),
+    y: q(point.y - height * vertical),
+    width: q(width),
+    height: q(height),
+  };
+}
+
+export type LayoutRegion = {
+  /** Normalized top-left position and size in the selected coordinate space. */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  space?: "canvas" | "safe";
+};
+
+type LayoutFormat = Pick<SceneFormat, "designWidth" | "designHeight"> &
+  Partial<Pick<SceneFormat, "safeArea">>;
+
+/** Resolve normalized planned regions into canonical design-pixel rectangles.
+ *
+ * `safeArea` is optional only so persisted scenes authored before validation was
+ * tightened remain renderable. New generated scenes must pass `useFormat()`.
+ */
+export function defineLayout<const Regions extends Record<string, LayoutRegion>>(
+  format: LayoutFormat,
+  regions: Regions,
+): { [Key in keyof Regions]: Rect } {
+  const canvas: Rect = { x: 0, y: 0, width: format.designWidth, height: format.designHeight };
+  const safeArea = format.safeArea ?? safeAreaForDesign(format.designWidth, format.designHeight);
+  return Object.fromEntries(
+    Object.entries(regions).map(([name, region]) => {
+      const bounds = region.space === "safe" ? safeArea : canvas;
+      const values = [region.x, region.y, region.width, region.height];
+      if (
+        values.some((value) => !Number.isFinite(value)) ||
+        region.x < 0 ||
+        region.y < 0 ||
+        region.width < 0 ||
+        region.height < 0 ||
+        region.x + region.width > 1 ||
+        region.y + region.height > 1
+      ) {
+        throw new Error(
+          `Layout region ${JSON.stringify(name)} must fit inside normalized ${region.space ?? "canvas"} bounds.`,
+        );
+      }
+      return [
+        name,
+        {
+          x: q(bounds.x + region.x * bounds.width),
+          y: q(bounds.y + region.y * bounds.height),
+          width: q(region.width * bounds.width),
+          height: q(region.height * bounds.height),
+        },
+      ];
+    }),
+  ) as { [Key in keyof Regions]: Rect };
+}
+
+export function rectStyle(rect: Rect): CSSProperties {
+  return {
+    position: "absolute",
+    left: rect.x,
+    top: rect.y,
+    width: rect.width,
+    height: rect.height,
+    boxSizing: "border-box",
+  };
+}
+
+export function radialLayout({
+  center,
+  count,
+  radiusX,
+  radiusY = radiusX,
+  startAngle = -90,
+}: {
+  center: Point;
+  count: number;
+  radiusX: number;
+  radiusY?: number;
+  startAngle?: number;
+}): Point[] {
+  if (count <= 0) return [];
+  return Array.from({ length: count }, (_, index) => {
+    const radians = ((startAngle + (index * 360) / count) * Math.PI) / 180;
+    return {
+      x: q(center.x + Math.cos(radians) * radiusX),
+      y: q(center.y + Math.sin(radians) * radiusY),
+    };
+  });
+}
+
+export function distributeHorizontal(rect: Rect, count: number, gap = 0): Rect[] {
+  if (count <= 0) return [];
+  const width = Math.max(0, (rect.width - gap * (count - 1)) / count);
+  return Array.from({ length: count }, (_, index) => ({
+    x: q(rect.x + index * (width + gap)),
+    y: rect.y,
+    width: q(width),
+    height: rect.height,
+  }));
+}
+
+export function distributeVertical(rect: Rect, count: number, gap = 0): Rect[] {
+  if (count <= 0) return [];
+  const height = Math.max(0, (rect.height - gap * (count - 1)) / count);
+  return Array.from({ length: count }, (_, index) => ({
+    x: rect.x,
+    y: q(rect.y + index * (height + gap)),
+    width: rect.width,
+    height: q(height),
+  }));
+}
+
+/** The point where a ray from a rectangle's center toward `target` meets its edge. */
+export function pointOnRectEdge(rect: Rect, target: Point, padding = 0): Point {
+  const center = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+  const dx = target.x - center.x;
+  const dy = target.y - center.y;
+  if (dx === 0 && dy === 0) return { x: q(center.x), y: q(center.y) };
+
+  const halfWidth = Math.max(0, rect.width / 2 + padding);
+  const halfHeight = Math.max(0, rect.height / 2 + padding);
+  const scaleToEdge = 1 / Math.max(
+    Math.abs(dx) / Math.max(halfWidth, Number.EPSILON),
+    Math.abs(dy) / Math.max(halfHeight, Number.EPSILON),
+  );
+  return {
+    x: q(center.x + dx * scaleToEdge),
+    y: q(center.y + dy * scaleToEdge),
+  };
+}
+
+export function intersects(first: Rect, second: Rect, minimumGap = 0): boolean {
+  return (
+    first.x < second.x + second.width + minimumGap &&
+    first.x + first.width + minimumGap > second.x &&
+    first.y < second.y + second.height + minimumGap &&
+    first.y + first.height + minimumGap > second.y
+  );
+}
+
+export function contains(outer: Rect, inner: Rect, tolerance = 0): boolean {
+  return (
+    inner.x >= outer.x - tolerance &&
+    inner.y >= outer.y - tolerance &&
+    inner.x + inner.width <= outer.x + outer.width + tolerance &&
+    inner.y + inner.height <= outer.y + outer.height + tolerance
+  );
+}
+
+export type CollisionPolicy = "solid" | "overlay" | "background" | "connector";
+
+export function LayoutBox({
+  id,
+  rect,
+  collision = "solid",
+  safe = true,
+  style,
+  children,
+  ...props
+}: Omit<HTMLAttributes<HTMLDivElement>, "id"> & {
+  id: string;
+  rect?: Rect;
+  collision?: CollisionPolicy;
+  safe?: boolean;
+}) {
+  return (
+    <div
+      {...props}
+      data-layout-id={id}
+      data-collision={collision}
+      data-safe={safe ? "true" : "false"}
+      style={{ ...style, ...(rect ? rectStyle(rect) : null) }}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function LayoutText({
+  children,
+  ...props
+}: HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div {...props} data-layout-text="true">
+      {children}
+    </div>
+  );
+}
+
+export type SceneMoment = number | { at: number; duration?: number };
+
+/** Named moments expressed in normalized scene progress while retaining Remotion's frame clock. */
+export function useSceneTiming<const Moments extends Record<string, SceneMoment>>(
+  moments: Moments,
+) {
+  const frame = useCurrentFrame();
+  const { fps, durationInFrames } = useVideoConfig();
+  const progress = durationInFrames <= 1
+    ? 0
+    : q(clamp(frame / (durationInFrames - 1), 0, 1));
+  const range = (name: keyof Moments) => {
+    const definition = moments[name];
+    const at = typeof definition === "number" ? definition : definition.at;
+    const duration = typeof definition === "number" ? 0.1 : definition.duration ?? 0.1;
+    return {
+      start: clamp(at, 0, 1),
+      end: clamp(at + Math.max(0, duration), 0, 1),
+    };
+  };
+
+  return {
+    frame,
+    fps,
+    durationInFrames,
+    seconds: q(frame / fps),
+    progress,
+    frameAt(name: keyof Moments) {
+      return Math.round(range(name).start * Math.max(0, durationInFrames - 1));
+    },
+    active(name: keyof Moments) {
+      return progress >= range(name).start;
+    },
+    progressOf(name: keyof Moments) {
+      const { start, end } = range(name);
+      if (end <= start) return progress >= start ? 1 : 0;
+      return q(clamp((progress - start) / (end - start), 0, 1));
+    },
+  };
 }
 
 export type DecodeFont = {
@@ -240,8 +753,155 @@ export function fontCss(font: DecodeFont): CSSProperties {
   };
 }
 
-export function Path(props: SVGProps<SVGPathElement>) {
-  return <path {...props} />;
+export function Path({
+  trimStart = 0,
+  trimEnd = 1,
+  pathLength = 1,
+  ...props
+}: Omit<SVGProps<SVGPathElement>, "pathLength"> & {
+  trimStart?: number;
+  trimEnd?: number;
+  pathLength?: number;
+}) {
+  const start = clamp(trimStart, 0, 1);
+  const end = clamp(trimEnd, start, 1);
+  const total = Math.max(Number.EPSILON, pathLength);
+  const visible = (end - start) * total;
+  return (
+    <path
+      {...props}
+      pathLength={pathLength}
+      strokeDasharray={`${q(visible)} ${q(Math.max(0, total - visible))}`}
+      strokeDashoffset={q(-start * total)}
+    />
+  );
+}
+
+const ICONS = {
+  "address-book": AddressBook,
+  "arrow-right": ArrowRight,
+  brain: Brain,
+  "chart-bar": ChartBar,
+  check: Check,
+  cloud: Cloud,
+  code: Code,
+  "credit-card": CreditCard,
+  cube: Cube,
+  database: Database,
+  "file-text": FileText,
+  "flow-arrow": FlowArrow,
+  "gear-six": GearSix,
+  globe: Globe,
+  lightning: Lightning,
+  lock: Lock,
+  "magnifying-glass": MagnifyingGlass,
+  play: Play,
+  plug: Plug,
+  pulse: Pulse,
+  question: Question,
+  stack: Stack,
+  users: Users,
+  warning: Warning,
+  x: X,
+} as const;
+
+export type IconName = keyof typeof ICONS;
+
+export function Icon({ name, ...props }: Omit<PhosphorIconProps, "name"> & { name: IconName }) {
+  const Component = ICONS[name] ?? Question;
+  return <Component aria-hidden={props.alt ? undefined : true} {...props} />;
+}
+
+export type LayoutFinding = {
+  code: "outside_canvas" | "outside_safe_area" | "collision" | "text_overflow";
+  elements: string[];
+  message: string;
+  overlap?: { width: number; height: number };
+};
+
+function domRect(rect: DOMRect): Rect {
+  return { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
+}
+
+/**
+ * Inspect a mounted design canvas. Call this from preview tooling at named
+ * moments or representative frames; generated scenes should only annotate
+ * elements with LayoutBox/LayoutText and never run inspection themselves.
+ */
+export function inspectLayout(root: ParentNode): LayoutFinding[] {
+  const canvas = root.querySelector<HTMLElement>("[data-decode-design-canvas='true']");
+  if (!canvas) return [];
+
+  const findings: LayoutFinding[] = [];
+  const canvasBounds = domRect(canvas.getBoundingClientRect());
+  const designWidth = Number(canvas.dataset.designWidth) || canvasBounds.width;
+  const designHeight = Number(canvas.dataset.designHeight) || canvasBounds.height;
+  const scaleX = canvasBounds.width / designWidth;
+  const scaleY = canvasBounds.height / designHeight;
+  const safeBounds: Rect = {
+    x: canvasBounds.x + (Number(canvas.dataset.safeX) || 0) * scaleX,
+    y: canvasBounds.y + (Number(canvas.dataset.safeY) || 0) * scaleY,
+    width: (Number(canvas.dataset.safeWidth) || designWidth) * scaleX,
+    height: (Number(canvas.dataset.safeHeight) || designHeight) * scaleY,
+  };
+  const boxes = Array.from(canvas.querySelectorAll<HTMLElement>("[data-layout-id]"));
+
+  for (const element of boxes) {
+    const id = element.dataset.layoutId ?? "unnamed";
+    const bounds = domRect(element.getBoundingClientRect());
+    if (!contains(canvasBounds, bounds, 0.5)) {
+      findings.push({
+        code: "outside_canvas",
+        elements: [id],
+        message: `${id} extends outside the design canvas.`,
+      });
+    }
+    if (element.dataset.safe === "true" && !contains(safeBounds, bounds, 0.5)) {
+      findings.push({
+        code: "outside_safe_area",
+        elements: [id],
+        message: `${id} extends outside the format safe area.`,
+      });
+    }
+  }
+
+  const solid = boxes.filter((element) => element.dataset.collision === "solid");
+  for (let firstIndex = 0; firstIndex < solid.length; firstIndex += 1) {
+    for (let secondIndex = firstIndex + 1; secondIndex < solid.length; secondIndex += 1) {
+      const first = solid[firstIndex];
+      const second = solid[secondIndex];
+      if (first.contains(second) || second.contains(first)) continue;
+      const firstBounds = domRect(first.getBoundingClientRect());
+      const secondBounds = domRect(second.getBoundingClientRect());
+      if (!intersects(firstBounds, secondBounds)) continue;
+      const firstId = first.dataset.layoutId ?? "unnamed";
+      const secondId = second.dataset.layoutId ?? "unnamed";
+      findings.push({
+        code: "collision",
+        elements: [firstId, secondId],
+        message: `${firstId} overlaps ${secondId}.`,
+        overlap: {
+          width: q(Math.min(firstBounds.x + firstBounds.width, secondBounds.x + secondBounds.width) - Math.max(firstBounds.x, secondBounds.x)),
+          height: q(Math.min(firstBounds.y + firstBounds.height, secondBounds.y + secondBounds.height) - Math.max(firstBounds.y, secondBounds.y)),
+        },
+      });
+    }
+  }
+
+  for (const element of canvas.querySelectorAll<HTMLElement>("[data-layout-text='true']")) {
+    if (element.scrollWidth <= element.clientWidth && element.scrollHeight <= element.clientHeight) {
+      continue;
+    }
+    const owner = element.closest<HTMLElement>("[data-layout-id]");
+    const id = owner?.dataset.layoutId ?? "text";
+    findings.push({
+      code: "text_overflow",
+      elements: [id],
+      message: `Text overflows ${id}.`,
+    });
+  }
+
+  return findings;
 }
 
 export const EASE_PRESETS = {

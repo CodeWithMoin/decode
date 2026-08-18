@@ -20,6 +20,7 @@ from ..models import (
 )
 from ..pricing import estimate_cost
 from .context import context_assembler
+from .graph import execute_task, is_graph_job, start_scene_graph
 from .pipeline import continue_chain, run_department, run_evaluation, stage_for, stage_provider
 
 
@@ -36,38 +37,45 @@ async def execute_run(_ctx: dict | None, run_id: str) -> dict:
             return {"status": "stale_run"}
         if run.status == ExecutionStatus.SUCCEEDED or job.result_artifact_version_id:
             return {"status": "already_succeeded", "version_id": job.result_artifact_version_id}
-        # The stable ARQ job id prevents concurrent delivery. A redelivery may
-        # find a stale running row after process loss and resumes it here.
-        run.status = ExecutionStatus.RUNNING
-        run.started_at = run.started_at or utcnow()
-        run.failure = None
-        run.finished_at = None
-        job.status = ExecutionStatus.RUNNING
-        job.started_at = job.started_at or utcnow()
-        job.failure = None
-        job.finished_at = None
-        project = await session.scalar(
-            select(Project).where(Project.id == job.project_id).with_for_update()
-        )
-        assert project is not None
-        project.status = ProjectStatus.PROCESSING
-        await emit(
-            session,
-            job.project_id,
-            "run.started",
-            job_id=job.id,
-            run_id=run.id,
-            data={"message": "Preparing focused context"},
-        )
-        await emit(
-            session,
-            job.project_id,
-            "run.progress",
-            job_id=job.id,
-            run_id=run.id,
-            data={"step": "reading_sources"},
-        )
-        await session.commit()
+        graph_job = is_graph_job(job.kind)
+        if run.status in {ExecutionStatus.FAILED, ExecutionStatus.CANCELLED}:
+            return {"status": run.status}
+        resume_graph = graph_job and run.status == ExecutionStatus.RUNNING
+        if not resume_graph:
+            # The stable ARQ job id prevents concurrent delivery. A redelivery may
+            # find a stale running row after process loss and resumes it here.
+            run.status = ExecutionStatus.RUNNING
+            run.started_at = run.started_at or utcnow()
+            run.failure = None
+            run.finished_at = None
+            job.status = ExecutionStatus.RUNNING
+            job.started_at = job.started_at or utcnow()
+            job.failure = None
+            job.finished_at = None
+            project = await session.scalar(
+                select(Project).where(Project.id == job.project_id).with_for_update()
+            )
+            assert project is not None
+            project.status = ProjectStatus.PROCESSING
+            await emit(
+                session,
+                job.project_id,
+                "run.started",
+                job_id=job.id,
+                run_id=run.id,
+                data={"message": "Preparing focused context"},
+            )
+            await emit(
+                session,
+                job.project_id,
+                "run.progress",
+                job_id=job.id,
+                run_id=run.id,
+                data={"step": "reading_sources"},
+            )
+            await session.commit()
+    if graph_job:
+        return await start_scene_graph(run_id)
     try:
         async with SessionLocal() as session:
             run = await session.scalar(select(Run).where(Run.id == run_id).with_for_update())
@@ -331,7 +339,7 @@ async def _startup(_ctx: dict) -> None:
 
 
 class WorkerSettings:
-    functions = [execute_run]
+    functions = [execute_run, execute_task]
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
     max_jobs = 10
     job_timeout = 300

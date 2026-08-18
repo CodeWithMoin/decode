@@ -288,5 +288,39 @@ Checked against the code and confirmed, so the migration builds on them:
   identifier are the contract, not the role, so renaming them would be a data/config
   migration for no gain. Internal code symbols (`OpenAIVisualizer`, the `Visualizer`
   protocol, the folder) may be renamed later as a cosmetic pass, or left.
-  **Storyboard Artist** ("what should appear") is a *future* split — today the
-  Motion Designer also carries it, seeded by the plan's `visual_opportunity`.
+   **Storyboard Artist** ("what should appear") is a *future* split — today the
+   Motion Designer also carries it, seeded by the plan's `visual_opportunity`.
+
+## 11. Compatibility slice shipped
+
+The first durable graph slice runs inside the current artifact model rather than
+waiting for the snapshot migration in §8:
+
+- `generate_scene_visuals` creates one durable `design_scene` task per plan beat.
+  Those tasks are immediately ready and ARQ may execute up to the worker's
+  configured concurrency limit in parallel.
+- A successful `design_scene` task is a durable candidate, not an applied scene.
+  Edit reads candidates from `GET /jobs/{job_id}/scene-candidates`, previews the
+  real Remotion source, and accepts the exact source the creator reviewed through
+  the idempotent candidate-acceptance endpoint. A direction may change that source
+  before acceptance; every other candidate remains untouched.
+- One `assemble_scene_visuals` task depends on every scene task. It becomes ready
+  only after every prerequisite succeeds **and is explicitly accepted**, validates
+  the complete ordered set, and publishes the existing immutable `scene_visuals`
+  artifact exactly once. Migration `0006` treats scene tasks completed under the
+  previous auto-assembly policy as already accepted.
+- Task attempts carry an attempt token, so an old queue delivery cannot complete a
+  newer retry. Replacing the parent run makes every task from the old run stale.
+- A failed scene retries independently. Completed sibling scenes remain durable
+  task outputs and are not regenerated.
+- Cancellation marks the parent Job/Run and every unfinished task cancelled in one
+  transaction. Provider calls hold no database transaction; a result that returns
+  after cancellation is discarded by the completion check.
+- Task priorities flow through the transactional outbox. Task lifecycle events use
+  `production.graph.started`, `production.task.*`, and
+  `production.scene.candidate.{ready,accepted}`. `GET /jobs/{job_id}` includes the
+  current task projections and their acceptance timestamps.
+
+This is deliberately not the §8 state migration. Existing lineage, approvals,
+studio projections, and downstream voice generation continue to consume the same
+whole artifact while the graph execution semantics prove out underneath them.

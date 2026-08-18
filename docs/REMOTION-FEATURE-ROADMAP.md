@@ -84,12 +84,14 @@ implementation does not.** Before building on Remotion, ask whether HyperFrames'
 captioning covers it (see the `captions-overlay` / `embedded-captions` workflows) —
 we should not add a caption component to a substrate we're retiring.
 
-### 3. Scene transitions · [capability — still relevant, substrate TBD]
-Slide/fade/wipe between beats instead of hard cuts. **The capability stands; the
-`@remotion/transitions` `<TransitionSeries>` implementation is [superseded].**
-Transitions live at the **composition** level either way (Decode picks them; scenes
-stay unaware) — so this belongs to whatever composition layer HyperFrames gives us,
-not to `DecodeComposition`. Check HyperFrames' transition support before building.
+### 3. Scene transitions · [preview compatibility built; artifact contract pending]
+The Decode-owned preview host now removes hard cuts with a deterministic ten-frame
+directional seam. Audio placement and runtime remain unchanged, generated scenes
+stay unaware, and the same wrapper works around React or HyperFrames-backed scenes.
+This is deliberately not `@remotion/transitions` or a persisted transition model.
+The eventual export/incremental-render contract still belongs at the Decode
+composition boundary and should use HyperFrames transition artifacts when that
+substrate migration reaches assembly.
 
 ### 4. Video source material (`OffthreadVideo`, `Video`) · [superseded]
 Embedding a video clip (screen recording, b-roll) in a scene is a capability we'll

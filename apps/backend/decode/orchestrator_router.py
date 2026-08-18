@@ -10,9 +10,11 @@ creator clicks Apply, through that tool's own endpoint (e.g.
 
 from __future__ import annotations
 
+import asyncio
 import json
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -79,6 +81,7 @@ async def _current_scenes(session: AsyncSession, project_id: str) -> list[SceneR
                 index=len(scenes) + 1,
                 title=beat.title or "",
                 narration=narration.get(beat.id, ""),
+                reason=beat.visual_opportunity or beat.objective or "",
             )
         )
     return scenes
@@ -91,16 +94,26 @@ class _ProjectObserver:
     unavailable itself, so this never fabricates data the backend can't produce.
     """
 
-    def __init__(self, session: AsyncSession, project_id: str):
+    def __init__(
+        self,
+        session: AsyncSession,
+        project_id: str,
+        steps: asyncio.Queue | None = None,
+    ):
         self.session = session
         self.project_id = project_id
         self.calls: list[str] = []  # what the orchestrator looked at, in order
+        # When streaming, each observe call is announced here the moment it
+        # starts so the room can print what it is doing live.
+        self.steps = steps
 
     async def _payload(self, artifact_type: ArtifactType) -> dict | None:
         return await _approved_or_latest_payload(self.session, self.project_id, artifact_type)
 
     async def observe(self, name: str, args: dict[str, str]) -> str:
         self.calls.append(name)
+        if self.steps is not None:
+            self.steps.put_nowait({"name": name, "args": args})
         if name == "get_brief":
             return json.dumps(await self._payload(ArtifactType.PRODUCTION_BRIEF) or {})
         if name == "get_plan":
@@ -123,12 +136,43 @@ async def orchestrator_turn(
     project_id: str,
     command: OrchestratorMessage,
     session: AsyncSession = Depends(get_session),
-):
+) -> StreamingResponse:
+    """Stream the room's turn as Server-Sent Events.
+
+    The model's look-then-propose loop calls read-only observe tools; each one is
+    announced as an `event: step` the moment it starts, so the chat prints what
+    the room is doing instead of a bare wait. The turn ends with one `event: done`
+    carrying the reply, an optional scoped proposal or question, and `observed`
+    (the full trace, for the settled summary line). Still read-only — nothing
+    mutates here; a proposal runs only on Apply, through its own tool endpoint.
+    """
     await project_or_404(session, project_id)
     scenes = await _current_scenes(session, project_id)
-    observer = _ProjectObserver(session, project_id)
-    turn = await build_orchestrator(get_settings()).turn(command.message, scenes, observer)
-    # `observed` is what the room looked at on demand — surfaced so the chat can
-    # say "Looked at the plan" instead of a bare wait. Not part of the turn shape
-    # (it's a trace, not the model's answer), so it rides alongside it.
-    return turn.model_dump() | {"observed": observer.calls}
+    steps: asyncio.Queue = asyncio.Queue()
+    observer = _ProjectObserver(session, project_id, steps)
+
+    async def run() -> None:
+        try:
+            turn = await build_orchestrator(get_settings()).turn(
+                command.message, scenes, observer
+            )
+            await steps.put({"done": turn.model_dump() | {"observed": observer.calls}})
+        except Exception as exc:  # surface as a stream error, never a dead spinner
+            await steps.put({"error": str(exc)})
+
+    async def sse():
+        task = asyncio.create_task(run())
+        try:
+            while True:
+                item = await steps.get()
+                if "done" in item:
+                    yield f"event: done\ndata: {json.dumps(item['done'])}\n\n"
+                    return
+                if "error" in item:
+                    yield f"event: error\ndata: {json.dumps({'error': item['error']})}\n\n"
+                    return
+                yield f"event: step\ndata: {json.dumps(item)}\n\n"
+        finally:
+            await task
+
+    return StreamingResponse(sse(), media_type="text/event-stream")

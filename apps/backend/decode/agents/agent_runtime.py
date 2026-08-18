@@ -41,8 +41,9 @@ LOAD_SKILL = "load_skill"
 READ_REFERENCE = "read_reference"
 DELEGATE_PREFIX = "delegate_"
 
-# The vendored public skills live at the repo root, not under the backend package.
-_DEFAULT_SKILLS_ROOT = Path(__file__).resolve().parents[4] / ".claude" / "skills"
+# Reviewed skills are packaged with the backend. The workspace-level agent catalog
+# is outside the backend Docker context and may contain shell-oriented instructions.
+_DEFAULT_SKILLS_ROOT = Path(__file__).parent / "remotion_skills"
 
 
 @dataclass
@@ -79,16 +80,25 @@ class SkillLibrary:
         return self._bodies[name]
 
     def references(self, name: str) -> list[str]:
-        """The reference files a skill ships — progressive disclosure *within* a skill.
-        A HyperFrames skill's SKILL.md is an index; the depth lives in these."""
-        ref_dir = self.root / name / "references"
-        return sorted(p.name for p in ref_dir.glob("*.md")) if ref_dir.is_dir() else []
+        """All Markdown depth files a skill ships, relative to its directory."""
+        skill_dir = self.root / name
+        if not skill_dir.is_dir():
+            return []
+        return sorted(
+            str(path.relative_to(skill_dir))
+            for path in skill_dir.rglob("*.md")
+            if path.name != "SKILL.md"
+        )
 
     def read_reference(self, name: str, file: str) -> str:
-        """One reference file's text, path-guarded to the skill's references dir."""
-        ref_dir = (self.root / name / "references").resolve()
-        target = (ref_dir / file).resolve()
-        if ref_dir not in target.parents or not target.is_file():
+        """One Markdown depth file, path-guarded to the declared skill directory."""
+        skill_dir = (self.root / name).resolve()
+        target = (skill_dir / file).resolve()
+        if (
+            skill_dir not in target.parents
+            or not target.is_file()
+            or target.suffix.lower() != ".md"
+        ):
             raise ValueError(f"{file!r} is not a reference of {name!r}")
         return target.read_text()
 
@@ -294,6 +304,9 @@ class AgentRuntime:
                     problems = validate(response.output_parsed)
                     if problems and not repaired:
                         repaired = True
+                        # The repair turn needs the rejected artifact as context. Without
+                        # it, the model sees violations but not the draft it must preserve.
+                        input_items.extend(response.output)
                         message = (
                             repair_prompt(problems)
                             if repair_prompt

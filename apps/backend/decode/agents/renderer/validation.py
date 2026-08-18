@@ -34,20 +34,21 @@ from .lint import lint_composition
 # resolve/render time (VISUALIZER-TO-HYPERFRAMES §3).
 _LINT_PLACEHOLDER_DURATION = 10.0
 
-# The only module a generated scene may import from. Decode's own surface, not
-# Remotion's: the substrate can be replaced without touching a scene, and
-# "a scene never learns its own duration" is enforceable by what this exports
-# rather than by a rule someone has to remember.
+# The one generated-code doorway. It re-exports the useful Remotion frame APIs
+# unchanged and adds Decode's format/layout safety helpers; host-only composition
+# and render infrastructure stay unavailable.
 RUNTIME_MODULE = "@decode/animation-api"
 
 # Exported so the harness can stamp it on the artifact — a scene written against
 # v1 stays readable when v2 lands.
-RUNTIME_VERSION = "decode-animation-api-v1"
+RUNTIME_VERSION = "decode-animation-api-v2"
 
 _IMPORT = re.compile(r"""\bfrom\s+['"]([^'"]+)['"]""")
 _SIDE_EFFECT_IMPORT = re.compile(r"""\bimport\s+['"]([^'"]+)['"]""")
 _DEFAULT_EXPORT = re.compile(r"\bexport\s+default\b")
 _PROPS = re.compile(r"\bprops\.([A-Za-z_$][\w$]*)")
+_LITERAL_LAYOUT_FORMAT = re.compile(r"\bdefineLayout\s*\(\s*\{")
+_DECODE_LAYOUT_HELPER = re.compile(r"\b(?:DesignCanvas|defineLayout|LayoutBox|LayoutText)\b")
 
 # Ways to reach code or the outside world that an animation never needs.
 _FORBIDDEN = {
@@ -64,16 +65,6 @@ _FORBIDDEN = {
     "document_write": re.compile(r"\bdocument\.write\b"),
     "inner_html": re.compile(r"\bdangerouslySetInnerHTML\b"),
 }
-
-# A scene must not decide how long it is on screen. The plan owns runtime, and a
-# module carrying its own length would be a second number free to disagree.
-#
-# `useVideoConfig` and `useCurrentFrame` are not exported by the scene API, so a
-# scene cannot reach these anyway. This is the backstop, not the lock.
-_DURATION = re.compile(
-    r"\b(?:DURATION_IN_FRAMES|durationInFrames|DURATION_IN_SECONDS|fps|FPS"
-    r"|useVideoConfig|useCurrentFrame)\b"
-)
 
 # CSS-driven motion. Remotion does not render `transition`, `animation`,
 # `@keyframes` or Tailwind's `animate-` classes: they animate in a browser and
@@ -206,15 +197,6 @@ def _validate_react(scene: SceneModule) -> list[dict[str, str]]:
                 _violation("forbidden_api", f"{where} uses {name}, which a scene may not do.")
             )
 
-    if _DURATION.search(source):
-        found.append(
-            _violation(
-                "declares_duration",
-                f"{where} names its own duration or frame rate. A scene receives `progress` and "
-                "never decides how long it runs; the approved plan owns that.",
-            )
-        )
-
     if _CSS_MOTION.search(source):
         found.append(
             _violation(
@@ -234,6 +216,24 @@ def _validate_react(scene: SceneModule) -> list[dict[str, str]]:
                 "declares_controls",
                 f"{where} exports CONTROLS itself. Declare controls as structured data; Decode "
                 "writes that block.",
+            )
+        )
+
+    if _LITERAL_LAYOUT_FORMAT.search(source):
+        found.append(
+            _violation(
+                "literal_layout_format",
+                f"{where} passes a literal format to defineLayout. Call useFormat() and pass its "
+                "complete result so safe-area regions have valid bounds.",
+            )
+        )
+
+    if _DECODE_LAYOUT_HELPER.search(source):
+        found.append(
+            _violation(
+                "decode_layout_helper",
+                f"{where} uses a Decode layout helper. Compose with ordinary React, CSS, and SVG "
+                "using standard Remotion frame APIs.",
             )
         )
 

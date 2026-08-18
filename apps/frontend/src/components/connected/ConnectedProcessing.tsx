@@ -63,9 +63,14 @@ export function ConnectedProcessing({ projectId, jobId }: { projectId: string; j
 
   useEffect(() => {
     let active = true;
-    refresh().catch((cause: unknown) => {
-      if (active) setError(creatorError(cause, "We couldn’t load this project’s progress."));
-    });
+    const open = async () => {
+      try {
+        await refresh();
+      } catch (cause) {
+        if (active) setError(creatorError(cause, "We couldn’t load this project’s progress."));
+      }
+    };
+    void open();
     return () => {
       active = false;
     };
@@ -125,6 +130,14 @@ export function ConnectedProcessing({ projectId, jobId }: { projectId: string; j
       : null;
   const failed = activeJob?.status === "failed" || job?.status === "failed";
   const doneCount = PIPELINE.filter((stage) => artifactTypes.has(stage.artifact)).length;
+
+  // The build now lives in Edit. Keep this route only as the recovery surface
+  // for failed jobs and forward old queued/running links into the workspace.
+  useEffect(() => {
+    if (activeJob && !failed) {
+      router.replace(`/studio/projects/${projectId}/edit`);
+    }
+  }, [activeJob, failed, projectId, router]);
 
   // The whole build lands in the cutting room the moment scenes exist. Voice
   // finishes in the background there (Edit polls it in, ADR-005).

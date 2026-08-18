@@ -7,16 +7,76 @@ import { ConnectedProjectFrame } from "@/components/connected/ConnectedProjectFr
 import { Edit } from "@/components/project/stages/Edit";
 import { Graphite, Spinner, StageKicker, cx } from "@/components/ui/primitives";
 import { useStudio } from "@/store/studio";
-import { decodeApi, idempotencyKey, mediaUrl } from "@/lib/decode-api";
+import {
+  decodeApi,
+  DecodeApiError,
+  idempotencyKey,
+  mediaUrl,
+  streamProjectEvents,
+} from "@/lib/decode-api";
 import { creatorError } from "@/lib/creator-errors";
 import type {
   SceneVisualsPayload,
   Scene,
+  SceneCandidate,
+  ProjectEvent,
   ScriptPayload,
   StudioSnapshot,
   TeachingPlanPayload,
   VoicePayload,
 } from "@/lib/types";
+
+const BUILD_STAGES = [
+  ["production_brief", "Understanding the source", "Finding the ideas the production needs."],
+  ["teaching_plan", "Shaping the teaching plan", "Ordering the lesson and budgeting each beat."],
+  ["script", "Writing the narration", "Turning each beat into words written for the ear."],
+  ["scene_visuals", "Building the scenes", "Designing and checking one animation per beat."],
+] as const;
+
+const PROGRESS_COPY: Record<string, string> = {
+  reading_sources: "I’m reading the approved source and direction before I draft the next part.",
+  generating_brief: "I’m separating the source’s teaching signal from material this video can leave out.",
+  evaluating_brief: "I’m checking the brief against the source and your direction before production continues.",
+  planning_beats: "I’m ordering the lesson so each beat earns the one after it.",
+  evaluating_plan: "I’m checking the teaching plan for coverage, pacing, and a clear through-line.",
+  writing_narration: "I’m writing the narration for the ear and keeping each passage inside its time budget.",
+  designing_visuals: "I’m turning each passage into a frame-driven scene that still teaches on mute.",
+  recording_narration: "I’m recording the approved narration so its measured timing can drive the cut.",
+};
+
+function eventMessage(event: ProjectEvent): string | null {
+  const data = event.data;
+  if (event.type === "run.progress") {
+    return PROGRESS_COPY[String(data.step ?? "")] ?? null;
+  }
+  if (event.type === "production.graph.started") {
+    const count = Number(data.scene_count ?? 0);
+    return `I split ${count} scene${count === 1 ? "" : "s"} into isolated builds so one difficult visual won’t block the rest.`;
+  }
+  if (event.type === "production.scene.candidate.ready") {
+    return "I finished a scene candidate and left it in the cut for your review. Nothing was applied yet.";
+  }
+  if (event.type === "production.scene.candidate.accepted") {
+    return "I accepted the scene you reviewed and left every other candidate unchanged.";
+  }
+  if (event.type === "production.task.retrying") {
+    return "One scene failed its check, so I kept the accepted work and retried only that scene.";
+  }
+  if (event.type === "artifact.ready_for_review") {
+    const artifact = String(data.artifact_type ?? "");
+    return {
+      production_brief: "I finished the source brief and continued because it passed its production checks.",
+      teaching_plan: "I finished the teaching plan and continued because its coverage and pacing held together.",
+      script: "I finished the narration and handed each timed passage to the Motion Designer.",
+      scene_visuals: "I assembled the checked scenes into the cut and kept every scene independently editable.",
+      voice: "I recorded the narration and used its measured clips as the timing authority.",
+    }[artifact] ?? null;
+  }
+  if (event.type === "run.failed" || event.type === "production.task.failed") {
+    return "This step couldn’t pass its checks. I kept the finished work unchanged so recovery stays scoped.";
+  }
+  return null;
+}
 
 /**
  * Build the cut the Edit workspace already knows how to drive.
@@ -81,7 +141,8 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
   const router = useRouter();
   const [studio, setStudio] = useState<StudioSnapshot | null>(null);
   const [artifactId, setArtifactId] = useState<string | null>(null);
-  const [visualsVersionId, setVisualsVersionId] = useState<string | null>(null);
+  const [candidates, setCandidates] = useState<SceneCandidate[]>([]);
+  const [acceptingTaskId, setAcceptingTaskId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -89,6 +150,10 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
   const [renderState, setRenderState] = useState<"idle" | "rendering" | "done" | "failed">("idle");
   const [renderId, setRenderId] = useState<string | null>(null);
   const commandKeys = useRef(new Map<string, string>());
+  const hydrationKey = useRef("");
+  const visualVersionId = useRef<string | null>(null);
+  const lastEventId = useRef<string | undefined>(undefined);
+  const seenEvents = useRef(new Set<string>());
 
   const keyFor = (fingerprint: string) => {
     const existing = commandKeys.current.get(fingerprint);
@@ -104,31 +169,42 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
 
     const find = (type: string) =>
       nextStudio.artifacts.find((item) => item.artifact_type === type);
+    // v1: an unbuilt project has no brief and no job yet — the docked chat's
+    // first message becomes the topic and kicks the whole build.
+    useStudio.setState({
+      connectedUnbuilt:
+        !find("production_brief") &&
+        !(nextStudio.active_job ?? nextStudio.most_recent_job),
+    });
     const planArtifact = find("teaching_plan");
     const scriptArtifact = find("script");
     const visualsArtifact = find("scene_visuals");
     const voiceArtifact = find("voice");
+    const candidateJob = [nextStudio.active_job, nextStudio.most_recent_job].find(
+      (job) => job?.kind === "generate_scene_visuals",
+    );
 
     setArtifactId(visualsArtifact?.artifact_id ?? null);
-    if (!visualsArtifact) {
-      setReady(false);
-      return;
-    }
 
     // The approved plan and script, not the newest: the Motion Designer built
     // against those, and pairing its scenes with a later draft would show a cut
     // that was never made.
-    const [planResult, scriptResult, visualsResult, voiceResult] = await Promise.all([
+    const [planResult, scriptResult, visualsResult, voiceResult, candidateResult] = await Promise.all([
       planArtifact
         ? decodeApi.getTeachingPlan(projectId, planArtifact.artifact_id)
         : Promise.resolve(null),
       scriptArtifact
         ? decodeApi.getScript(projectId, scriptArtifact.artifact_id)
         : Promise.resolve(null),
-      decodeApi.getSceneVisuals(projectId, visualsArtifact.artifact_id),
+      visualsArtifact
+        ? decodeApi.getSceneVisuals(projectId, visualsArtifact.artifact_id)
+        : Promise.resolve(null),
       voiceArtifact
         ? decodeApi.getVoice(projectId, voiceArtifact.artifact_id)
         : Promise.resolve(null),
+      candidateJob
+        ? decodeApi.getSceneCandidates(projectId, candidateJob.job_id)
+        : Promise.resolve({ items: [] }),
     ]);
 
     const approvedOf = <T,>(
@@ -140,35 +216,68 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
         : null;
 
     const visualsVersion =
-      visualsResult.items.find((item) => item.version_id === visualsResult.latest_version_id) ??
-      visualsResult.items[0];
-    // The cut the creator is editing — the version a per-scene direction is
-    // written against, so a stale one is refused rather than redrawn.
-    setVisualsVersionId(visualsVersion?.version_id ?? null);
+      visualsResult?.items.find((item) => item.version_id === visualsResult.latest_version_id) ??
+      visualsResult?.items[0];
     const voiceVersion =
       voiceResult?.items.find((item) => item.version_id === voiceResult.latest_version_id) ??
       voiceResult?.items[0];
+    const candidateVisuals: SceneVisualsPayload | null = visualsVersion?.payload ??
+      (candidateResult.items.length
+        ? {
+            rationale: "These scene candidates are waiting for your review.",
+            scenes: candidateResult.items.map((candidate) => candidate.scene),
+            visual_findings: { candidates: true },
+          }
+        : null);
+    setCandidates(candidateResult.items);
     // Hydrating the store rather than passing props, because that is where the
     // workspace reads from. Approvals come along so the Edit stage is not gated
     // shut against a project the backend has already approved.
-    useStudio.setState({
-      sc: toScenes(
-        approvedOf(planResult),
-        approvedOf(scriptResult),
-        visualsVersion?.payload ?? null,
-        voiceVersion?.payload ?? null,
+    const nextHydrationKey = [
+      planArtifact?.approved_version_id,
+      scriptArtifact?.approved_version_id,
+      visualsVersion?.version_id,
+      voiceVersion?.version_id,
+      ...candidateResult.items.map(
+        (candidate) => `${candidate.task_id}:${candidate.accepted_at ?? "waiting"}`,
       ),
-      sceneIdx: 0,
-      playhead: 0,
-      playing: false,
-      playbackRate: 0,
-      visualPick: {},
-      staleByScene: {},
-      _history: [],
-      _future: [],
-      regen: null,
-    });
-    setReady(true);
+    ].join(":");
+    const nextScenes = toScenes(
+      approvedOf(planResult),
+      approvedOf(scriptResult),
+      candidateVisuals,
+      voiceVersion?.payload ?? null,
+    );
+    if (hydrationKey.current !== nextHydrationKey) {
+      const prior = useStudio.getState();
+      const selectedId = prior.sc[prior.sceneIdx]?.id;
+      const preserveDirectedScenes = visualVersionId.current === (visualsVersion?.version_id ?? null);
+      const priorById = new Map(prior.sc.map((scene) => [scene.id, scene]));
+      const hydratedScenes = preserveDirectedScenes
+        ? nextScenes.map((scene) => {
+            const existing = priorById.get(scene.id);
+            return existing?.componentSource
+              ? { ...scene, componentSource: existing.componentSource, controls: existing.controls }
+              : scene;
+          })
+        : nextScenes;
+      const nextIndex = Math.max(0, hydratedScenes.findIndex((scene) => scene.id === selectedId));
+      useStudio.setState({
+        sc: hydratedScenes,
+        sceneIdx: nextIndex,
+        playhead: 0,
+        playing: false,
+        playbackRate: 0,
+        visualPick: {},
+        staleByScene: {},
+        _history: [],
+        _future: [],
+        regen: null,
+      });
+      hydrationKey.current = nextHydrationKey;
+      visualVersionId.current = visualsVersion?.version_id ?? null;
+    }
+    setReady(nextScenes.length > 0);
 
     // HyperFrames scenes carry a duration-agnostic template; fetch each one's
     // resolved+stamped composition in the background (the backend owns the
@@ -197,87 +306,82 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
 
   useEffect(() => {
     let active = true;
-    setInitialLoading(true);
-    setError("");
-    load()
-      .catch((cause: unknown) => {
+    const open = async () => {
+      setInitialLoading(true);
+      setError("");
+      try {
+        await load();
+      } catch (cause) {
         if (active) setError(creatorError(cause, "We couldn’t load these scenes."));
-      })
-      .finally(() => {
+      } finally {
         if (active) setInitialLoading(false);
-      });
+      }
+    };
+    void open();
     return () => {
       active = false;
     };
   }, [load]);
 
-  const visualsJob = [studio?.active_job, studio?.most_recent_job].find(
-    (job) => job?.kind === "generate_scene_visuals" && job.status !== "succeeded",
-  );
-  const visualsRunning = visualsJob?.status === "queued" || visualsJob?.status === "running";
-
   useEffect(() => {
-    if (!visualsRunning || ready) return;
-    const poll = window.setInterval(() => {
-      void load().catch((cause: unknown) => {
-        setError(creatorError(cause, "We couldn’t refresh the Motion Designer’s progress."));
-      });
-    }, 1500);
-    return () => window.clearInterval(poll);
-  }, [load, visualsRunning, ready]);
-
-  const startVisuals = async () => {
-    const scriptArtifact = studio?.artifacts.find((item) => item.artifact_type === "script");
-    if (!scriptArtifact?.approved_version_id || busy) return;
-    const existing = studio?.active_job ?? studio?.most_recent_job;
-    if (existing?.kind === "generate_scene_visuals" && existing.status !== "succeeded") {
-      if (existing.status === "failed") {
-        router.push(`/studio/projects/${projectId}/jobs/${existing.job_id}`);
+    const controller = new AbortController();
+    let stopped = false;
+    let failures = 0;
+    // The stream replays project history when there is no Last-Event-ID. That
+    // history still refreshes durable state, but replaying months of old build
+    // narration into the room buries the creator's actual conversation.
+    const liveSince = Date.now() - 5000;
+    const refreshEvents = new Set([
+      "artifact.version.created",
+      "artifact.ready_for_review",
+      "job.succeeded",
+      "run.failed",
+      "production.scene.candidate.ready",
+      "production.scene.candidate.accepted",
+    ]);
+    const onEvent = (event: ProjectEvent) => {
+      lastEventId.current = event.id || lastEventId.current;
+      if (event.id && seenEvents.current.has(event.id)) return;
+      if (event.id) seenEvents.current.add(event.id);
+      const message = eventMessage(event);
+      const occurredAt = Date.parse(event.occurred_at);
+      if (message && Number.isFinite(occurredAt) && occurredAt >= liveSince) {
+        useStudio.getState().say(message, undefined, "Production update");
       }
-      return;
-    }
-    setBusy(true);
-    setError("");
-    try {
-      const informedBy = await decodeApi.getLineage(
-        projectId,
-        scriptArtifact.artifact_id,
-        scriptArtifact.approved_version_id,
-      );
-      const intent = informedBy.parents.find(
-        (parent) => parent.artifact_type === "production_intent",
-      );
-      if (!intent) throw new Error("The production direction for this script is unavailable.");
-      const fingerprint = `generate-scene-visuals:${scriptArtifact.approved_version_id}:${intent.version_id}`;
-      await decodeApi.generateSceneVisuals(
-        projectId,
-        scriptArtifact.approved_version_id,
-        intent.version_id,
-        keyFor(fingerprint),
-      );
-      commandKeys.current.delete(fingerprint);
-      await load();
-    } catch (cause) {
-      setError(creatorError(cause, "We couldn’t start the scenes."));
-    } finally {
-      setBusy(false);
-    }
-  };
+      if (refreshEvents.has(event.type)) void load().catch(() => undefined);
+    };
+    const connect = async () => {
+      while (!stopped) {
+        try {
+          lastEventId.current = await streamProjectEvents({
+            projectId,
+            lastEventId: lastEventId.current,
+            signal: controller.signal,
+            onEvent,
+          });
+          failures += 1;
+        } catch {
+          if (controller.signal.aborted) return;
+          failures += 1;
+        }
+        await new Promise((resolve) =>
+          window.setTimeout(resolve, Math.min(1000 * 2 ** failures, 10000)),
+        );
+      }
+    };
+    void connect();
+    const poll = window.setInterval(() => void load().catch(() => undefined), 4000);
+    return () => {
+      stopped = true;
+      controller.abort();
+      window.clearInterval(poll);
+    };
+  }, [load, projectId]);
 
   const voiceJob = [studio?.active_job, studio?.most_recent_job].find(
     (job) => job?.kind === "generate_voice" && job.status !== "succeeded",
   );
   const voiceRunning = voiceJob?.status === "queued" || voiceJob?.status === "running";
-
-  useEffect(() => {
-    if (!voiceRunning) return;
-    const poll = window.setInterval(() => {
-      void load().catch((cause: unknown) => {
-        setError(creatorError(cause, "We couldn’t refresh the Narrator’s progress."));
-      });
-    }, 1500);
-    return () => window.clearInterval(poll);
-  }, [load, voiceRunning]);
 
   const startVoice = async () => {
     const scriptArtifact = studio?.artifacts.find((item) => item.artifact_type === "script");
@@ -312,67 +416,171 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
 
   const hasVoice = studio?.artifacts.some((item) => item.artifact_type === "voice");
 
-  const scriptApproved = studio?.artifacts.some(
-    (item) => item.artifact_type === "script" && item.approved_version_id,
+  const activeJob = studio?.active_job ?? studio?.most_recent_job;
+  const buildFailed = activeJob?.status === "failed";
+  const visualBuildJob = [studio?.active_job, studio?.most_recent_job].find(
+    (job) => job?.kind === "generate_scene_visuals",
   );
+  const selectedBeatId = useStudio((state) => state.sc[state.sceneIdx]?.id);
+  const selectedSource = useStudio((state) => state.sc[state.sceneIdx]?.componentSource);
+  const selectedCandidate = candidates.find((candidate) => candidate.beat_id === selectedBeatId);
+  const candidateProgress = candidates.length
+    ? {
+        accepted: candidates.filter((candidate) => candidate.accepted_at).length,
+        total: candidates.length,
+      }
+    : undefined;
 
-  // The per-scene direction loop, wired to the backend. The creator directs one
-  // scene in words; only that scene is redrawn, and the receipt says so. Guarded
-  // by the store's `regen` line so a second direction can't overlap the first.
+  const acceptCandidate = async () => {
+    if (
+      !visualBuildJob ||
+      !selectedCandidate ||
+      selectedCandidate.accepted_at ||
+      !selectedSource ||
+      acceptingTaskId
+    ) {
+      return;
+    }
+    setAcceptingTaskId(selectedCandidate.task_id);
+    setError("");
+    try {
+      const accepted = await decodeApi.acceptSceneCandidate(
+        projectId,
+        visualBuildJob.job_id,
+        selectedCandidate.task_id,
+        selectedSource,
+        keyFor(`accept-scene-candidate:${selectedCandidate.task_id}:${selectedSource}`),
+      );
+      setCandidates((current) =>
+        current.map((candidate) =>
+          candidate.task_id === accepted.task_id ? accepted : candidate,
+        ),
+      );
+      useStudio
+        .getState()
+        .say(
+          "I applied this scene to the production and left every other candidate waiting for your review.",
+          "1 scene applied",
+        );
+      await load();
+    } catch (cause) {
+      setError(creatorError(cause, "We couldn’t apply this scene. Nothing else changed."));
+    } finally {
+      setAcceptingTaskId(null);
+    }
+  };
+
+  // The per-scene direction loop: faithful patch-in-place, not regenerate. The
+  // creator directs one scene in words; the model edits that scene's OWN animation
+  // source (`/direct`) and the patched source swaps straight into the preview —
+  // the scene's locked facts (its `const TRACE`) survive or the edit is refused.
+  // Guarded by the store's `regen` line so a second direction can't overlap the
+  // first. Local by design: the edit lands in the preview immediately and is not
+  // yet published as an artifact version.
   const directScene = useCallback(
     async (beatId: string, direction: string) => {
       const store = useStudio.getState();
-      if (!visualsVersionId || store.regen) return;
-      store.setRegen("Redrawing this scene to your direction…");
+      if (store.regen) return;
+      const sceneIndex = store.sc.findIndex((scene) => scene.id === beatId);
+      const scene = store.sc[sceneIndex];
+      if (!scene?.componentSource) {
+        store.say("I can only direct a scene that has a generated animation. Nothing changed.");
+        return;
+      }
+
+      // Direction owns one scene, so it also owns the preview while the edit
+      // runs. Previously the overlay appeared but playback kept advancing into
+      // later scenes, making a scoped edit look like it was rebuilding the cut.
+      // Hold the current frame when this scene is already selected; otherwise
+      // navigate once to the scene the creator named.
+      if (store.sceneIdx === sceneIndex) store.setPlaybackRate(0);
+      else store.select(sceneIndex);
+      store.setRegen("Applying your direction to this scene…");
       try {
-        const { job_id } = await decodeApi.regenerateSceneVisual(
-          projectId,
-          visualsVersionId,
-          beatId,
-          direction,
-          idempotencyKey(),
-        );
-        // Bounded poll — a job that never resolves must not leave the inspector
-        // locked in "Redrawing…" forever. ~3 minutes, then fail safe.
-        for (let attempt = 0; ; attempt += 1) {
-          await new Promise((resolve) => window.setTimeout(resolve, 1500));
-          const job = await decodeApi.getJob(projectId, job_id);
-          if (job.status === "succeeded") break;
-          if (job.status === "failed") throw new Error("regenerate_failed");
-          if (attempt >= 120) throw new Error("regenerate_timeout");
-        }
-        // Respect whatever scene the creator selected while the redraw ran; only
-        // fall back to where they started if they never moved.
-        const liveIdx = useStudio.getState().sceneIdx;
-        await load();
-        useStudio.setState({ sceneIdx: liveIdx });
+        const { source } = await decodeApi.direct(scene.componentSource, direction);
+        useStudio.setState((state) => ({
+          sc: state.sc.map((item) =>
+            item.id === beatId ? { ...item, componentSource: source } : item,
+          ),
+        }));
         useStudio
           .getState()
           .say(
-            "I redrew this scene to your direction and left every other scene as it was.",
-            "1 scene redrawn",
+            "I edited this scene's own animation to your direction and kept its locked facts and every other scene exactly as they were.",
+            "1 scene directed",
           );
-      } catch {
+      } catch (cause) {
         useStudio
           .getState()
-          .say("I couldn’t redraw that scene. Nothing changed — your other scenes are safe.");
+          .say(
+            cause instanceof DecodeApiError && cause.problem.code === "facts_altered"
+              ? cause.problem.detail
+              : "I couldn’t apply that direction. Nothing changed — your scenes are safe.",
+          );
       } finally {
         useStudio.getState().setRegen(null);
       }
     },
-    [projectId, visualsVersionId, load],
+    [],
   );
 
-  // Hand the docked chat the real project + the real per-scene apply, so the
-  // orchestrator's "direct_scene" proposal runs the same path the Inspector's
-  // direction field does. Cleared on unmount so the prototype chat stays seeded.
+  // v1: the topic-to-build kick. On an unbuilt project the docked chat's first
+  // message is the topic — turn it into a text source + default intent, then
+  // generate the brief. The backend auto-continues the whole video from there
+  // (Project.auto_continue), so nothing else has to be triggered by the client.
+  const startBuild = useCallback(
+    async (topic: string) => {
+      const t = topic.trim();
+      if (!t) return;
+      const file = new File([t], "topic.txt", { type: "text/plain;charset=utf-8" });
+      const uploaded = await decodeApi.uploadSource(projectId, file, "text", idempotencyKey());
+      const intent = await decodeApi.publishIntent(
+        projectId,
+        {
+          creative_brief: t,
+          audience: "General audience",
+          target_duration_seconds: 300,
+          runtime_mode: "fixed",
+          depth: "balanced",
+          narration_style: "professional",
+          brand: { colors: [], fonts: null, guidelines: null },
+        },
+        idempotencyKey(),
+      );
+      await decodeApi.generateBrief(
+        projectId,
+        [uploaded.source_version_id],
+        intent.version_id,
+        idempotencyKey(),
+      );
+      useStudio.setState({ connectedUnbuilt: false });
+      await load().catch(() => undefined);
+    },
+    [projectId, load],
+  );
+
+  // Hand the docked chat the real project + the real per-scene apply + the build
+  // kick, so the orchestrator's "direct_scene" proposal runs the same path the
+  // Inspector's direction field does, and the first message can start the build.
+  // Cleared on unmount so the prototype chat stays seeded.
   useEffect(() => {
-    useStudio.setState({ connectedProjectId: projectId, directScene });
-    return () => useStudio.setState({ connectedProjectId: null, directScene: null });
-  }, [projectId, directScene]);
+    useStudio.setState((state) => ({
+      connectedProjectId: projectId,
+      directScene,
+      startBuild,
+      ...(state.connectedProjectId === projectId ? {} : { thread: [], sc: [] }),
+    }));
+    return () =>
+      useStudio.setState({
+        connectedProjectId: null,
+        directScene: null,
+        startBuild: null,
+        connectedUnbuilt: false,
+      });
+  }, [projectId, directScene, startBuild]);
 
   const startExport = async () => {
-    if (!ready || renderState === "rendering") return;
+    if (!artifactId || renderState === "rendering") return;
     setRenderState("rendering");
     setError("");
     const sc = useStudio.getState().sc;
@@ -434,68 +642,56 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
       projectId={projectId}
       studio={studio}
       activeStage="edit"
-      statusLabel={`Edit · ${initialLoading ? "loading" : ready ? "saved" : "not started"}`}
+      statusLabel={`Edit · ${
+        initialLoading ? "loading" : artifactId ? "saved" : studio?.current_stage === "processing" ? "building" : "not started"
+      }`}
       loading={initialLoading}
       fill={ready}
       onExport={startExport}
+      exportDisabled={!artifactId}
     >
       {!ready ? (
-        // The cutting room is dark before any of this data exists, so the
-        // interim states — loading, in progress, failed, not-started —
-        // inherit that rather than showing a light card on a dark shell.
-        <div className="min-h-full bg-[var(--nle-bg)] text-[var(--nle-text)]">
+        <div className="min-h-full bg-sunken-2 text-ink">
         {initialLoading ? (
           <EditSkeleton />
-        ) : visualsRunning ? (
-          <VisualsInProgress />
-        ) : visualsJob?.status === "failed" ? (
+        ) : buildFailed && activeJob ? (
           <EditFailure
-            message="The Motion Designer couldn’t finish these scenes. Your approved script is safe."
-            onRetry={() => router.push(`/studio/projects/${projectId}/jobs/${visualsJob.job_id}`)}
+            message="The crew couldn’t finish this production step. Everything that already passed its checks is safe."
+            onRetry={() => router.push(`/studio/projects/${projectId}/jobs/${activeJob.job_id}`)}
             actionLabel="Open recovery"
           />
+        ) : studio?.current_stage === "processing" ? (
+          <ProductionInProgress studio={studio} />
         ) : error && (!studio || artifactId) ? (
           <EditFailure message={error} onRetry={() => void load()} />
         ) : (
-          <main className="mx-auto w-full max-w-[920px] p-4 sm:p-6 lg:p-8">
-            <div className="rounded-[20px] border border-[var(--nle-line)] bg-[var(--nle-panel)] p-6 sm:p-8">
-              <StageKicker className="text-[var(--nle-muted)]">Edit</StageKicker>
-              <h1 className="mt-4 font-display text-[clamp(28px,4vw,44px)] font-semibold leading-[1] tracking-[-0.04em] text-[var(--nle-text)]">
-                {scriptApproved
-                  ? "The Motion Designer is ready when you are"
-                  : "Approve the Script first"}
-              </h1>
-              <p className="mt-4 max-w-[62ch] text-[13.5px] leading-[1.7] text-[var(--nle-muted)]">
-                  {scriptApproved
-                    ? "Your approved script is safe. The Motion Designer builds an animation for each beat, timed to the seconds you already signed off on."
-                    : "The Motion Designer works from the Script you approved — each passage becomes the scene a viewer watches while they hear it."}
-                </p>
-                <Graphite
-                  onClick={() =>
-                    scriptApproved
-                      ? void startVisuals()
-                      : router.push(`/studio/projects/${projectId}/script`)
-                  }
-                  disabled={busy}
-                  className="mt-6 px-5 py-2.5 text-[13px] font-medium"
-                >
-                  {scriptApproved
-                    ? busy
-                      ? "Starting the Motion Designer…"
-                      : "Build the scenes"
-                    : "Review Script"}
-                </Graphite>
-              {error && <p role="alert" className="mt-4 text-[12px] text-[#8E2F19]">{error}</p>}
-            </div>
+          <main className="mx-auto flex min-h-full w-full max-w-[720px] flex-col items-center justify-center p-8 text-center">
+            <StageKicker>New video</StageKicker>
+            <h1 className="mt-4 font-display text-[clamp(28px,4vw,44px)] font-semibold leading-[1.05] tracking-[-0.04em] text-ink">
+              What should we teach?
+            </h1>
+            <p className="mt-4 max-w-[46ch] text-[13.5px] leading-[1.7] text-t6">
+              Type a topic in the chat — like “Explain backpropagation.” Decode builds
+              the whole video from it: the plan, the script, the scenes, and the
+              narration. You direct any change right here, in the chat.
+            </p>
+            {error && <p role="alert" className="mt-4 text-[12px] text-[#8E2F19]">{error}</p>}
           </main>
         )}
         </div>
        ) : (
-        <div className="min-h-0 lg:h-full">
+        <div className="flex min-h-0 flex-col lg:h-full">
+          <div className="min-h-0 flex-1">
           <Edit
             onDirectScene={directScene}
             onEditNarration={() => router.push(`/studio/projects/${projectId}/script`)}
+            showInspector={false}
+            candidateState={selectedCandidate ? (selectedCandidate.accepted_at ? "accepted" : "waiting") : null}
+            candidateApplying={acceptingTaskId === selectedCandidate?.task_id}
+            candidateProgress={candidateProgress}
+            onApplyCandidate={() => void acceptCandidate()}
           />
+          </div>
           {(!hasVoice || renderState !== "idle") && (
             <div className="flex flex-none items-center gap-2 border-t border-[var(--nle-line)] bg-[var(--nle-panel)] px-4 py-2">
               {!hasVoice && (
@@ -514,7 +710,7 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
                     {renderState === "rendering" ? "Exporting your video…" : renderState === "done" ? "Export ready" : "Export failed"}
                   </span>
                   {renderState === "failed" && (
-                    <button onClick={startExport} className="ml-auto text-[11.5px] font-medium text-[var(--accent-lit)] hover:text-[var(--accent)]">Retry</button>
+                    <button onClick={startExport} className="ml-auto text-[11.5px] font-medium text-accent-deep hover:text-accent">Retry</button>
                   )}
                 </>
               )}
@@ -534,46 +730,45 @@ function EditSkeleton() {
       className="mx-auto flex w-full max-w-[1180px] flex-col gap-6 p-4 sm:p-6 lg:p-8"
     >
       <span className="sr-only">Loading the scenes, their timings and approval state.</span>
-      <div className="rounded-[20px] border border-[var(--nle-line)] bg-[var(--nle-panel)] p-6">
-        <div className="h-3 w-24 rounded-full bg-[var(--nle-panel-raised)]" />
-        <div className="mt-4 h-9 w-1/2 rounded-xl bg-[var(--nle-panel-raised)]" />
-        <div className="mt-5 aspect-video w-full rounded-2xl bg-[var(--nle-panel-raised)]" />
-      </div>
+       <div className="studio-shell">
+         <div className="studio-surface p-6">
+           <div className="h-3 w-24 rounded-full bg-sunken-3" />
+           <div className="mt-4 h-9 w-1/2 rounded-xl bg-sunken-3" />
+           <div className="mt-5 aspect-video w-full rounded-2xl bg-sunken-3" />
+         </div>
+       </div>
     </main>
   );
 }
 
-function VisualsInProgress() {
+function ProductionInProgress({ studio }: { studio: StudioSnapshot }) {
+  const artifacts = new Set(studio.artifacts.map((artifact) => artifact.artifact_type));
+  const completed = BUILD_STAGES.filter(([artifact]) => artifacts.has(artifact)).length;
   return (
     <main aria-live="polite" aria-busy="true" className="mx-auto w-full max-w-[900px] p-4 sm:p-6 lg:p-8">
-      <section className="rounded-[20px] border border-[var(--nle-line)] bg-[var(--nle-panel)] p-6 sm:p-8">
-        <StageKicker className="text-[var(--nle-muted)]">Motion Designer at work</StageKicker>
-        <h1 className="mt-4 font-display text-[clamp(30px,4vw,46px)] font-semibold leading-none tracking-[-0.04em] text-[var(--nle-text)]">
-          Building the scenes
+      <div className="studio-shell">
+      <section className="studio-surface p-6 sm:p-8">
+        <StageKicker>Production in progress</StageKicker>
+        <h1 className="mt-4 font-display text-[clamp(30px,4vw,46px)] font-semibold leading-none tracking-[-0.04em] text-ink">
+          Building the cut in place
         </h1>
-        <p className="mt-4 max-w-[62ch] text-[13.5px] leading-[1.7] text-[var(--nle-muted)]">
-          The Motion Designer is turning each approved passage into an animation. You can move
-          elsewhere in the project while this continues.
+        <p className="mt-4 max-w-[62ch] text-[13.5px] leading-[1.7] text-t6">
+          The crew is adding each durable part here as it passes its checks. The Production room
+          records what finished and why the next step started.
         </p>
 
-        <div className="mt-7 overflow-hidden rounded-[16px] border border-[var(--nle-line)] bg-[var(--nle-bg)]">
-          <ProgressRow
-            state="done"
-            title="Script received"
-            detail="The approved narration and its beat timings are the brief."
-          />
-          <ProgressRow
-            state="active"
-            title="Writing and checking each scene"
-            detail="Building an animation per beat, then checking it only uses what Decode allows."
-          />
-          <ProgressRow
-            state="pending"
-            title="Ready for your review"
-            detail="The finished scenes will play here."
-          />
+        <div className="mt-7 overflow-hidden rounded-[16px] border border-line-input bg-sunken">
+          {BUILD_STAGES.map(([artifact, title, detail], index) => (
+            <ProgressRow
+              key={artifact}
+              state={artifacts.has(artifact) ? "done" : index === completed ? "active" : "pending"}
+              title={title}
+              detail={detail}
+            />
+          ))}
         </div>
       </section>
+      </div>
     </main>
   );
 }
@@ -590,24 +785,24 @@ function ProgressRow({
   return (
     <div
       className={cx(
-        "grid grid-cols-[24px_minmax(0,1fr)] gap-3 border-b border-[var(--nle-line)] px-4 py-3.5 last:border-0",
+        "grid grid-cols-[24px_minmax(0,1fr)] gap-3 border-b border-line-div px-4 py-3.5 last:border-0",
         state === "pending" && "opacity-45",
       )}
     >
       <span className="flex h-5 w-5 items-center justify-center">
         {state === "done" ? (
-          <span className="grid h-[18px] w-[18px] place-items-center rounded-full bg-[var(--nle-text)] text-[10px] text-[var(--nle-bg)]">
+          <span className="grid h-[18px] w-[18px] place-items-center rounded-full bg-ink text-[10px] text-white">
             ✓
           </span>
         ) : state === "active" ? (
-          <Spinner size={14} track="#3A3A3A" />
+          <Spinner size={14} />
         ) : (
-          <span className="h-1.5 w-1.5 rounded-full bg-[var(--nle-line-strong)]" />
+          <span className="h-1.5 w-1.5 rounded-full bg-line-strong" />
         )}
       </span>
       <span>
-        <span className="block text-[13.5px] font-medium text-[var(--nle-text)]">{title}</span>
-        <span className="mt-0.5 block text-[11.5px] text-[var(--nle-muted)]">{detail}</span>
+        <span className="block text-[13.5px] font-medium text-ink">{title}</span>
+        <span className="mt-0.5 block text-[11.5px] text-t7">{detail}</span>
       </span>
     </div>
   );
@@ -624,15 +819,15 @@ function EditFailure({
 }) {
   return (
     <main className="mx-auto w-full max-w-[900px] p-4 sm:p-6 lg:p-8">
-      <div role="alert" className="rounded-[20px] border border-[var(--nle-line)] bg-[var(--nle-panel)] p-6 sm:p-8">
-        <span className="grid h-10 w-10 place-items-center rounded-full bg-[var(--nle-panel-raised)] text-accent-deep">
+      <div role="alert" className="studio-surface p-6 sm:p-8">
+        <span className="grid h-10 w-10 place-items-center rounded-full bg-sunken-3 text-accent-deep">
           <TriangleAlert size={17} />
         </span>
-        <StageKicker className="mt-5 text-[var(--nle-muted)]">Edit</StageKicker>
-        <h1 className="mt-3 font-display text-[clamp(26px,4vw,40px)] font-semibold tracking-[-0.035em] text-[var(--nle-text)]">
+        <StageKicker className="mt-5">Edit</StageKicker>
+        <h1 className="mt-3 font-display text-[clamp(26px,4vw,40px)] font-semibold tracking-[-0.035em] text-ink">
           The scenes didn’t open
         </h1>
-        <p className="mt-3 max-w-[58ch] text-[13px] leading-[1.65] text-[var(--nle-muted)]">{message}</p>
+        <p className="mt-3 max-w-[58ch] text-[13px] leading-[1.65] text-t6">{message}</p>
         <Graphite onClick={onRetry} className="mt-6 flex min-h-10 items-center gap-2 px-4 text-[12.5px] font-medium">
           <RotateCw size={13} />
           {actionLabel}

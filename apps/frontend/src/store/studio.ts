@@ -77,6 +77,12 @@ interface StudioState {
      prototype, where the chat stays its seeded self. */
   connectedProjectId: string | null;
   directScene: ((beatId: string, direction: string) => Promise<void>) | null;
+  /* v1: an unbuilt connected project has no brief yet. The docked chat's first
+     message is the topic and kicks the whole build via `startBuild`; after that
+     messages are revisions to the orchestrator. Both are injected by connected
+     Edit, which owns the project snapshot. */
+  connectedUnbuilt: boolean;
+  startBuild: ((topic: string) => Promise<void>) | null;
 
   /* export */
   exportRes: string;
@@ -232,6 +238,8 @@ export const useStudio = create<StudioState>((set, get) => ({
   thinking: false,
   connectedProjectId: null,
   directScene: null,
+  connectedUnbuilt: false,
+  startBuild: null,
 
   exportRes: "1080p",
   exportFmt: "MP4 · H.264",
