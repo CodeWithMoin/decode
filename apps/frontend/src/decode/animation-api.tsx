@@ -21,7 +21,7 @@ import {
   Plug,
   Pulse,
   Question,
-  Stack,
+  Stack as StackIcon,
   Users,
   Warning,
   X,
@@ -155,6 +155,157 @@ export function useProgress(): number {
   if (durationInFrames <= 1) return 0;
   const raw = frame / (durationInFrames - 1);
   return Number(Math.min(1, Math.max(0, raw)).toFixed(6));
+}
+
+/* ---------------------------------------------------------------------------
+ * Relational layout primitives — the model states relationships, the
+ * components own the geometry. This is the placement contract for generated
+ * scenes: groups flow through Stack/Row (a gap is mandatory, so siblings can
+ * never touch), captions attach through Anchor (label and target render as one
+ * flex pair, so a label physically cannot overlap or drift from its subject),
+ * and every standalone piece of text is a Label that measures itself with the
+ * same canvas metrics the renderer uses, stepping its size down to fit rather
+ * than breaking mid-word. Free-form absolute positioning stays available
+ * INSIDE an SVG diagram, where the model draws well — these primitives govern
+ * the space BETWEEN elements, which is where generated scenes used to collide.
+ * ------------------------------------------------------------------------- */
+
+type GroupProps = {
+  gap: number;
+  align?: CSSProperties["alignItems"];
+  justify?: CSSProperties["justifyContent"];
+  style?: CSSProperties;
+  children?: ReactNode;
+};
+
+/** Vertical group. The required `gap` is the no-collision guarantee. */
+export function Stack({ gap, align = "flex-start", justify, style, children }: GroupProps) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap,
+        alignItems: align,
+        justifyContent: justify,
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** Horizontal group. Same contract as Stack. */
+export function Row({ gap, align = "center", justify, style, children }: GroupProps) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "row",
+        gap,
+        alignItems: align,
+        justifyContent: justify,
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Attach a label (or any small element) to a subject on a named side.
+ * Attachment is by composition — the pair renders as one flex unit — so the
+ * label can never be absolutely positioned into a collision with its subject.
+ */
+export function Anchor({
+  side,
+  gap,
+  label,
+  align = "center",
+  style,
+  children,
+}: {
+  side: "top" | "bottom" | "left" | "right";
+  gap: number;
+  label: ReactNode;
+  align?: CSSProperties["alignItems"];
+  style?: CSSProperties;
+  children?: ReactNode;
+}) {
+  const vertical = side === "top" || side === "bottom";
+  const labelFirst = side === "top" || side === "left";
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: vertical ? "column" : "row",
+        gap,
+        alignItems: align,
+        ...style,
+      }}
+    >
+      {labelFirst ? label : children}
+      {labelFirst ? children : label}
+    </div>
+  );
+}
+
+/**
+ * All standalone text. Measures itself with the renderer's own text metrics:
+ * given `maxWidth`, the size steps down until the line fits, so text never
+ * overflows its box or breaks mid-word. Size is floored to an integer — canvas
+ * metrics differ in the last ULP between Node and browser, and a fractional
+ * size would surface that as a hydration mismatch.
+ */
+export function Label({
+  text,
+  size,
+  maxWidth,
+  weight = 500,
+  color,
+  family = "Inter, system-ui, sans-serif",
+  letterSpacing,
+  opacity,
+  style,
+}: {
+  text: string;
+  size: number;
+  maxWidth?: number;
+  weight?: number;
+  color?: string;
+  family?: string;
+  letterSpacing?: CSSProperties["letterSpacing"];
+  opacity?: number;
+  style?: CSSProperties;
+}) {
+  let fontSize = size;
+  if (maxWidth) {
+    const fitted = fitText({
+      text,
+      withinWidth: maxWidth,
+      fontFamily: family,
+      fontWeight: String(weight),
+    });
+    fontSize = Math.max(10, Math.min(size, Math.floor(fitted.fontSize)));
+  }
+  return (
+    <div
+      style={{
+        fontSize,
+        fontWeight: weight,
+        color,
+        fontFamily: family,
+        letterSpacing,
+        opacity,
+        whiteSpace: maxWidth ? "nowrap" : undefined,
+        ...style,
+      }}
+    >
+      {text}
+    </div>
+  );
 }
 
 /** The rendered frame's size. Size is not duration, so this one is safe. */
@@ -824,7 +975,7 @@ const ICONS = {
   plug: Plug,
   pulse: Pulse,
   question: Question,
-  stack: Stack,
+  stack: StackIcon,
   users: Users,
   warning: Warning,
   x: X,

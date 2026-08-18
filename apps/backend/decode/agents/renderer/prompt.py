@@ -60,8 +60,15 @@ def build_instructions(*, visual_direction: dict, beats: list[dict]) -> str:
 - Use normal React elements and SVG. Build the frame around one dominant visual idea.
 - Import runtime values only from `@decode/animation-api`. It re-exports standard Remotion APIs such
   as `AbsoluteFill`, `useCurrentFrame`, `useVideoConfig`, `interpolate`, `spring`, and `Easing`.
-- Do not use Decode layout helpers such as `DesignCanvas`, `defineLayout`, or `LayoutBox`; compose
-  directly with ordinary CSS, flex/grid, absolute positioning, and SVG as you would in Remotion.
+- Place elements RELATIONALLY with the layout primitives from `@decode/animation-api` — state the
+  relationship, let the component own the geometry:
+  - `Stack` / `Row` — every group of siblings, with a real `gap` (they can never collide).
+  - `Anchor` — every caption or label near an element: `<Anchor side="right" gap={{24}}
+    label={{<Label .../>}}>{{subject}}</Anchor>`. Never absolutely position a label next to a thing.
+  - `Label` — EVERY standalone piece of text: `text`, `size`, and a `maxWidth`; it measures itself
+    and steps its size down to fit, so text cannot overflow or break mid-word.
+  Absolute pixel positioning is allowed only INSIDE an `<svg>` diagram you draw. Do not use the
+  legacy helpers `DesignCanvas`, `defineLayout`, `LayoutBox`, or `LayoutText`.
 - Drive every changing value from `useCurrentFrame()`. Use `useVideoConfig()` for fps and
   durationInFrames. Use `interpolate()` or `spring()` with clamped ranges.
 - Never use CSS transitions, CSS animations, keyframes, timers, network calls, or unseeded

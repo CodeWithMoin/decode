@@ -177,6 +177,12 @@
       "accessCount": 1,
       "lastAccessed": 1787069726868,
       "type": "file"
+    },
+    {
+      "path": "decode/agents/renderer/prompt.py",
+      "accessCount": 1,
+      "lastAccessed": 1787078503116,
+      "type": "file"
     }
   ],
   "userDirectives": []

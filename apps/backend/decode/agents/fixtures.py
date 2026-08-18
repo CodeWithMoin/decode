@@ -302,7 +302,7 @@ def _component_source(label: str) -> str:
     it, which is the whole point: restyle freely, but the facts are a projection of
     data, not a thing the model may reword."""
     return (
-        'import { AbsoluteFill, useCurrentFrame, interpolate } from "@decode/animation-api";\n'
+        'import { AbsoluteFill, Label, useCurrentFrame, interpolate } from "@decode/animation-api";\n'
         "\n"
         "const TRACE = { steps: [3, 1, 4, 1, 5] } as const;\n"
         "\n"
@@ -318,9 +318,9 @@ def _component_source(label: str) -> str:
         "  return (\n"
         '    <AbsoluteFill style={{ color: "#F3F0EA", '
         'fontFamily: "system-ui, sans-serif" }}>\n'
-        '      <div style={{ position: "absolute", top: 130, width: "100%", textAlign: '
-        '"center", fontSize: 66, fontWeight: 800, opacity: titleIn }}>\n'
-        "        {label}\n"
+        '      <div style={{ position: "absolute", top: 130, width: "100%", display: "flex", '
+        'justifyContent: "center", opacity: titleIn }}>\n'
+        "        <Label text={label} size={66} weight={800} maxWidth={1600} />\n"
         "      </div>\n"
         '      <div style={{ position: "absolute", top: 380, left: 0, right: 0, height: 480, '
         'display: "flex", gap: 36, justifyContent: "center", alignItems: "flex-end" }}>\n'

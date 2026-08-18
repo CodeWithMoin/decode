@@ -47,7 +47,7 @@ PLAN = TeachingPlan(
 )
 
 GOOD = """import {
-  useCurrentFrame, interpolate, Easing, AbsoluteFill
+  useCurrentFrame, interpolate, Easing, AbsoluteFill, Label
 } from "@decode/animation-api";
 
 export default function Scene(props) {
@@ -57,6 +57,7 @@ export default function Scene(props) {
       opacity: interpolate(frame, [0, 8], [0, 1], { extrapolateRight: "clamp" }),
     }}>
       <div style={{ width: 400, height: 200, background: props.background, borderRadius: 16 }} />
+      <Label text="ready" size={24} maxWidth={200} />
     </AbsoluteFill>
   );
 }
@@ -211,7 +212,7 @@ def test_renderer_config_keeps_the_persisted_scene_visuals_name():
 
     config = AgentConfig.from_skillset(prompt.SKILLS)
     assert config.produces == "scene_visuals"  # persisted contract, unchanged
-    assert prompt.SKILLS.version == "raw-remotion-v2"
+    assert prompt.SKILLS.version == "raw-remotion-v3"
     assert config.max_turns == 8
     assert tuple(skill.name for skill in config.skills) == (
         "remotion-best-practices",
