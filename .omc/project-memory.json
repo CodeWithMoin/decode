@@ -91,8 +91,8 @@
     },
     {
       "path": "apps/frontend/src/components/connected/ConnectedEdit.tsx",
-      "accessCount": 5,
-      "lastAccessed": 1787071366379,
+      "accessCount": 10,
+      "lastAccessed": 1787078114969,
       "type": "file"
     },
     {
@@ -171,6 +171,24 @@
       "path": "apps/backend/decode/execution/streaming.py",
       "accessCount": 1,
       "lastAccessed": 1787071463178,
+      "type": "file"
+    },
+    {
+      "path": "edit-workspace.png",
+      "accessCount": 1,
+      "lastAccessed": 1787076799004,
+      "type": "file"
+    },
+    {
+      "path": "final-edit.png",
+      "accessCount": 1,
+      "lastAccessed": 1787077728870,
+      "type": "file"
+    },
+    {
+      "path": "play-s1.png",
+      "accessCount": 1,
+      "lastAccessed": 1787077775170,
       "type": "file"
     }
   ],

@@ -58,6 +58,78 @@ function saveThread(projectId: string, thread: ThreadMessage[]) {
   }
 }
 
+/**
+ * The chat shows the work, not a status ping. When a stage lands, post what was
+ * actually decided — the brief's framing, the plan's scenes, the script's
+ * opening lines — so the creator reads the production instead of a progress bar.
+ * Failures fall back silently; the terse eventMessage line still covers them.
+ */
+async function saySubstance(projectId: string, event: ProjectEvent): Promise<boolean> {
+  const say = (text: string, kicker: string) =>
+    useStudio.getState().say(text, undefined, kicker);
+  const artifact = String(event.data.artifact_type ?? "");
+  try {
+    if (event.type === "production.scene.candidate.ready") {
+      const beatId = String(event.data.beat_id ?? "");
+      const title = useStudio.getState().sc.find((s) => s.id === beatId)?.title;
+      say(
+        title
+          ? `Scene “${title}” is drafted and in the cut for your review.`
+          : "A scene is drafted and in the cut for your review.",
+        "Scene draft",
+      );
+      return true;
+    }
+    if (event.type !== "artifact.ready_for_review") return false;
+    if (artifact === "production_brief") {
+      const brief = (await decodeApi.getBrief(projectId)).latest_version.payload;
+      const parts = [
+        brief.title ? `“${brief.title}”` : null,
+        brief.audience_profile ? `for ${brief.audience_profile}` : null,
+      ].filter(Boolean);
+      say(
+        `Here's what we're making — ${parts.join(", ")}. ${brief.summary ?? ""}`.trim(),
+        "The brief",
+      );
+      return true;
+    }
+    if (artifact === "teaching_plan" || artifact === "script") {
+      const studio = await decodeApi.getStudio(projectId);
+      const ref = studio.artifacts.find((a) => a.artifact_type === artifact);
+      if (!ref) return false;
+      if (artifact === "teaching_plan") {
+        const versions = await decodeApi.getTeachingPlan(projectId, ref.artifact_id);
+        const plan = versions.items[0]?.payload;
+        if (!plan) return false;
+        const lines = plan.beats.map(
+          (b, i) => `${i + 1}. ${b.title}${b.target_duration_seconds ? ` — ${b.target_duration_seconds}s` : ""}`,
+        );
+        say(
+          `Here's the lesson I'm going with — ${plan.beats.length} scenes:\n${lines.join("\n")}\n\nThrough-line: ${plan.through_line}`,
+          "Teaching plan",
+        );
+      } else {
+        const versions = await decodeApi.getScript(projectId, ref.artifact_id);
+        const script = versions.items[0]?.payload;
+        if (!script) return false;
+        const opener = (text: string) => {
+          const words = text.split(/\s+/);
+          return words.slice(0, 14).join(" ") + (words.length > 14 ? "…" : "");
+        };
+        const lines = script.beats.map((b, i) => `${i + 1}. “${opener(b.narration)}”`);
+        say(
+          `The narration is written — each scene opens like this:\n${lines.join("\n")}`,
+          "The script",
+        );
+      }
+      return true;
+    }
+  } catch {
+    return false; // the terse fallback line still posts
+  }
+  return false;
+}
+
 function eventMessage(event: ProjectEvent): string | null {
   const data = event.data;
   // run.progress was the pre-generation "I'm reading/ordering…" chatter. The
@@ -70,7 +142,8 @@ function eventMessage(event: ProjectEvent): string | null {
     return `I split ${count} scene${count === 1 ? "" : "s"} into isolated builds so one difficult visual won’t block the rest.`;
   }
   if (event.type === "production.scene.candidate.ready") {
-    return "I finished a scene candidate and left it in the cut for your review. Nothing was applied yet.";
+    // Named in onEvent with the scene's title; this is only the fallback.
+    return null;
   }
   if (event.type === "production.scene.candidate.accepted") {
     return "I accepted the scene you reviewed and left every other candidate unchanged.";
@@ -79,13 +152,13 @@ function eventMessage(event: ProjectEvent): string | null {
     return "One scene failed its check, so I kept the accepted work and retried only that scene.";
   }
   if (event.type === "artifact.ready_for_review") {
+    // Brief, plan and script get substantive messages in onEvent — the chat
+    // shows the work itself, not a completion ping. These two stay terse
+    // because their substance IS the cut the creator is looking at.
     const artifact = String(data.artifact_type ?? "");
     return {
-      production_brief: "I finished the source brief and continued because it passed its production checks.",
-      teaching_plan: "I finished the teaching plan and continued because its coverage and pacing held together.",
-      script: "I finished the narration and handed each timed passage to the Motion Designer.",
-      scene_visuals: "I assembled the checked scenes into the cut and kept every scene independently editable.",
-      voice: "I recorded the narration and used its measured clips as the timing authority.",
+      scene_visuals: "I assembled the checked scenes into the cut — every scene stays independently editable.",
+      voice: "Narration recorded. Its measured clips are now the timing authority for the cut.",
     }[artifact] ?? null;
   }
   if (event.type === "run.failed" || event.type === "production.task.failed") {
@@ -384,10 +457,13 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
       lastEventId.current = event.id || lastEventId.current;
       if (event.id && seenEvents.current.has(event.id)) return;
       if (event.id) seenEvents.current.add(event.id);
-      const message = eventMessage(event);
       const occurredAt = Date.parse(event.occurred_at);
-      if (message && Number.isFinite(occurredAt) && occurredAt >= liveSince) {
-        useStudio.getState().say(message, undefined, "Production update");
+      if (Number.isFinite(occurredAt) && occurredAt >= liveSince) {
+        void saySubstance(projectId, event).then((said) => {
+          if (said) return;
+          const message = eventMessage(event);
+          if (message) useStudio.getState().say(message, undefined, "Production update");
+        });
       }
       if (refreshEvents.has(event.type)) void load().catch(() => undefined);
     };
