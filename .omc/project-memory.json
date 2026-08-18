@@ -85,8 +85,8 @@
   "hotPaths": [
     {
       "path": "apps/frontend/src/components/producer/ProducerDrawer.tsx",
-      "accessCount": 6,
-      "lastAccessed": 1787063566222,
+      "accessCount": 13,
+      "lastAccessed": 1787075113764,
       "type": "file"
     },
     {
