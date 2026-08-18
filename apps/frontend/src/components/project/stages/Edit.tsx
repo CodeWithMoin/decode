@@ -45,6 +45,7 @@ export function Edit({
   candidateProgress,
   onApplyCandidate,
   showInspector = true,
+  showTimeline = true,
 }: {
   onDirectScene?: (beatId: string, direction: string) => void;
   onEditNarration?: () => void;
@@ -53,6 +54,7 @@ export function Edit({
   candidateProgress?: { accepted: number; total: number };
   onApplyCandidate?: () => void;
   showInspector?: boolean;
+  showTimeline?: boolean;
 } = {}) {
   // Three columns in the full workstation, two in the chat-first connected
   // slice where scene settings are deliberately deferred.
@@ -126,8 +128,10 @@ export function Edit({
           Scene settings is scoped to the selected scene, so it ends where the
           picture ends and scrolls inside that height. */}
       <div
-        className="studio-shell flex min-h-0 min-w-0 w-full max-w-full flex-none flex-col overflow-hidden lg:flex-row"
-        style={{ height: `${split.toFixed(3)}%` }}
+        className={`studio-shell flex min-h-0 min-w-0 w-full max-w-full flex-col overflow-hidden lg:flex-row ${
+          showTimeline ? "flex-none" : "flex-1"
+        }`}
+        style={showTimeline ? { height: `${split.toFixed(3)}%` } : undefined}
       >
         {/* The frame fits the height it is given and derives its own width from
             the export ratio, so Scene settings beside it can never stretch the
@@ -167,7 +171,7 @@ export function Edit({
           <div className="edit-preview-field flex min-h-[240px] min-w-0 flex-1 flex-col px-4 pt-4 pb-3 sm:px-6 lg:min-h-0">
             <div className="nle-preview-wrap flex min-h-0 min-w-0 flex-1 items-center justify-center">
               <div className="nle-preview-frame relative z-10 max-h-full max-w-full overflow-hidden rounded-[12px] border border-[var(--nle-line-strong)] bg-canvas shadow-canvas">
-                <DecodePlayer />
+                <DecodePlayer selfControlled={!showTimeline} />
               </div>
             </div>
             <div className="flex h-7 flex-none items-end justify-center gap-2 font-mono text-[8.5px] tracking-[0.06em] text-[var(--nle-faint)] uppercase">
@@ -194,6 +198,7 @@ export function Edit({
           height, because which one you need depends on what you are doing —
           reviewing a frame or reading the shape of the cut. Keyboard-operable
           as well as draggable: it is a real control, not a decoration. */}
+      {showTimeline && (
       <div
         role="separator"
         aria-orientation="horizontal"
@@ -221,13 +226,17 @@ export function Edit({
           className="h-px w-12 rounded-full bg-line-strong transition-[background-color,width] duration-[var(--t-fast)] group-hover:w-20 group-hover:bg-t9 group-focus-visible:bg-[var(--accent)]"
         />
       </div>
+      )}
 
       {/* The timeline is the whole cut, not this scene, so it takes the entire
           region below both — the axis every scene sits on, not a strip
-          belonging to the preview. */}
-      <div className="studio-shell flex min-h-0 flex-none overflow-hidden lg:flex-1">
-        <Timeline />
-      </div>
+          belonging to the preview. Deferred on the chat-first connected slice,
+          which directs the cut in language rather than on a track. */}
+      {showTimeline && (
+        <div className="studio-shell flex min-h-0 flex-none overflow-hidden lg:flex-1">
+          <Timeline />
+        </div>
+      )}
     </div>
     </PlayerRefProvider>
   );

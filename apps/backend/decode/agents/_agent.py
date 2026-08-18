@@ -42,6 +42,15 @@ class ModelAgent:
     async def _draft(
         self, system: str, history: list, text_format: type[DraftT]
     ) -> tuple[DraftT, int, int]:
+        from ..execution import streaming
+
+        ctx = streaming.current()
+        if ctx is not None:
+            streamed = await self._draft_streaming(system, history, text_format, ctx)
+            if streamed is not None:
+                return streamed
+            # streaming/reasoning wasn't available — fall through to a normal draft.
+
         response = await self.client.responses.parse(
             model=self.model,
             instructions=system,
@@ -54,6 +63,37 @@ class ModelAgent:
         usage = response.usage
         return (
             response.output_parsed,
+            usage.input_tokens if usage else 0,
+            usage.output_tokens if usage else 0,
+        )
+
+    async def _draft_streaming(
+        self, system: str, history: list, text_format: type[DraftT], ctx: dict
+    ) -> tuple[DraftT, int, int] | None:
+        """The same structured draft, but the model's reasoning summary is streamed
+        live to the chat as it arrives. Returns the parsed result like `_draft`, or
+        `None` when reasoning streaming isn't available so the caller falls back to
+        a normal draft. Best-effort: never changes the result."""
+        from ..execution import streaming
+
+        url = self.settings.redis_url
+        await streaming.begin(url, ctx)
+        final = await streaming.stream_call(
+            self.client, url, ctx,
+            model=self.model,
+            instructions=system,
+            input=history,
+            text_format=text_format,
+        )
+        await streaming.end(url, ctx)
+        if final is None:
+            return None
+        if final.output_parsed is None:
+            raise RuntimeError(f"{self.identifier} returned no parsed output")
+        history.extend(final.output)
+        usage = final.usage
+        return (
+            final.output_parsed,
             usage.input_tokens if usage else 0,
             usage.output_tokens if usage else 0,
         )

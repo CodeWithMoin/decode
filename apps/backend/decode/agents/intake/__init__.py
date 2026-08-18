@@ -91,6 +91,35 @@ class ModelIntake:
             ),
         }
 
+    async def _call(self, system: str, history: list):
+        """One model turn. When a stage is streaming, the reasoning summary is
+        streamed live to the chat as prose; otherwise a normal structured call.
+        Same response interface either way (usage / output / output_parsed)."""
+        from ...execution import streaming
+
+        ctx = streaming.current()
+        if ctx is not None:
+            url = self.settings.redis_url
+            await streaming.begin(url, ctx)
+            final = await streaming.stream_call(
+                self.client, url, ctx,
+                model=self.model,
+                instructions=system,
+                input=history,
+                tools=TOOLS,
+                text_format=IntakeBriefDraft,
+            )
+            await streaming.end(url, ctx)
+            if final is not None:
+                return final
+        return await self.client.responses.parse(
+            model=self.model,
+            instructions=system,
+            input=history,
+            tools=TOOLS,
+            text_format=IntakeBriefDraft,
+        )
+
     async def _converse(
         self, phase: str, system: str, history: list, findings: FindingLog
     ) -> tuple[IntakeBriefDraft, int, int, int]:
@@ -107,13 +136,7 @@ class ModelIntake:
         # of calls. The model calls inside are traced by the OpenAI wrapper.
         with tracing.span(phase) as observed:
             for _ in range(MAX_TURNS):
-                response = await self.client.responses.parse(
-                    model=self.model,
-                    instructions=system,
-                    input=history,
-                    tools=TOOLS,
-                    text_format=IntakeBriefDraft,
-                )
+                response = await self._call(system, history)
                 turns += 1
                 if response.usage:
                     input_tokens += response.usage.input_tokens

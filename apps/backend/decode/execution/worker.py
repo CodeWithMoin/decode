@@ -19,6 +19,7 @@ from ..models import (
     UsageRecord,
 )
 from ..pricing import estimate_cost
+from . import streaming
 from .context import context_assembler
 from .graph import execute_task, is_graph_job, start_scene_graph
 from .pipeline import continue_chain, run_department, run_evaluation, stage_for, stage_provider
@@ -129,7 +130,13 @@ async def execute_run(_ctx: dict | None, run_id: str) -> dict:
                 data={"step": stage.progress_step, "input_count": len(inputs)},
             )
             started = perf_counter()
-            department, artifact_payload = await run_department(settings, context)
+            # Mark the current stage so the agent's model call can stream its
+            # output live to the chat (best-effort; see execution/streaming.py).
+            _stream_token = streaming.enter(job.project_id, run.id, stage.progress_step)
+            try:
+                department, artifact_payload = await run_department(settings, context)
+            finally:
+                streaming.leave(_stream_token)
             generation_ms = int((perf_counter() - started) * 1000)
             # Token counts are optional on the port: a deterministic department
             # spends none, so absent means "not metered" rather than zero.

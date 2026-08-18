@@ -26,29 +26,13 @@ import type {
   VoicePayload,
 } from "@/lib/types";
 
-const BUILD_STAGES = [
-  ["production_brief", "Understanding the source", "Finding the ideas the production needs."],
-  ["teaching_plan", "Shaping the teaching plan", "Ordering the lesson and budgeting each beat."],
-  ["script", "Writing the narration", "Turning each beat into words written for the ear."],
-  ["scene_visuals", "Building the scenes", "Designing and checking one animation per beat."],
-] as const;
-
-const PROGRESS_COPY: Record<string, string> = {
-  reading_sources: "I’m reading the approved source and direction before I draft the next part.",
-  generating_brief: "I’m separating the source’s teaching signal from material this video can leave out.",
-  evaluating_brief: "I’m checking the brief against the source and your direction before production continues.",
-  planning_beats: "I’m ordering the lesson so each beat earns the one after it.",
-  evaluating_plan: "I’m checking the teaching plan for coverage, pacing, and a clear through-line.",
-  writing_narration: "I’m writing the narration for the ear and keeping each passage inside its time budget.",
-  designing_visuals: "I’m turning each passage into a frame-driven scene that still teaches on mute.",
-  recording_narration: "I’m recording the approved narration so its measured timing can drive the cut.",
-};
-
 function eventMessage(event: ProjectEvent): string | null {
   const data = event.data;
-  if (event.type === "run.progress") {
-    return PROGRESS_COPY[String(data.step ?? "")] ?? null;
-  }
+  // run.progress was the pre-generation "I'm reading/ordering…" chatter. The
+  // agent now streams its actual reasoning live (like Claude Code), so that
+  // status line is redundant — drop it and let the stream speak, keeping only
+  // the terse completion markers below.
+  if (event.type === "run.progress") return null;
   if (event.type === "production.graph.started") {
     const count = Number(data.scene_count ?? 0);
     return `I split ${count} scene${count === 1 ? "" : "s"} into isolated builds so one difficult visual won’t block the rest.`;
@@ -77,6 +61,16 @@ function eventMessage(event: ProjectEvent): string | null {
   }
   return null;
 }
+
+// What the build panel's headline says while each chained stage runs, so the
+// wait names the work instead of a generic "building".
+const STAGE_HEADLINE: Record<string, string> = {
+  generate_production_brief: "Reading your topic…",
+  generate_teaching_plan: "Planning the lesson…",
+  generate_script: "Writing the narration…",
+  generate_scene_visuals: "Animating the scenes…",
+  generate_voice: "Recording the voiceover…",
+};
 
 /**
  * Build the cut the Edit workspace already knows how to drive.
@@ -340,6 +334,21 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
       "production.scene.candidate.accepted",
     ]);
     const onEvent = (event: ProjectEvent) => {
+      // Live agent streaming (ephemeral frames, no persistent id): grow a chat
+      // bubble token by token instead of a canned status line.
+      if (event.type === "agent.stream.begin") {
+        useStudio.getState().beginStream(event.run_id ?? "live");
+        return;
+      }
+      if (event.type === "agent.token") {
+        const delta = String((event as unknown as { delta?: string }).delta ?? "");
+        useStudio.getState().appendToken(event.run_id ?? "live", delta);
+        return;
+      }
+      if (event.type === "agent.stream.end") {
+        useStudio.getState().endStream(event.run_id ?? "live");
+        return;
+      }
       lastEventId.current = event.id || lastEventId.current;
       if (event.id && seenEvents.current.has(event.id)) return;
       if (event.id) seenEvents.current.add(event.id);
@@ -661,7 +670,16 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
             actionLabel="Open recovery"
           />
         ) : studio?.current_stage === "processing" ? (
-          <ProductionInProgress studio={studio} />
+          <main className="mx-auto flex min-h-full w-full max-w-[560px] flex-col items-center justify-center gap-4 p-8 text-center">
+            <Spinner size={18} />
+            <h1 className="font-display text-[clamp(22px,3vw,32px)] font-semibold tracking-[-0.03em] text-ink">
+              {STAGE_HEADLINE[activeJob?.kind ?? ""] ?? "Building your video…"}
+            </h1>
+            <p className="max-w-[42ch] text-[13px] leading-[1.65] text-t6">
+              Follow along in the chat — I’m narrating each step as it happens. The cut
+              appears here the moment the scenes are ready.
+            </p>
+          </main>
         ) : error && (!studio || artifactId) ? (
           <EditFailure message={error} onRetry={() => void load()} />
         ) : (
@@ -684,8 +702,8 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
           <div className="min-h-0 flex-1">
           <Edit
             onDirectScene={directScene}
-            onEditNarration={() => router.push(`/studio/projects/${projectId}/script`)}
             showInspector={false}
+            showTimeline={false}
             candidateState={selectedCandidate ? (selectedCandidate.accepted_at ? "accepted" : "waiting") : null}
             candidateApplying={acceptingTaskId === selectedCandidate?.task_id}
             candidateProgress={candidateProgress}
@@ -738,73 +756,6 @@ function EditSkeleton() {
          </div>
        </div>
     </main>
-  );
-}
-
-function ProductionInProgress({ studio }: { studio: StudioSnapshot }) {
-  const artifacts = new Set(studio.artifacts.map((artifact) => artifact.artifact_type));
-  const completed = BUILD_STAGES.filter(([artifact]) => artifacts.has(artifact)).length;
-  return (
-    <main aria-live="polite" aria-busy="true" className="mx-auto w-full max-w-[900px] p-4 sm:p-6 lg:p-8">
-      <div className="studio-shell">
-      <section className="studio-surface p-6 sm:p-8">
-        <StageKicker>Production in progress</StageKicker>
-        <h1 className="mt-4 font-display text-[clamp(30px,4vw,46px)] font-semibold leading-none tracking-[-0.04em] text-ink">
-          Building the cut in place
-        </h1>
-        <p className="mt-4 max-w-[62ch] text-[13.5px] leading-[1.7] text-t6">
-          The crew is adding each durable part here as it passes its checks. The Production room
-          records what finished and why the next step started.
-        </p>
-
-        <div className="mt-7 overflow-hidden rounded-[16px] border border-line-input bg-sunken">
-          {BUILD_STAGES.map(([artifact, title, detail], index) => (
-            <ProgressRow
-              key={artifact}
-              state={artifacts.has(artifact) ? "done" : index === completed ? "active" : "pending"}
-              title={title}
-              detail={detail}
-            />
-          ))}
-        </div>
-      </section>
-      </div>
-    </main>
-  );
-}
-
-function ProgressRow({
-  state,
-  title,
-  detail,
-}: {
-  state: "done" | "active" | "pending";
-  title: string;
-  detail: string;
-}) {
-  return (
-    <div
-      className={cx(
-        "grid grid-cols-[24px_minmax(0,1fr)] gap-3 border-b border-line-div px-4 py-3.5 last:border-0",
-        state === "pending" && "opacity-45",
-      )}
-    >
-      <span className="flex h-5 w-5 items-center justify-center">
-        {state === "done" ? (
-          <span className="grid h-[18px] w-[18px] place-items-center rounded-full bg-ink text-[10px] text-white">
-            ✓
-          </span>
-        ) : state === "active" ? (
-          <Spinner size={14} />
-        ) : (
-          <span className="h-1.5 w-1.5 rounded-full bg-line-strong" />
-        )}
-      </span>
-      <span>
-        <span className="block text-[13.5px] font-medium text-ink">{title}</span>
-        <span className="mt-0.5 block text-[11.5px] text-t7">{detail}</span>
-      </span>
-    </div>
   );
 }
 

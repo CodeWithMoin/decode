@@ -630,7 +630,10 @@ export function ProducerDrawer() {
                       <span className={cx("font-mono text-[9px] tracking-[0.12em] uppercase", dark ? "text-[var(--nle-faint)]" : "text-t9")}>Decode</span>
                     </span>
                   )}
-                  {turn.messages.map((message) => (
+                  {turn.messages.map((message) =>
+                    message.id.startsWith("stream:") ? (
+                      <ThinkingBlock key={message.id} text={message.text} streaming={message.streaming} dark={dark} />
+                    ) : (
                     <div key={message.id} className="grid gap-2">
                       {message.note ? (
                         <span className={cx("flex items-center gap-1.5 font-mono text-[9px] tracking-[0.1em] uppercase", dark ? "text-[var(--nle-faint)]" : "text-t9")}>
@@ -840,6 +843,33 @@ export function ProducerDrawer() {
         </div>
       </div>
     </aside>
+  );
+}
+
+/**
+ * The room's live thinking — streamed reasoning shown like Claude Code's
+ * "thinking": a quiet, italic, capped block with a label and a cursor while it
+ * streams, distinct from Decode's actual replies. Keyed by `stream:{id}`.
+ */
+function ThinkingBlock({ text, streaming, dark }: { text: string; streaming?: boolean; dark?: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (streaming && ref.current) ref.current.scrollTop = ref.current.scrollHeight;
+  }, [text, streaming]);
+  const clean = text.replace(/\*\*/g, "");
+  return (
+    <div className={cx("grid gap-1.5 border-l-2 pl-3", dark ? "border-[var(--nle-line)]" : "border-line-input")}>
+      <span className={cx("flex items-center gap-1.5 font-mono text-[9px] tracking-[0.1em] uppercase", dark ? "text-[var(--nle-faint)]" : "text-t9")}>
+        <span aria-hidden className={cx("inline-block h-1 w-1 rounded-full bg-current", streaming ? "animate-pulse" : "opacity-50")} />
+        {streaming ? "Thinking" : "Thought"}
+      </span>
+      <div ref={ref} className={cx("max-h-[128px] overflow-y-auto pr-1 text-[11.5px] leading-[1.55] italic", dark ? "text-[var(--nle-muted)]" : "text-t7")}>
+        {clean}
+        {streaming && (
+          <span aria-hidden className="ml-0.5 inline-block h-[0.9em] w-[2px] translate-y-[2px] animate-pulse bg-current" />
+        )}
+      </div>
+    </div>
   );
 }
 

@@ -611,6 +611,8 @@ export interface ThreadMessage {
   receipt?: string;
   /** What the room looked at before answering — e.g. "Looked at the plan". */
   note?: string;
+  /** True while this message's text is still streaming in (live agent output). */
+  streaming?: boolean;
 }
 
 export interface ProcessingStep {
