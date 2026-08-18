@@ -35,7 +35,7 @@ from .. import tracing
 from ..agent_config import AgentConfig
 from ..agent_runtime import AgentRuntime
 from ..contracts import ProviderUsage
-from .prompt import REPAIR_PROMPT, SKILLS, build_instructions
+from .prompt import REPAIR_PROMPT, SKILLS, build_instructions, pick_palette
 from .validation import RUNTIME_VERSION, repair_message, validate_scenes
 
 
@@ -96,6 +96,7 @@ class ModelVisualizer:
                 "audience": intent.audience,
                 "depth": intent.depth,
                 "art_direction": intent.creative_brief,
+                "palette": intent.palette or pick_palette(plan.structure_name + plan.through_line),
                 "brand_colors": intent.brand.colors,
                 "brand_fonts": intent.brand.fonts,
                 "brand_guidelines": intent.brand.guidelines,
@@ -197,6 +198,7 @@ class ModelVisualizer:
                 "audience": intent.audience,
                 "depth": intent.depth,
                 "art_direction": intent.creative_brief,
+                "palette": intent.palette or pick_palette(plan.structure_name + plan.through_line),
                 "brand_colors": intent.brand.colors,
                 "brand_fonts": intent.brand.fonts,
                 "brand_guidelines": intent.brand.guidelines,

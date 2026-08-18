@@ -24,6 +24,11 @@ class ProductionIntent(BaseModel):
     # the drift the version number is supposed to rule out. Removing it is a
     # schema_version bump, not a cleanup.
     brand: Brand = Field(default_factory=Brand)
+    # The project's palette — roles the Motion Designer paints every scene with
+    # (surface, border, ink, support, accent). Optional: when unset, the system
+    # picks a default deterministically from the plan, so all of a project's
+    # scenes still share one palette. Creator- or orchestrator-set values win.
+    palette: dict[str, str] | None = None
 
     @model_validator(mode="after")
     def duration_matches_mode(self):

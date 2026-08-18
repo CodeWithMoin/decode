@@ -7,6 +7,7 @@ frame-driven techniques. Safety and output correctness remain deterministic code
 not prose repeated to the model.
 """
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -18,10 +19,30 @@ REPAIR_PROMPT = """Repair only the deterministic violations listed below. Preser
 visual idea and composition. Return the complete corrected scene draft."""
 
 
+# One palette per video. Each scene is generated in its own call and cannot see
+# its siblings, so style consistency has to arrive as data: the palette is picked
+# deterministically from the plan (same project -> same palette, no extra model
+# call) and injected into every beat's brief. Creator brand colors, when present,
+# override the accent (the prompt already says so).
+PALETTES = [
+    {"surface": "#151A21", "border": "#3A4656", "ink": "#F2F5F8", "support": "#8B98A9", "accent": "#55E6FF"},
+    {"surface": "#1A1714", "border": "#4A4034", "ink": "#F7F3EC", "support": "#A39682", "accent": "#F4B860"},
+    {"surface": "#141A16", "border": "#37493C", "ink": "#F0F6F1", "support": "#8FA394", "accent": "#5EE6A0"},
+    {"surface": "#1A141C", "border": "#473A4E", "ink": "#F5F0F7", "support": "#A08FA9", "accent": "#C08FFF"},
+    {"surface": "#1A1518", "border": "#4E3A44", "ink": "#F7F0F3", "support": "#A98F9C", "accent": "#FF8FA8"},
+]
+
+
+def pick_palette(seed: str) -> dict:
+    digest = hashlib.md5(seed.encode()).digest()
+    return PALETTES[digest[0] % len(PALETTES)]
+
+
 def build_instructions(*, visual_direction: dict, beats: list[dict]) -> str:
     brief = {
         **visual_direction,
         "canvas": {"width": 1920, "height": 1080},
+        "stage": "#0B0B0B (painted by the host, behind every scene)",
     }
     return f"""Create one complete Remotion TSX scene for every beat below.
 
@@ -53,8 +74,15 @@ def build_instructions(*, visual_direction: dict, beats: list[dict]) -> str:
   or number appears only when it is itself the focal subject, staged center-stage.
 - Space the reveals across the full duration: the final segment's reveal lands in the last third of
   the scene, never everything in the first second followed by a frozen frame.
-- Follow the creator's art direction and brand constraints. When they leave a choice open, make a
-  deliberate choice that fits the subject rather than falling back to a house palette.
+- The host paints the stage behind every scene. Your root element MUST be transparent — never paint
+  a full-frame background color, gradient, or vignette. Paint only your surfaces, shapes and text;
+  the dark stage shows through everywhere else, and it is what keeps the whole video feeling like
+  one film instead of a deck of slides.
+- Use exactly the `palette` in the production direction for every color decision — surfaces,
+  borders, primary and support text, and the single accent. Do not invent additional hues; vary
+  emphasis with opacity and weight, not new colors. Brand colors in the direction, when present,
+  replace the accent.
+- Follow the creator's art direction and brand constraints within that palette.
 - Show the relationship or mechanism in the beat. Keep on-screen copy to short labels.
 - Stage the narration segments in order across the whole scene duration rather than revealing
   everything immediately.

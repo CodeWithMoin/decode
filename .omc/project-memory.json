@@ -66,6 +66,12 @@
   },
   "hotPaths": [
     {
+      "path": "apps/backend/decode/agents/renderer/prompt.py",
+      "accessCount": 4,
+      "lastAccessed": 1787075380647,
+      "type": "file"
+    },
+    {
       "path": "apps/frontend/src/app/page.tsx",
       "accessCount": 1,
       "lastAccessed": 1787068711801,
