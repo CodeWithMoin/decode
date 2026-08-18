@@ -61,8 +61,8 @@ import {
   Series,
   Video,
   type SpringConfig,
-  interpolate,
-  interpolateColors,
+  interpolate as remotionInterpolate,
+  interpolateColors as remotionInterpolateColors,
   measureSpring,
   random,
   spring,
@@ -70,6 +70,33 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
+
+/**
+ * Remotion's interpolate throws on a non-monotone inputRange. Generated scenes
+ * compute their ranges from durations they don't fully control (a short scene
+ * can put its exit before its entrance ends), so the API they import repairs
+ * the range instead of crashing the frame: each point is forced strictly above
+ * the previous one. The scene renders with a compressed transition rather than
+ * a thrown error — correctness by construction at the boundary, not in the
+ * generated code.
+ */
+function monotone(inputRange: readonly number[]): number[] {
+  const fixed = [...inputRange];
+  for (let i = 1; i < fixed.length; i++) {
+    if (fixed[i] <= fixed[i - 1]) fixed[i] = fixed[i - 1] + 0.001;
+  }
+  return fixed;
+}
+
+export const interpolate = ((...args: Parameters<typeof remotionInterpolate>) => {
+  args[1] = monotone(args[1]);
+  return remotionInterpolate(...args);
+}) as typeof remotionInterpolate;
+
+export const interpolateColors = ((...args: Parameters<typeof remotionInterpolateColors>) => {
+  args[1] = monotone(args[1]);
+  return remotionInterpolateColors(...args);
+}) as typeof remotionInterpolateColors;
 
 /**
  * `@decode/animation-api` is the only module generated scenes import. It keeps
@@ -91,8 +118,6 @@ export {
   fillTextBox,
   fitText,
   fitTextOnNLines,
-  interpolate,
-  interpolateColors,
   makeTransform,
   measureSpring,
   measureText,

@@ -20,10 +20,12 @@ from __future__ import annotations
 
 import json
 import re
+from pathlib import Path
 from typing import Any, Protocol
 
 from pydantic import BaseModel, Field
 
+from .agents.skills import SkillSet
 from .config import Settings
 
 
@@ -539,39 +541,15 @@ class ModelOrchestrator:
         )
 
     def _system_prompt(self) -> str:
+        # Prose lives in agents/orchestrator/SKILL.md like every other prompt;
+        # only the live tool registry is injected here.
         tools = [
             {"name": tool.name, "description": tool.description, "args": tool.args}
             for tool in TOOLS.values()
             if not tool.read_only
         ]
-        return (
-            "You are Decode's production orchestrator — the voice of the side chat. "
-            "A creator gives you a natural-language request about their cut. You "
-            "never change the project yourself: you reply, and when the request "
-            "maps to a tool you return a scoped proposal the creator must approve.\n\n"
-            "Only these tools may be proposed:\n"
-            + json.dumps(tools, indent=2)
-            + "\n\nYou also have read-only observe tools (get_project_state, "
-            "get_brief, get_plan, get_script and more). Call them to look at the "
-            "project before you answer — pull only what the request needs, then "
-            "reply. Observing never changes anything and is never a proposal.\n\n"
-            "Rules:\n"
-            "- Map the request to at most one tool. Name the target scene and fill "
-            "only that tool's declared args; every value is a string (indices and "
-            "durations included). Encode the args as a JSON object in args_json, "
-            'e.g. args_json = {\"beat_id\": \"beat-02\", \"direction\": \"...\"}.\n'
-            "- Propose directly when the request is clear. Do NOT ask a question "
-            "when the target and intent are already unambiguous (a stated scene "
-            "plus what to change is enough) — scope it and propose.\n"
-            "- Only when the request is genuinely ambiguous (no clear target, or "
-            "unclear what to change) return a `question` instead of a proposal: a "
-            "short prompt and 2–4 options. Each option's label is a complete "
-            "instruction that, sent back on its own, resolves the ambiguity. Never "
-            "return both a proposal and a question.\n"
-            "- The reply is first person; past tense for finished work; states why.\n"
-            "- summary/changes/untouched/receipt state the scope: what moves, what "
-            "stays, and the receipt to post after Apply."
-        )
+        prose = SkillSet(Path(__file__).parent / "agents" / "orchestrator").system()
+        return prose.replace("{{TOOLS_JSON}}", json.dumps(tools, indent=2))
 
     # How many observe rounds before the model must answer. Observing is cheap
     # and the read tools are few; a runaway that never proposes stops here.

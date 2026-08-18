@@ -1,6 +1,8 @@
 """The orchestrator turns a natural-language request into a scoped proposal, or a
 reply — and never mutates (AGENT-GRAPH §2; propose -> apply -> receipt)."""
 
+import json
+
 from decode.config import Settings
 from decode.orchestrator import (
     TOOLS,
@@ -150,7 +152,16 @@ async def test_turn_endpoint_is_wired_and_read_only(client):
         f"/api/v1/projects/{pid}/orchestrator/turn", json={"message": "scene 1, make it bolder"}
     )
     assert response.status_code == 200
-    body = response.json()
+    # The endpoint streams SSE: step events while observing, then one done
+    # event carrying the whole turn.
+    assert response.headers["content-type"].startswith("text/event-stream")
+    lines = response.text.splitlines()
+    done_data = next(
+        lines[i + 1].removeprefix("data: ")
+        for i in range(len(lines))
+        if lines[i] == "event: done"
+    )
+    body = json.loads(done_data)
     assert body["reply"]
     assert body["proposal"] is None
     # The turn rides with an observe trace, even when empty (the fake never looks).
