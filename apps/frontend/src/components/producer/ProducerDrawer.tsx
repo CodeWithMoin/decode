@@ -617,18 +617,21 @@ export function ProducerDrawer() {
                 mine && "items-end",
               )}
             >
+              {/* Decode speaks in the thread, not from a card: no border, no
+                  shadow, no accent bar — just the label and the words. Only
+                  the creator's own messages keep a bubble, to mark the turn. */}
               <div
                 className={cx(
-                  "overflow-hidden rounded-[15px] leading-[1.7]",
-                  mine ? "w-fit max-w-[88%]" : "w-full",
-                  dark
-                    ? "bg-[var(--nle-panel-raised)] text-[var(--nle-text)] shadow-[inset_0_1px_0_rgb(255_255_255_/_0.04),0_10px_24px_rgb(0_0_0_/_0.14)]"
-                    : "border border-line-input bg-card text-ink-2 shadow-sm",
-                  mine && (dark ? "bg-sunken-3" : "border-transparent bg-sunken-4 shadow-none"),
-                  !mine && "relative before:absolute before:inset-y-3 before:left-0 before:w-[2px] before:rounded-full before:bg-accent",
+                  "leading-[1.7]",
+                  mine
+                    ? cx(
+                        "w-fit max-w-[88%] overflow-hidden rounded-[15px]",
+                        dark ? "bg-sunken-3 text-[var(--nle-text)]" : "bg-sunken-4 text-ink-2",
+                      )
+                    : cx("w-full", dark ? "text-[var(--nle-text)]" : "text-ink-2"),
                 )}
               >
-                <div className={cx("grid gap-3.5", mine ? "px-3.5 py-2.5 text-[12.5px]" : "px-4 py-4 text-[13.5px]")}>
+                <div className={cx("grid gap-3.5", mine ? "px-3.5 py-2.5 text-[12.5px]" : "px-1 py-1 text-[13.5px]")}>
                   {!mine && (
                     <span className="flex items-center gap-1.5">
                       <AppMark gradient size={15} radius={5} font={8} />
