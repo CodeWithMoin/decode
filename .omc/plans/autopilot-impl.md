@@ -1,45 +1,69 @@
-# Decode walking-skeleton implementation plan
+# Autopilot plan — Decode departments → agent graph (slice 1 + 2)
 
-**Status:** Approved execution scope  
-**Spec:** `.omc/autopilot/spec.md`
+Design is LOCKED (see memory `agent-graph-architecture.md`). This plan executes it.
+Adopt Anthropic **Managed Agents' shape** (agent config + skills), run on Decode's
+own runtime (OpenAI/Claude, not the hosted API). Fake-first. Depth-first per
+`dial-in-each-part-first`.
 
-## Stage 1 — Backend foundation
+## Dependency order (why this is a pipeline, not a free-for-all)
 
-1. Create `apps/backend` with FastAPI, SQLAlchemy 2 async sessions, Alembic, Pydantic settings, ARQ, Redis, S3/R2 adapter, and test tooling.
-2. Add coarse packages: `projects`, `artifacts`, `execution`, and `providers`.
-3. Define portable SQLAlchemy entities and one initial Alembic migration for the walking-skeleton ledger.
-4. Add settings, lifecycle, health/readiness, CORS, structured request IDs, and configured internal actor context.
+The `Agent` abstraction is load-bearing; the Visual Director and Renderer depend
+on it, and several edits share `schemas.py`. So: research (parallel) → foundation
+(sequential) → agents (sequential) → verify → review.
 
-## Stage 2 — Domain and API slice
+## Slice 1 — the `Agent` abstraction (foundation)
 
-1. Implement canonical hashing, immutable artifact publication, exact dependency edges, latest/approved projections, optimistic edit concurrency, evaluation, approvals, raw usage, and history/lineage queries.
-2. Implement project creation/list/studio queries, streaming source upload to object storage, and Production Intent publication.
-3. Implement Generate Production Brief transaction: Job + initial Run + input bindings + OutboxEvent.
-4. Implement typed problem responses and command idempotency.
+- **Agent config** = `SKILL.md` frontmatter, parsed into a pydantic model:
+  `name`, `model {id, effort}`, `system` (the md body), `description`,
+  `consumes`, `produces`, `skills` (list of skill names), `tools` (names from the
+  27-tool registry in `decode/orchestrator.py`), `multiagent` (delegation roster),
+  `metadata`. Reuse/extend the existing `SkillSet` loader (`departments/skills.py`).
+- **Runtime** generalizing `departments/_agent.py` (`OpenAIAgent`) + the
+  orchestrator observe-loop (`decode/orchestrator.py`): system + on-demand skills
+  (progressive disclosure — load a skill's `SKILL.md` only when relevant) + tools
+  + **in-process `multiagent` delegation** (a coordinator calls a sub-agent as a
+  tool, awaits it, gets its produced artifact back).
+- **Fake-first**: a deterministic fake runtime for tests, mirroring the existing
+  fake departments. The whole suite passes on fakes.
+- **Vendor public skills** into repo `.claude/skills/<name>/` (decision B), copied
+  from `~/.claude/skills/<name>/`: `emil-design-eng`, `animation-vocabulary`,
+  `apple-design`, `find-animation-opportunities`, `motion-doctrine`,
+  `hyperframes-animation`, `hyperframes-keyframes`, `cut-the-curve`,
+  `review-animations`, `improve-animations`, `humanise`. Only these trusted ones.
 
-## Stage 3 — Execution and progress
+## Slice 2 — split Visualizer → Visual Director + Renderer
 
-1. Implement deterministic fake Producer and evaluator behind a department contract.
-2. Implement outbox dispatch to ARQ and idempotent worker execution/publication.
-3. Persist progress events and expose project SSE with Last-Event-ID replay.
-4. Implement failed-run retry and job/usage queries.
+- **`visual_plan`** NEW artifact/schema: abstract storyboard, no HTML. Per beat:
+  visual metaphor, ordered moments (each: what's shown, the movement/transition
+  A→B, overlays), anchored to narration phrases (reuse `decode/timing.py` anchors,
+  never hardcoded seconds).
+- **Visual Director** (coordinator agent): consumes `teaching_plan`+`script`+
+  `production_intent` → `visual_plan`. Custom skill `visual-direction` (author it,
+  distilled from the current `visualizer/instructions.md` design guidance). Public
+  skills: `emil-design-eng`, `animation-vocabulary`, `apple-design`,
+  `find-animation-opportunities`. `multiagent: [renderer, animation-reviewer]`.
+- **Renderer**: consumes `visual_plan` → `scene_visuals` (HyperFrames
+  `composition_html` + `beats`, exactly today's contract; reuse
+  `composition.py`/`lint.py`). Custom skill = existing
+  `references/hyperframes-composition.md`. Public skills: `motion-doctrine`,
+  `hyperframes-animation`, `hyperframes-keyframes`, `cut-the-curve`,
+  `animation-vocabulary`.
+- **Remove** `departments/visualizer/samples/scene.tsx`; `FakeVisualizer` emits a
+  minimal HyperFrames `composition_html` (+ one anchored beat), so fake mode is
+  HyperFrames-native. Update `fixtures.py` + any test asserting the React sample.
 
-## Stage 4 — Frontend connection
+## Hard constraints
 
-1. Add durable Next.js routes and typed HTTP/SSE client while preserving the prototype route.
-2. Connect Dashboard and New Decode to real APIs.
-3. Connect Processing to job queries/SSE with truthful milestone steps and retry.
-4. Add a Production Brief review stage with edit, approve, evaluation, history, and lineage.
-5. Hydrate the project shell from a studio snapshot and lock only unimplemented stages.
+- Coordinator concept is named **Sisyphus** (not built this slice).
+- Keep persisted names: `scene_visuals`, `generate_scene_visuals`,
+  `regenerate_scene_visual`, `DECODE_VISUALIZER`, `visualizer/` provenance.
+- Fake-first; `make test` green (pytest + eslint + tsc). Backend ruff + mypy
+  clean; frontend tsc + eslint clean.
+- Do not touch the walking-skeleton `.omc/autopilot/spec.md` content (backup at
+  `.omc/autopilot/spec.walking-skeleton.backup.md`).
+- Stay on fake providers; never commit secrets; no `Co-Authored-By` trailer.
 
-## Stage 5 — Verification
+## Verify
 
-1. Unit-test hashes, artifact immutability/projections, conflict behavior, context isolation, fake evaluation, and state transitions.
-2. Integration-test project/source/intent/generation/edit/approval/history, outbox idempotency, Redis-loss truth, and SSE replay.
-3. Run Alembic upgrade, backend lint/type/test suite, frontend lint/build, and an end-to-end local smoke test.
-4. Review architecture boundaries, secrets/upload security, authorization assumptions, error disclosure, dependency risks, and maintainability.
-
-## Stop line
-
-After the walking skeleton passes, do not add a real model, TTS, renderer, downstream departments, or discussions. Report results and request authorization for the next vertical slice.
-
+`make test` at the end. New agent-runtime tests, visual_plan resolve test, fake
+HyperFrames-native test all green. No unrelated files changed.

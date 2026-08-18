@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1785870810359,
+  "lastScanned": 1787058873593,
   "projectRoot": "/Users/moinuddinshaik/Downloads/decode",
   "techStack": {
     "languages": [
@@ -33,8 +33,13 @@
   "structure": {
     "isMonorepo": false,
     "workspaces": [],
-    "mainDirectories": [],
-    "gitBranches": null
+    "mainDirectories": [
+      "docs"
+    ],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
   },
   "customNotes": [],
   "directoryMap": {
@@ -42,28 +47,132 @@
       "path": "apps",
       "purpose": null,
       "fileCount": 0,
-      "lastAccessed": 1785870810352,
+      "lastAccessed": 1787058873583,
       "keyFiles": []
     },
     "design_handoff_decode_studio": {
       "path": "design_handoff_decode_studio",
       "purpose": null,
       "fileCount": 3,
-      "lastAccessed": 1785870810353,
+      "lastAccessed": 1787058873584,
       "keyFiles": [
         "Decode Studio.dc.html",
         "README.md",
         "support.js"
       ]
     },
-    "packages": {
-      "path": "packages",
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 13,
+      "lastAccessed": 1787058873584,
+      "keyFiles": [
+        "AGENT-GRAPH.md",
+        "APP-STRUCTURE.md",
+        "AUDIO-SYNC-PROPOSAL.md",
+        "CREATOR-LANGUAGE.md",
+        "DIRECTION-LOOP-PIVOT.md"
+      ]
+    },
+    "hyperframes": {
+      "path": "hyperframes",
       "purpose": null,
       "fileCount": 0,
-      "lastAccessed": 1785870810354,
+      "lastAccessed": 1787058873584,
       "keyFiles": []
     }
   },
-  "hotPaths": [],
+  "hotPaths": [
+    {
+      "path": "apps/frontend/src/components/producer/ProducerDrawer.tsx",
+      "accessCount": 6,
+      "lastAccessed": 1787063566222,
+      "type": "file"
+    },
+    {
+      "path": "apps/frontend/src/components/connected/ConnectedEdit.tsx",
+      "accessCount": 5,
+      "lastAccessed": 1787071366379,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/decode/agents/intake/__init__.py",
+      "accessCount": 5,
+      "lastAccessed": 1787071680452,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/decode/orchestrator_router.py",
+      "accessCount": 4,
+      "lastAccessed": 1787063495438,
+      "type": "file"
+    },
+    {
+      "path": "apps/frontend/src/lib/decode-api.ts",
+      "accessCount": 4,
+      "lastAccessed": 1787063525483,
+      "type": "file"
+    },
+    {
+      "path": "apps/frontend/src/lib/types.ts",
+      "accessCount": 2,
+      "lastAccessed": 1787069104469,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/decode/agents/_agent.py",
+      "accessCount": 2,
+      "lastAccessed": 1787071538955,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/decode/orchestrator.py",
+      "accessCount": 1,
+      "lastAccessed": 1787063205491,
+      "type": "file"
+    },
+    {
+      "path": "empty-edit.png",
+      "accessCount": 1,
+      "lastAccessed": 1787068571437,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/decode/execution/router.py",
+      "accessCount": 1,
+      "lastAccessed": 1787069035836,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/decode/models.py",
+      "accessCount": 1,
+      "lastAccessed": 1787069042520,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/decode/domain.py",
+      "accessCount": 1,
+      "lastAccessed": 1787069047872,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/decode/agents/agent_runtime.py",
+      "accessCount": 1,
+      "lastAccessed": 1787069066871,
+      "type": "file"
+    },
+    {
+      "path": "streaming.png",
+      "accessCount": 1,
+      "lastAccessed": 1787070799577,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/decode/execution/streaming.py",
+      "accessCount": 1,
+      "lastAccessed": 1787071463178,
+      "type": "file"
+    }
+  ],
   "userDirectives": []
 }

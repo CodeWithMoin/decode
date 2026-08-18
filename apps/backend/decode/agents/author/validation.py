@@ -13,9 +13,14 @@ from ...schemas import BeatNarration, TeachingPlan
 WORDS_PER_SECOND = 2.5
 
 # How far a passage may sit from its budget before it counts as a violation.
-# Tight enough to catch "wrote a paragraph for a ten second beat", loose enough
-# that ordinary variation in sentence length is not a repair turn.
-TOLERANCE = 0.10
+# This gate exists to catch a script that is *obviously* the wrong size (a
+# paragraph for a ten-second beat), not ordinary sentence-length variation — the
+# true duration comes from TTS alignment later (ADR-005), so the word count here
+# is only an estimate. At ±10% short beats routinely failed even after a repair
+# turn and killed the whole job; ±25% still catches gross 2–3× overruns while
+# letting a well-sized script through.
+# ponytail: soft estimate, not the timing authority — widen, don't add repair turns.
+TOLERANCE = 0.25
 
 
 def word_count(narration: str) -> int:

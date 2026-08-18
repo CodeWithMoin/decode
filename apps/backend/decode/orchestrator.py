@@ -47,6 +47,7 @@ class SceneRef(BaseModel):
     index: int = Field(ge=1)  # 1-based, the number the creator says ("scene 2")
     title: str = ""
     narration: str = ""
+    reason: str = ""
 
 
 class ToolSpec(BaseModel):
@@ -449,10 +450,24 @@ class FakeOrchestrator:
                 f"Scene {n} · retimed",
             )
 
+        # Questions are read-only turns, not visual directions. The fixture used
+        # to route every unrecognised sentence through `direct_scene`, so asking
+        # "Why does scene 1 use this visual?" offered to redraw it. Answer from
+        # the durable teaching intent we already loaded instead.
+        asks = lower.endswith("?") or lower.startswith(("why ", "what ", "how ", "explain "))
+        if asks:
+            reason = scene.reason or scene.title or "the teaching point in this beat"
+            return OrchestratorTurn(
+                reply=(
+                    f"I used this scene to {reason.rstrip('.').lower()}. "
+                    "I kept the visual scoped to that one teaching job so the narration carries the detail."
+                )
+            )
+
         # Fallback: free-form direction -> direct_scene. Everything the creator
         # wrote is the direction; the scene ref is the target. Nothing runs until
         # they Apply.
-        direction = _SCENE_RE.sub("", text).strip(" ,.:—-") or text
+        direction = re.sub(r"\s+", " ", _SCENE_RE.sub("", text)).strip(" ,.:—-") or text
         return OrchestratorTurn(
             reply=(
                 f"I scoped that to scene {n}. Review the boundary below — "
@@ -712,6 +727,8 @@ class ModelOrchestrator:
 
 
 def build_orchestrator(settings: Settings) -> Orchestrator:
+    if settings.orchestrator == "auto":
+        return ModelOrchestrator(settings) if settings.openai_api_key else FakeOrchestrator()
     if settings.orchestrator == "fake":
         return FakeOrchestrator()
     if settings.orchestrator == "openai":

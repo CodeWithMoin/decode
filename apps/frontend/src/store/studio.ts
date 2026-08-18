@@ -77,6 +77,12 @@ interface StudioState {
      prototype, where the chat stays its seeded self. */
   connectedProjectId: string | null;
   directScene: ((beatId: string, direction: string) => Promise<void>) | null;
+  /* v1: an unbuilt connected project has no brief yet. The docked chat's first
+     message is the topic and kicks the whole build via `startBuild`; after that
+     messages are revisions to the orchestrator. Both are injected by connected
+     Edit, which owns the project snapshot. */
+  connectedUnbuilt: boolean;
+  startBuild: ((topic: string) => Promise<void>) | null;
 
   /* export */
   exportRes: string;
@@ -146,6 +152,10 @@ interface StudioState {
   toggleThread: () => void;
   setThreadOpen: (v: boolean) => void;
   say: (text: string, receipt?: string, note?: string) => void;
+  /* Live agent streaming into the chat, keyed by a stream id (the run id). */
+  beginStream: (streamId: string) => void;
+  appendToken: (streamId: string, delta: string) => void;
+  endStream: (streamId: string) => void;
   ask: (text: string) => void;
   setDraft: (v: string) => void;
   setThinking: (v: boolean) => void;
@@ -232,6 +242,8 @@ export const useStudio = create<StudioState>((set, get) => ({
   thinking: false,
   connectedProjectId: null,
   directScene: null,
+  connectedUnbuilt: false,
+  startBuild: null,
 
   exportRes: "1080p",
   exportFmt: "MP4 · H.264",
@@ -835,6 +847,36 @@ export const useStudio = create<StudioState>((set, get) => ({
 
   ask: (text) =>
     set((s) => ({ thread: [...s.thread, { id: uid("m"), who: "u", text }] })),
+
+  // A streamed message is keyed by `stream:{id}` so tokens find their bubble and
+  // concurrent stages get separate ones. An empty stream (a model that streamed
+  // no reasoning) leaves no residue.
+  beginStream: (streamId) =>
+    set((s) => {
+      const id = `stream:${streamId}`;
+      if (s.thread.some((m) => m.id === id)) return s;
+      return { thread: [...s.thread, { id, who: "p", text: "", streaming: true }] };
+    }),
+
+  appendToken: (streamId, delta) =>
+    set((s) => {
+      const id = `stream:${streamId}`;
+      if (!s.thread.some((m) => m.id === id)) {
+        return { thread: [...s.thread, { id, who: "p", text: delta, streaming: true }] };
+      }
+      return {
+        thread: s.thread.map((m) => (m.id === id ? { ...m, text: m.text + delta } : m)),
+      };
+    }),
+
+  endStream: (streamId) =>
+    set((s) => {
+      const id = `stream:${streamId}`;
+      const msg = s.thread.find((m) => m.id === id);
+      if (!msg) return s;
+      if (!msg.text.trim()) return { thread: s.thread.filter((m) => m.id !== id) };
+      return { thread: s.thread.map((m) => (m.id === id ? { ...m, streaming: false } : m)) };
+    }),
 
   setDraft: (draft) => set({ draft }),
   setThinking: (thinking) => set({ thinking }),

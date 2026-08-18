@@ -1,0 +1,183 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1786908257636,
+  "projectRoot": "/Users/moinuddinshaik/Downloads/decode/apps/backend",
+  "techStack": {
+    "languages": [
+      {
+        "name": "Python",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "pyproject.toml"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "fastapi",
+        "version": null,
+        "category": "backend"
+      },
+      {
+        "name": "pytest",
+        "version": null,
+        "category": "testing"
+      }
+    ],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": "pytest",
+    "lintCommand": "ruff check",
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "scripts",
+      "tests"
+    ],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "apps": {
+      "path": "apps",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1786908257633,
+      "keyFiles": []
+    },
+    "decode": {
+      "path": "decode",
+      "purpose": null,
+      "fileCount": 16,
+      "lastAccessed": 1786908257633,
+      "keyFiles": [
+        "__init__.py",
+        "api.py",
+        "composition_router.py",
+        "config.py",
+        "db.py"
+      ]
+    },
+    "decode_backend.egg-info": {
+      "path": "decode_backend.egg-info",
+      "purpose": null,
+      "fileCount": 5,
+      "lastAccessed": 1786908257633,
+      "keyFiles": [
+        "PKG-INFO",
+        "SOURCES.txt",
+        "dependency_links.txt",
+        "requires.txt",
+        "top_level.txt"
+      ]
+    },
+    "migrations": {
+      "path": "migrations",
+      "purpose": "Database migrations",
+      "fileCount": 2,
+      "lastAccessed": 1786908257633,
+      "keyFiles": [
+        "env.py",
+        "script.py.mako"
+      ]
+    },
+    "notebooks": {
+      "path": "notebooks",
+      "purpose": null,
+      "fileCount": 5,
+      "lastAccessed": 1786908257633,
+      "keyFiles": [
+        "Bloom Filters.json",
+        "Bloom Filters.osmo.txt",
+        "pipeline_inspect.ipynb",
+        "script_and_visuals.ipynb",
+        "step1_websearch.ipynb"
+      ]
+    },
+    "scripts": {
+      "path": "scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 8,
+      "lastAccessed": 1786908257633,
+      "keyFiles": [
+        "dial_in.py",
+        "render_full.py",
+        "try_visualizer.py",
+        "verify_intake.py",
+        "verify_object_store.py"
+      ]
+    },
+    "tests": {
+      "path": "tests",
+      "purpose": "Test files",
+      "fileCount": 20,
+      "lastAccessed": 1786908257633,
+      "keyFiles": [
+        "conftest.py",
+        "test_agent_runtime.py",
+        "test_architect.py",
+        "test_author.py",
+        "test_composition_endpoint.py"
+      ]
+    },
+    "tests/fixtures": {
+      "path": "tests/fixtures",
+      "purpose": "Test fixtures",
+      "fileCount": 1,
+      "lastAccessed": 1786908257634,
+      "keyFiles": [
+        "silence-2s.mp3"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "decode/execution/worker.py",
+      "accessCount": 2,
+      "lastAccessed": 1787069639212,
+      "type": "file"
+    },
+    {
+      "path": "notebooks/script_and_visuals.ipynb",
+      "accessCount": 1,
+      "lastAccessed": 1786958348987,
+      "type": "file"
+    },
+    {
+      "path": "decode/execution/streaming.py",
+      "accessCount": 1,
+      "lastAccessed": 1787069492331,
+      "type": "file"
+    },
+    {
+      "path": "decode/agents/_agent.py",
+      "accessCount": 1,
+      "lastAccessed": 1787069511752,
+      "type": "file"
+    },
+    {
+      "path": "decode/execution/router.py",
+      "accessCount": 1,
+      "lastAccessed": 1787069726868,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

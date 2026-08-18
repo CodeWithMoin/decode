@@ -100,7 +100,7 @@ export interface Source {
    ------------------------------------------------------------------ */
 
 export type ProjectStatus = "draft" | "processing" | "ready" | "failed" | string;
-export type JobStatus = "queued" | "running" | "succeeded" | "failed";
+export type JobStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled";
 export type JobKind = "generate_production_brief" | "generate_teaching_plan" | string;
 
 export interface ValidationFieldError {
@@ -270,6 +270,14 @@ export interface SceneVisualsPayload {
   visual_findings: Record<string, unknown>;
 }
 
+export interface SceneCandidate {
+  task_id: string;
+  beat_id: string;
+  accepted_at: string | null;
+  scene: SceneModule;
+  rationale: string;
+}
+
 export interface VoiceClip {
   beat_id: string;
   audio_key: string;
@@ -368,6 +376,21 @@ export interface JobFailure {
   retryable: boolean;
 }
 
+export interface ProductionTaskSummary {
+  task_id: string;
+  kind: string;
+  stable_key: string;
+  status: "pending" | JobStatus;
+  priority: number;
+  attempt: number;
+  max_attempts: number;
+  input: Record<string, unknown>;
+  failure: JobFailure | null;
+  started_at: string | null;
+  finished_at: string | null;
+  accepted_at: string | null;
+}
+
 export interface JobDetail {
   job_id: string;
   project_id?: string;
@@ -382,6 +405,7 @@ export interface JobDetail {
   created_at: string;
   started_at: string | null;
   finished_at: string | null;
+  tasks?: ProductionTaskSummary[];
 }
 
 export interface GenerateBriefResult {
@@ -587,6 +611,8 @@ export interface ThreadMessage {
   receipt?: string;
   /** What the room looked at before answering — e.g. "Looked at the plan". */
   note?: string;
+  /** True while this message's text is still streaming in (live agent output). */
+  streaming?: boolean;
 }
 
 export interface ProcessingStep {

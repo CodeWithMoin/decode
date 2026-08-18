@@ -15,7 +15,13 @@ from decode.orchestrator import (
 )
 
 SCENES = [
-    SceneRef(beat_id="beat-01", index=1, title="The bottleneck", narration="RNNs forget."),
+    SceneRef(
+        beat_id="beat-01",
+        index=1,
+        title="The bottleneck",
+        narration="RNNs forget.",
+        reason="show the information bottleneck as a narrowing path",
+    ),
     SceneRef(beat_id="beat-02", index=2, title="Attention", narration="Weigh what matters."),
     SceneRef(beat_id="beat-03", index=3, title="Q/K/V", narration="Query, key, value."),
 ]
@@ -72,6 +78,23 @@ async def test_direction_survives_when_the_scene_ref_is_stripped():
     assert turn.proposal is not None
     assert turn.proposal.args["beat_id"] == "beat-03"
     assert "slow the reveal down" in turn.proposal.args["direction"]
+
+
+async def test_a_question_about_a_scene_answers_without_proposing_a_change():
+    orch = FakeOrchestrator()
+    turn = await orch.turn("Why does scene 1 use this visual?", SCENES)
+
+    assert turn.proposal is None
+    assert turn.question is None
+    assert "information bottleneck" in turn.reply
+
+
+async def test_direction_whitespace_is_normalized_after_scene_ref_is_removed():
+    orch = FakeOrchestrator()
+    turn = await orch.turn("Make scene 1 clearer", SCENES)
+
+    assert turn.proposal is not None
+    assert turn.proposal.args["direction"] == "Make clearer"
 
 
 async def test_split_is_recognised_as_a_scene_op():
@@ -230,8 +253,15 @@ def test_planned_tools_are_the_future_work_only():
 # --- the real orchestrator swaps in behind the same contract ---
 
 
-def test_build_selects_the_fake_by_default():
+def test_build_selects_the_fake_without_model_credentials():
     assert isinstance(build_orchestrator(Settings()), FakeOrchestrator)
+
+
+def test_build_selects_the_model_when_credentials_are_present():
+    assert isinstance(
+        build_orchestrator(Settings(orchestrator="auto", openai_api_key="sk-test")),
+        ModelOrchestrator,
+    )
 
 
 def test_build_requires_a_key_for_the_real_orchestrator():

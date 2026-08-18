@@ -30,3 +30,4 @@ apps/backend/.data/
 .serena/
 .playwright-mcp/
 .claude/settings.local.json
+.claude/worktrees/

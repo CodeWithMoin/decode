@@ -17,6 +17,7 @@ from ..models import (
     ExecutionStatus,
     Job,
     JobInput,
+    ProductionTask,
     ProjectEvent,
     Run,
     Source,
@@ -26,6 +27,8 @@ from ..models import (
 from ..problems import AppProblem
 from ..projects.router import project_or_404
 from ..schemas import (
+    AcceptSceneCandidate,
+    CancelRun,
     GenerateBrief,
     GenerateSceneVisuals,
     GenerateScript,
@@ -33,6 +36,14 @@ from ..schemas import (
     GenerateVoice,
     RegenerateSceneVisual,
     RetryRun,
+)
+from .graph import (
+    SCENE_TASK,
+    accept_scene_candidate,
+    cancel_run_graph,
+    is_graph_job,
+    scene_candidate_projection,
+    task_projection,
 )
 from .pipeline import create_job, start_run
 
@@ -85,7 +96,12 @@ async def job_or_404(session: AsyncSession, project_id: str, job_id: str) -> Job
     return job
 
 
-def job_projection(job: Job, run: Run | None, inputs: list[JobInput]) -> dict:
+def job_projection(
+    job: Job,
+    run: Run | None,
+    inputs: list[JobInput],
+    tasks: list[ProductionTask] | None = None,
+) -> dict:
     return {
         "job_id": job.id,
         "project_id": job.project_id,
@@ -107,6 +123,7 @@ def job_projection(job: Job, run: Run | None, inputs: list[JobInput]) -> dict:
             "context_manifest": run.context_manifest,
             "failure": run.failure,
         },
+        "tasks": [task_projection(task) for task in tasks or []],
     }
 
 
@@ -612,7 +629,116 @@ async def job_detail(project_id: str, job_id: str, session: AsyncSession = Depen
     job = await job_or_404(session, project_id, job_id)
     run = await session.get(Run, job.active_run_id) if job.active_run_id else None
     inputs = list((await session.scalars(select(JobInput).where(JobInput.job_id == job.id))).all())
-    return job_projection(job, run, inputs)
+    tasks = (
+        list(
+            (
+                await session.scalars(
+                    select(ProductionTask)
+                    .where(ProductionTask.run_id == run.id)
+                    .order_by(ProductionTask.priority.desc(), ProductionTask.created_at)
+                )
+            ).all()
+        )
+        if run
+        else []
+    )
+    return job_projection(job, run, inputs, tasks)
+
+
+@router.get("/jobs/{job_id}/scene-candidates")
+async def scene_candidates(
+    project_id: str,
+    job_id: str,
+    session: AsyncSession = Depends(get_session),
+):
+    job = await job_or_404(session, project_id, job_id)
+    if not is_graph_job(job.kind) or not job.active_run_id:
+        return {"items": []}
+    tasks = list(
+        (
+            await session.scalars(
+                select(ProductionTask)
+                .where(
+                    ProductionTask.run_id == job.active_run_id,
+                    ProductionTask.kind == SCENE_TASK,
+                    ProductionTask.output.is_not(None),
+                )
+                .order_by(ProductionTask.priority.desc())
+            )
+        ).all()
+    )
+    return {"items": [scene_candidate_projection(task) for task in tasks]}
+
+
+@router.post("/jobs/{job_id}/scene-candidates/{task_id}/acceptances")
+async def accept_candidate(
+    project_id: str,
+    job_id: str,
+    task_id: str,
+    command: AcceptSceneCandidate,
+    key: str = Depends(idempotency_key),
+    session: AsyncSession = Depends(get_session),
+):
+    actor = actor_id()
+    scope = f"accept_scene_candidate:{project_id}:{job_id}:{task_id}"
+    raw = command.model_dump(mode="json")
+    if replay := await idempotent_replay(session, actor, scope, key, raw):
+        return JSONResponse(replay["body"], replay["status_code"])
+    await project_or_404(session, project_id)
+    try:
+        body = await accept_scene_candidate(
+            session,
+            project_id,
+            job_id,
+            task_id,
+            command.component_source,
+        )
+    except ValueError as exc:
+        raise AppProblem(409, "scene_candidate_conflict", str(exc)) from exc
+    save_idempotency(session, actor, scope, key, raw, 200, body)
+    await session.commit()
+    return body
+
+
+@router.post("/jobs/{job_id}/cancellations")
+async def cancel_job(
+    project_id: str,
+    job_id: str,
+    command: CancelRun,
+    key: str = Depends(idempotency_key),
+    session: AsyncSession = Depends(get_session),
+):
+    """Cancel a graph run and make every late task delivery harmless."""
+    actor, scope, raw = actor_id(), f"cancel:{job_id}", command.model_dump(mode="json")
+    if replay := await idempotent_replay(session, actor, scope, key, raw):
+        return JSONResponse(replay["body"], replay["status_code"])
+    job = await session.scalar(
+        select(Job)
+        .where(Job.id == job_id, Job.project_id == project_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if job is None:
+        raise AppProblem(404, "job_not_found", "Job not found.")
+    if not is_graph_job(job.kind):
+        raise AppProblem(409, "job_not_cancellable", "This production step cannot be cancelled.")
+    if job.active_run_id != command.expected_active_run_id:
+        raise AppProblem(409, "run_already_active", "Another run is already active.")
+    run = await session.scalar(
+        select(Run)
+        .where(Run.id == command.expected_active_run_id, Run.job_id == job.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if run is None:
+        raise AppProblem(409, "run_already_active", "The expected run is not active.")
+    if run.status not in {ExecutionStatus.QUEUED, ExecutionStatus.RUNNING}:
+        raise AppProblem(409, "run_not_cancellable", "This run has already finished.")
+    await cancel_run_graph(session, job, run)
+    body = {"job_id": job.id, "run_id": run.id, "status": ExecutionStatus.CANCELLED}
+    save_idempotency(session, actor, scope, key, raw, 200, body)
+    await session.commit()
+    return body
 
 
 @router.post("/jobs/{job_id}/retries", status_code=202)
@@ -712,41 +838,82 @@ async def events(
     except ValueError as exc:
         raise AppProblem(400, "invalid_command", "Last-Event-ID must be an integer.") from exc
 
+    from ..config import get_settings
+    from redis.asyncio import Redis
+
+    from . import streaming
+
+    settings = get_settings()
+
     async def stream():
-        cursor, idle = after, 0
-        while not await request.is_disconnected():
-            async with SessionLocal() as poll_session:
-                rows = list(
-                    (
-                        await poll_session.scalars(
-                            select(ProjectEvent)
-                            .where(ProjectEvent.project_id == project_id, ProjectEvent.id > cursor)
-                            .order_by(ProjectEvent.id)
-                            .limit(100)
-                        )
-                    ).all()
-                )
-            if rows:
-                idle = 0
-                for event in rows:
-                    cursor = event.id
-                    payload = {
-                        "id": event.id,
-                        "type": event.type,
-                        "project_id": event.project_id,
-                        "job_id": event.job_id,
-                        "run_id": event.run_id,
-                        "artifact_id": event.artifact_id,
-                        "artifact_version_id": event.artifact_version_id,
-                        "occurred_at": event.occurred_at.isoformat(),
-                        "data": event.data,
-                    }
-                    yield f"id: {event.id}\nevent: {event.type}\ndata: {json.dumps(payload)}\n\n"
-            else:
-                idle += 1
-                if idle % 15 == 0:
-                    yield ": keep-alive\n\n"
-                await asyncio.sleep(1)
+        cursor, idle, last_poll = after, 0, 0.0
+        # Live token frames (agent output as it generates) arrive out-of-band on a
+        # Redis channel; durable ProjectEvents are still polled from the DB. We
+        # drain the live channel with a short timeout and poll the DB ~once a
+        # second, yielding both down the one SSE connection.
+        redis = Redis.from_url(settings.redis_url)
+        pubsub = redis.pubsub()
+        await pubsub.subscribe(streaming.channel(project_id))
+        try:
+            while not await request.is_disconnected():
+                # 1) live token frames (ephemeral, no persistent id)
+                try:
+                    msg = await pubsub.get_message(ignore_subscribe_messages=True, timeout=0.25)
+                except Exception:
+                    msg = None
+                if msg and msg.get("type") == "message":
+                    data = msg["data"]
+                    if isinstance(data, (bytes, bytearray)):
+                        data = data.decode()
+                    try:
+                        frame_type = json.loads(data).get("type", "message")
+                    except Exception:
+                        frame_type = "message"
+                    yield f"event: {frame_type}\ndata: {data}\n\n"
+
+                # 2) durable project events (~1s cadence)
+                now = asyncio.get_event_loop().time()
+                if now - last_poll < 1.0:
+                    continue
+                last_poll = now
+                async with SessionLocal() as poll_session:
+                    rows = list(
+                        (
+                            await poll_session.scalars(
+                                select(ProjectEvent)
+                                .where(ProjectEvent.project_id == project_id, ProjectEvent.id > cursor)
+                                .order_by(ProjectEvent.id)
+                                .limit(100)
+                            )
+                        ).all()
+                    )
+                if rows:
+                    idle = 0
+                    for event in rows:
+                        cursor = event.id
+                        payload = {
+                            "id": event.id,
+                            "type": event.type,
+                            "project_id": event.project_id,
+                            "job_id": event.job_id,
+                            "run_id": event.run_id,
+                            "artifact_id": event.artifact_id,
+                            "artifact_version_id": event.artifact_version_id,
+                            "occurred_at": event.occurred_at.isoformat(),
+                            "data": event.data,
+                        }
+                        yield f"id: {event.id}\nevent: {event.type}\ndata: {json.dumps(payload)}\n\n"
+                else:
+                    idle += 1
+                    if idle % 15 == 0:
+                        yield ": keep-alive\n\n"
+        finally:
+            try:
+                await pubsub.unsubscribe(streaming.channel(project_id))
+                await pubsub.aclose()
+                await redis.aclose()
+            except Exception:
+                pass
 
     return StreamingResponse(
         stream(),

@@ -10,7 +10,7 @@ BACKEND_ARQ := $(BACKEND_DIR)/.venv/bin/arq
 
 
 .PHONY: help setup env backend-install frontend-install docker-ready infra infra-down infra-status \
-	migrate api dispatcher worker frontend dev dev-down test check
+	migrate api dispatcher worker frontend dev dev-down langfuse langfuse-down test check
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "; printf "Decode development commands\n\n"} /^[a-zA-Z_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -88,12 +88,25 @@ dev-down: ## Stop anything left running from 'make dev'; leaves Postgres and Red
 	@pkill -f "$(BACKEND_DIR)/.venv/bin/arq decode.execution.worker" 2>/dev/null || true
 	@pkill -f "$(FRONTEND_DIR)/node_modules/.bin/next dev" 2>/dev/null || true
 	@sleep 1
-	@for port in 8000 3000 3001; do \
+	@# 3001 is deliberately absent: Langfuse owns it, runs in Docker, and is
+	@# stopped by 'make langfuse-down' rather than by anything 'make dev' started.
+	@for port in 8000 3000; do \
 		if lsof -nP -iTCP:$$port -sTCP:LISTEN >/dev/null 2>&1; then \
 			echo "port $$port still in use — run: lsof -nP -iTCP:$$port -sTCP:LISTEN"; \
 		fi; \
 	done
 	@echo "dev stopped. Postgres and Redis are still up — 'make infra-down' stops those."
+
+langfuse: docker-ready ## Start self-hosted Langfuse on :3001 for prompt work
+	@docker compose -f $(ROOT_DIR)/compose.langfuse.yaml up -d
+	@echo "Langfuse starting at http://localhost:3001 — first boot takes 2-3 minutes."
+	@echo "Create a project there, then put its keys in $(BACKEND_DIR)/.env:"
+	@echo "  DECODE_LANGFUSE_PUBLIC_KEY=pk-lf-..."
+	@echo "  DECODE_LANGFUSE_SECRET_KEY=sk-lf-..."
+	@echo "Restart the worker afterwards; tracing is read once at startup."
+
+langfuse-down: ## Stop Langfuse; traces are kept in its volumes
+	@docker compose -f $(ROOT_DIR)/compose.langfuse.yaml down
 
 test: ## Run the fast backend and frontend test/typecheck suite
 	@cd $(BACKEND_DIR) && $(BACKEND_PYTHON) -m pytest -q

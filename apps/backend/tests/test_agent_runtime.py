@@ -4,8 +4,10 @@ tool exposure, and a fake multiagent delegation round-trip. All offline (no mode
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
+from pydantic import BaseModel
 
 from decode.agents.agent_config import AgentConfig
 from decode.agents.agent_runtime import (
@@ -91,6 +93,21 @@ def test_skill_library_loads_on_demand(tmp_path: Path) -> None:
     assert library._bodies["renderer"] == body  # cached
 
 
+def test_skill_library_exposes_nested_markdown_depth_files(tmp_path: Path) -> None:
+    _skillset(tmp_path, SUB_SKILL, "renderer")
+    depth = tmp_path / "renderer" / "agents"
+    depth.mkdir()
+    (depth / "layout.md").write_text("Keep the focal object inside the safe frame.")
+    (depth / "ignore.txt").write_text("not a skill reference")
+    (tmp_path / "outside.md").write_text("not part of the skill")
+    library = SkillLibrary(root=tmp_path)
+
+    assert library.references("renderer") == ["agents/layout.md"]
+    assert "safe frame" in library.read_reference("renderer", "agents/layout.md")
+    with pytest.raises(ValueError):
+        library.read_reference("renderer", "../outside.md")
+
+
 def test_runtime_exposes_configured_tools(tmp_path: Path) -> None:
     """Tool surface: load_skill + the read-only registry tools + one delegate per sub-agent.
     Built without a client, so no credentials are touched."""
@@ -131,3 +148,43 @@ async def test_fake_delegation_round_trip(tmp_path: Path) -> None:
     assert delegated["agent"] == "renderer"
     assert delegated["produces"] == "scene_visuals"
     assert delegated["assignment"] == "Storyboard scene 2"
+
+
+class _Draft(BaseModel):
+    value: str
+
+
+async def test_repair_turn_receives_the_rejected_draft(tmp_path: Path) -> None:
+    config = AgentConfig.from_skillset(_skillset(tmp_path, SUB_SKILL, "renderer"))
+    runtime = AgentRuntime(Settings(), config, library=SkillLibrary(root=tmp_path))
+    rejected_item = SimpleNamespace(type="message", content="rejected draft")
+    responses = [
+        SimpleNamespace(
+            output=[rejected_item],
+            output_parsed=_Draft(value="bad"),
+            usage=None,
+        ),
+        SimpleNamespace(
+            output=[],
+            output_parsed=_Draft(value="good"),
+            usage=None,
+        ),
+    ]
+    seen_inputs: list[list[object]] = []
+
+    class _Responses:
+        async def parse(self, **kwargs):
+            seen_inputs.append(list(kwargs["input"]))
+            return responses.pop(0)
+
+    runtime._client = SimpleNamespace(responses=_Responses())
+    result = await runtime.run(
+        "make it",
+        _Draft,
+        validate=lambda draft: ["invalid"] if draft.value == "bad" else [],
+        repair_prompt=lambda problems: f"repair: {problems[0]}",
+    )
+
+    assert result.output == _Draft(value="good")
+    assert result.repaired is True
+    assert rejected_item in seen_inputs[1]

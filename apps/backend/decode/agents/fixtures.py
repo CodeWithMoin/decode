@@ -12,11 +12,8 @@ from __future__ import annotations
 import json
 
 from ..schemas import (
-    Analogy,
-    AnalogyMapping,
     Beat,
     BeatNarration,
-    BeatStoryboard,
     BriefSupport,
     PlanSection,
     ProductionBrief,
@@ -26,13 +23,10 @@ from ..schemas import (
     SceneVisuals,
     Script,
     TeachingPlan,
-    VisualBeat,
-    VisualMoment,
-    VisualPlan,
     Voice,
     VoiceNarration,
 )
-from ..timing import Anchor, even_split_words
+from ..timing import even_split_words
 from .author.validation import target_words
 from .contracts import ProviderUsage, SourceInput
 from .evaluator import deterministic_checks, deterministic_plan_checks
@@ -180,13 +174,12 @@ class FakeAuthor:
     async def generate(self, intent: ProductionIntent, plan: TeachingPlan) -> Script:
         # Written to the same word budget the real Author is held to, so the
         # fixture exercises the validation rather than sailing past it.
-        beats = [
-            BeatNarration(
-                beat_id=beat.id,
-                narration=_filler(target_words(beat.target_duration_seconds), beat.title),
+        beats = []
+        for beat in plan.beats:
+            narration = _filler(target_words(beat.target_duration_seconds), beat.title)
+            beats.append(
+                BeatNarration(beat_id=beat.id, narration=narration, segments=_segments(narration))
             )
-            for beat in plan.beats
-        ]
         return Script(
             rationale=(
                 f"I wrote {len(beats)} passages against the approved durations. These words are a "
@@ -202,6 +195,18 @@ class FakeAuthor:
         )
 
 
+def _segments(narration: str) -> list[str]:
+    """Deterministically split a passage into ~3 contiguous word-chunks. Not
+    semantic (a fixture can't understand) — enough for the visualizer to stage
+    moments against and for tests to exercise the segments path."""
+    words = narration.split()
+    if len(words) < 6:
+        return [narration]
+    n = min(3, max(2, len(words) // 12))
+    size = -(-len(words) // n)  # ceil
+    return [" ".join(words[i : i + size]) for i in range(0, len(words), size)]
+
+
 def _filler(words: int, title: str) -> str:
     """A passage of exactly `words` words that names the beat it stands in for."""
     opening = f"This is sample narration for {title}.".split()
@@ -215,19 +220,22 @@ def _filler(words: int, title: str) -> str:
 
 
 def _fixture_scene(beat_id: str, label: str) -> SceneModule:
-    """One HyperFrames-native scene: a minimal, contract-valid composition plus one
-    anchored beat. Fake mode is HyperFrames, not React — the fixture exercises the
-    real composition/timing seam rather than the retired scene API."""
+    """One React f(frame) scene: a minimal, contract-valid `component_source` the
+    browser preview compiles and the direction loop patches in place. Authoring is
+    React (VISUALIZER-TO-HYPERFRAMES reversed) — the fixture emits the same substrate
+    the model will, so `/direct` and `GeneratedScene` are exercised, not the retired
+    HyperFrames timing seam. The bars derive from a locked `TRACE`, so a direction may
+    restyle the scene freely but is refused if it would change the facts."""
     return SceneModule(
         beat_id=beat_id,
         controls=[
             SceneControl(name="background", type="color", label="Background", default="#0B0B0B"),
             SceneControl(name="label", type="string", label="Label", default=label),
         ],
-        composition_html=_composition_html(label),
-        # Anchored to the scene's progress, never a hardcoded second: Decode resolves
-        # it against the narration and stamps window.__decodeTiming.
-        beats=[VisualBeat(name="reveal", anchor=Anchor(name="reveal", kind="progress", at=0.0))],
+        component_source=_component_source(label),
+        # React scenes read `useProgress()` and are not stamped with anchored timing,
+        # so there are no `beats` to resolve — the composition/timing seam is HyperFrames-only.
+        beats=[],
     )
 
 
@@ -283,158 +291,52 @@ class FakeVisualizer:
         )
 
 
-class FakeVisualDirector:
-    """The Visual Director as a deterministic fixture: an abstract `visual_plan`.
+def _component_source(label: str) -> str:
+    """A minimal, contract-valid Remotion f(frame) scene: imports only from
+    `@decode/animation-api`, drives every moving value with `interpolate(useCurrentFrame(), …)`,
+    and default-exports its component (passes `_validate_react`).
 
-    Produces one storyboard per beat — a metaphor and one narration-anchored moment —
-    with no HTML and no seconds. Labels itself a fixture, mirroring every other fake so
-    nothing downstream mistakes a sample for a real read. The Renderer (FakeRenderer)
-    turns this plan into scene_visuals; in the real runtime that hand-off is an
-    in-process delegation on the Agent abstraction.
-    """
-
-    identifier = "fixture-visual-director-v1"
-
-    async def generate(
-        self, intent: ProductionIntent, plan: TeachingPlan, script: Script
-    ) -> VisualPlan:
-        beats = [
-            BeatStoryboard(
-                beat_id=beat.id,
-                metaphor=f"A single lit surface carrying {beat.title.lower()}.",
-                moments=[
-                    VisualMoment(
-                        shows=f"The idea of '{beat.title}' as one focal surface on the stage.",
-                        transition="It eases up from nothing into place, settling.",
-                        overlays=[beat.title],
-                        anchor=Anchor(name="reveal", kind="progress", at=0.0),
-                    )
-                ],
-            )
-            for beat in plan.beats
-        ]
-        return VisualPlan(
-            rationale=(
-                f"I storyboarded {len(beats)} beats as single focal surfaces. This is a "
-                "deterministic fixture, not a reading of the script."
-            ),
-            beats=beats,
-            visual_findings={
-                "fixture": True,
-                "note": "Deterministic storyboard; no direction was performed.",
-            },
-        )
-
-
-class FakeAnalogy:
-    """The Analogy helper as a deterministic fixture: concept → a labelled framing.
-
-    Returns a real `Analogy` shape (image + mapping + where-it-breaks) so a caller's
-    delegation round-trip is exercised offline, but the framing is a template, not a
-    reading of the concept — it labels itself so nothing downstream mistakes it for one.
-    """
-
-    identifier = "fixture-analogy-v1"
-
-    async def generate(self, concept: str, context: str = "") -> Analogy:
-        return Analogy(
-            concept=concept,
-            framing=(
-                f"Think of {concept} like a coat-check: you hand something over and get "
-                "a way to ask for it back later. (Deterministic fixture, not a real analogy.)"
-            ),
-            mapping=[
-                AnalogyMapping(concept_part=concept, analogy_part="the coat you check in"),
-                AnalogyMapping(concept_part="the answer it gives", analogy_part="the ticket stub"),
-            ],
-            where_it_breaks="A coat-check never confuses two coats; this fixture is a stand-in.",
-        )
-
-    def as_delegate(self):
-        async def _run(assignment: str) -> str:
-            try:
-                payload = json.loads(assignment)
-                concept = str(payload.get("concept", assignment))
-            except (json.JSONDecodeError, AttributeError):
-                concept = assignment
-            result = await self.generate(concept)
-            return result.model_dump_json()
-
-        return _run
-
-
-class FakeRenderer:
-    """The Renderer as a deterministic fixture: a `visual_plan` → `scene_visuals`.
-
-    Consumes the abstract storyboard and emits the persisted contract unchanged —
-    HyperFrames `composition_html` plus one anchored beat per scene. Same output shape
-    as `FakeVisualizer.generate`, reached from the storyboard instead of the script.
-    """
-
-    identifier = "fixture-renderer-v1"
-
-    async def generate(
-        self, intent: ProductionIntent, plan: TeachingPlan, visual_plan: VisualPlan
-    ) -> SceneVisuals:
-        titles = {beat.id: beat.title for beat in plan.beats}
-        scenes = [
-            _fixture_scene(board.beat_id, titles.get(board.beat_id, board.beat_id))
-            for board in visual_plan.beats
-        ]
-        return SceneVisuals(
-            rationale=(
-                f"I rendered {len(scenes)} scenes from the Visual Director's storyboard. This is "
-                "a deterministic fixture, not a reading of the plan."
-            ),
-            scenes=scenes,
-            visual_findings={
-                "fixture": True,
-                "runtime_version": RUNTIME_VERSION,
-                "note": "Deterministic render from a visual_plan; no design was performed.",
-            },
-        )
-
-
-def _composition_html(label: str) -> str:
-    """A minimal, contract-valid HyperFrames composition: root with `data-*`, one
-    `.clip`, one paused timeline reading `window.__decodeTiming`, and the duration +
-    timing markers Decode fills. The label is inlined as text content so a creator
-    edits the thing they see."""
-    return f"""<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
-    <style>
-      * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-      html, body {{ width: 1920px; height: 1080px; overflow: hidden; background: #000; }}
-      #stage-bg {{ position: absolute; inset: 0; background: #0b0b0b; }}
-      #label {{ position: absolute; inset: 0; display: grid; place-items: center;
-               font-family: system-ui, sans-serif; font-size: 56px; color: #f3f0ea;
-               will-change: transform, opacity; }}
-    </style>
-  </head>
-  <body>
-    <div id="root" data-composition-id="main" data-start="0"
-         data-duration="{{{{SCENE_DURATION}}}}" data-width="1920" data-height="1080">
-      <div id="stage-bg"></div>
-      <div id="label" class="clip" data-start="0"
-           data-duration="{{{{SCENE_DURATION}}}}" data-track-index="1">{label}</div>
-    </div>
-    <!-- decode:timing -->
-    <script>
-      window.__timelines = window.__timelines || {{}};
-      const timing = window.__decodeTiming || [];
-      const at = (name) => timing.find((t) => t.beat === name) || {{ start: 0, duration: 0.6 }};
-      const tl = gsap.timeline({{ paused: true }});
-      const reveal = at("reveal");
-      tl.fromTo("#label", {{ opacity: 0 }},
-        {{ opacity: 1, duration: reveal.duration, ease: "power4.out" }}, reveal.start);
-      window.__timelines["main"] = tl;
-    </script>
-  </body>
-</html>
-"""
+    The title is the `label` control and the background is the `background` control —
+    both presentation, freely directable. The bars are heights derived from a locked
+    `const TRACE`; the direction loop's fact-guard refuses any edit that would change
+    it, which is the whole point: restyle freely, but the facts are a projection of
+    data, not a thing the model may reword."""
+    return (
+        'import { AbsoluteFill, useCurrentFrame, interpolate } from "@decode/animation-api";\n'
+        "\n"
+        "const TRACE = { steps: [3, 1, 4, 1, 5] } as const;\n"
+        "\n"
+        "export default function Scene({ background = "
+        + json.dumps("#0B0B0B")
+        + ", label = "
+        + json.dumps(label)
+        + " }) {\n"
+        "  const frame = useCurrentFrame();\n"
+        "  const peak = Math.max(...TRACE.steps);\n"
+        '  const titleIn = interpolate(frame, [0, 12], [0, 1], '
+        '{ extrapolateLeft: "clamp", extrapolateRight: "clamp" });\n'
+        "  return (\n"
+        '    <AbsoluteFill style={{ backgroundColor: background, color: "#F3F0EA", '
+        'fontFamily: "system-ui, sans-serif" }}>\n'
+        '      <div style={{ position: "absolute", top: 130, width: "100%", textAlign: '
+        '"center", fontSize: 66, fontWeight: 800, opacity: titleIn }}>\n'
+        "        {label}\n"
+        "      </div>\n"
+        '      <div style={{ position: "absolute", top: 380, left: 0, right: 0, height: 480, '
+        'display: "flex", gap: 36, justifyContent: "center", alignItems: "flex-end" }}>\n'
+        "        {TRACE.steps.map((v, i) => {\n"
+        "          const grow = interpolate(frame, [18 + i * 7, 42 + i * 7], [0, 1], "
+        '{ extrapolateLeft: "clamp", extrapolateRight: "clamp" });\n'
+        "          return (\n"
+        "            <div key={i} style={{ width: 118, height: (v / peak) * 440 * grow, "
+        'background: "#F2A47B", borderRadius: 14 }} />\n'
+        "          );\n"
+        "        })}\n"
+        "      </div>\n"
+        "    </AbsoluteFill>\n"
+        "  );\n"
+        "}\n"
+    )
 
 
 class FakeNarrator:
