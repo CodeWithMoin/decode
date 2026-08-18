@@ -387,44 +387,6 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
     };
   }, [load, projectId]);
 
-  const voiceJob = [studio?.active_job, studio?.most_recent_job].find(
-    (job) => job?.kind === "generate_voice" && job.status !== "succeeded",
-  );
-  const voiceRunning = voiceJob?.status === "queued" || voiceJob?.status === "running";
-
-  const startVoice = async () => {
-    const scriptArtifact = studio?.artifacts.find((item) => item.artifact_type === "script");
-    if (!scriptArtifact?.approved_version_id || busy) return;
-    setBusy(true);
-    setError("");
-    try {
-      const informedBy = await decodeApi.getLineage(
-        projectId,
-        scriptArtifact.artifact_id,
-        scriptArtifact.approved_version_id,
-      );
-      const intent = informedBy.parents.find(
-        (parent) => parent.artifact_type === "production_intent",
-      );
-      if (!intent) throw new Error("The production direction for this script is unavailable.");
-      const fingerprint = `generate-voice:${scriptArtifact.approved_version_id}:${intent.version_id}`;
-      await decodeApi.generateVoice(
-        projectId,
-        scriptArtifact.approved_version_id,
-        intent.version_id,
-        keyFor(fingerprint),
-      );
-      commandKeys.current.delete(fingerprint);
-      await load();
-    } catch (cause) {
-      setError(creatorError(cause, "We couldn’t record the narration."));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const hasVoice = studio?.artifacts.some((item) => item.artifact_type === "voice");
-
   const activeJob = studio?.active_job ?? studio?.most_recent_job;
   const buildFailed = activeJob?.status === "failed";
   const visualBuildJob = [studio?.active_job, studio?.most_recent_job].find(
@@ -710,27 +672,13 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
             onApplyCandidate={() => void acceptCandidate()}
           />
           </div>
-          {(!hasVoice || renderState !== "idle") && (
+          {renderState !== "idle" && (
             <div className="flex flex-none items-center gap-2 border-t border-[var(--nle-line)] bg-[var(--nle-panel)] px-4 py-2">
-              {!hasVoice && (
-                <button
-                  type="button"
-                  onClick={() => void startVoice()}
-                  disabled={busy || voiceRunning}
-                  className="text-[11.5px] font-medium text-[var(--nle-muted)] transition-colors hover:text-[var(--nle-text)] disabled:opacity-50"
-                >
-                  {voiceRunning ? "Recording narration…" : "Generate voice"}
-                </button>
-              )}
-              {renderState !== "idle" && (
-                <>
-                  <span className="text-[11.5px] text-[var(--nle-muted)]">
-                    {renderState === "rendering" ? "Exporting your video…" : renderState === "done" ? "Export ready" : "Export failed"}
-                  </span>
-                  {renderState === "failed" && (
-                    <button onClick={startExport} className="ml-auto text-[11.5px] font-medium text-accent-deep hover:text-accent">Retry</button>
-                  )}
-                </>
+              <span className="text-[11.5px] text-[var(--nle-muted)]">
+                {renderState === "rendering" ? "Exporting your video…" : renderState === "done" ? "Export ready" : "Export failed"}
+              </span>
+              {renderState === "failed" && (
+                <button onClick={startExport} className="ml-auto text-[11.5px] font-medium text-accent-deep hover:text-accent">Retry</button>
               )}
             </div>
           )}

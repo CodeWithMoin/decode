@@ -349,6 +349,12 @@ async def _complete_scene_task(
                 "message": f"Scene candidate ready for {task.input['beat_id']}",
             },
         )
+        # v1 topic-driven build: accept each scene as it lands so assembly — and
+        # the chained voiceover — run without per-scene clicks. The generated
+        # component_source is kept verbatim; the review loop still lets the
+        # creator re-direct any scene afterwards.
+        task.accepted_at = utcnow()
+        await _schedule_assembly(session, run, job)
         await session.commit()
         return {"status": "candidate_ready", "task_id": task.id}
 
