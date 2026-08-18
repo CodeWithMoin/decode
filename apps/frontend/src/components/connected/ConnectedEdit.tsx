@@ -23,8 +23,40 @@ import type {
   ScriptPayload,
   StudioSnapshot,
   TeachingPlanPayload,
+  ThreadMessage,
   VoicePayload,
 } from "@/lib/types";
+
+/**
+ * The room's conversation, kept per project in this browser. The store is
+ * in-memory only, so without this every reload wiped the chat — and the durable
+ * event stream can't rebuild it: the creator's own messages never become events.
+ * ponytail: localStorage, this-browser-only; move to a backend thread record if
+ * history must follow the creator across devices.
+ */
+const threadKey = (projectId: string) => `decode:thread:${projectId}`;
+
+function loadThread(projectId: string): ThreadMessage[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(threadKey(projectId)) ?? "[]");
+    return Array.isArray(parsed) ? (parsed as ThreadMessage[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveThread(projectId: string, thread: ThreadMessage[]) {
+  // Streaming bubbles settle before saving; an empty one leaves no residue.
+  const settled = thread
+    .filter((m) => m.text.trim())
+    .map(({ streaming: _streaming, ...m }) => m)
+    .slice(-200);
+  try {
+    localStorage.setItem(threadKey(projectId), JSON.stringify(settled));
+  } catch {
+    // Full or blocked storage loses history, never the session.
+  }
+}
 
 function eventMessage(event: ProjectEvent): string | null {
   const data = event.data;
@@ -577,7 +609,7 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
       connectedProjectId: projectId,
       directScene,
       startBuild,
-      ...(state.connectedProjectId === projectId ? {} : { thread: [], sc: [] }),
+      ...(state.connectedProjectId === projectId ? {} : { thread: loadThread(projectId), sc: [] }),
     }));
     return () =>
       useStudio.setState({
@@ -587,6 +619,16 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
         connectedUnbuilt: false,
       });
   }, [projectId, directScene, startBuild]);
+
+  // Every thread change lands in storage, so a reload mid-build keeps what was
+  // already said even though the live stream itself is ephemeral.
+  useEffect(
+    () =>
+      useStudio.subscribe((state, prev) => {
+        if (state.thread !== prev.thread) saveThread(projectId, state.thread);
+      }),
+    [projectId],
+  );
 
   const startExport = async () => {
     if (!artifactId || renderState === "rendering") return;
