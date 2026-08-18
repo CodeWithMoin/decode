@@ -64,6 +64,13 @@
       "keyFiles": []
     }
   },
-  "hotPaths": [],
+  "hotPaths": [
+    {
+      "path": "apps/frontend/src/app/page.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1787068711801,
+      "type": "file"
+    }
+  ],
   "userDirectives": []
 }
