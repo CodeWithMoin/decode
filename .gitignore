@@ -17,6 +17,12 @@ __pycache__/
 .ruff_cache/
 .pytest_cache/
 
+# render outputs + local scratch
+apps/frontend/public/renders/
+apps/frontend/.notebook/
+apps/backend/notebooks/
+apps/backend/dial-in-*.json
+
 # local data + env
 .env
 .env.local
