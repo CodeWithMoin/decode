@@ -44,6 +44,7 @@ const SHIMS: Record<string, () => Promise<Record<string, unknown>>> = {
   // directly, which the backend gate rejects.
   "@decode/animation-api": () => import("@decode/animation-api"),
   "react/jsx-runtime": () => import("react/jsx-runtime"),
+  "react": () => import("react"),
 };
 
 /** Where a shim's real exports live while its blob reads them back out. */
@@ -150,7 +151,12 @@ export function loadSceneModule(source: string): Promise<SceneComponent> {
   if (cached) return cached;
 
   const loading = (async () => {
-    const wired = await rewriteImports(await transpile(source));
+    // Generated source sometimes references `React.` bare (React.useMemo, memo
+    // callbacks) even though it may not import it — and the gate would reject
+    // the import anyway. Give every scene module a React binding up front;
+    // rewriteImports points it at the shared shim like any other specifier.
+    const compiled = `import * as React from "react";\n${await transpile(source)}`;
+    const wired = await rewriteImports(compiled);
     const url = URL.createObjectURL(new Blob([wired], { type: "text/javascript" }));
     urls.add(url);
     const loaded = (await import(/* webpackIgnore: true */ /* @vite-ignore */ url)) as {
