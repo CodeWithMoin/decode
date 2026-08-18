@@ -2,10 +2,12 @@
 
 `POST /projects/{id}/orchestrator/turn` takes a natural-language message and the
 project's current scenes and returns a reply and, when the request maps to a tool,
-a scoped proposal. It is **read-only**: proposing changes nothing, so there is no
-idempotency key and no mutation here. The proposal's tool runs only when the
-creator clicks Apply, through that tool's own endpoint (e.g.
-`/scene-visuals/regenerations`), which posts the receipt. See `orchestrator.py`.
+a scoped proposal. Proposing changes nothing about the project: the proposal's
+tool runs only when the creator clicks Apply, through that tool's own endpoint
+(e.g. `/scene-visuals/regenerations`), which posts the receipt. The turn itself
+is recorded as durable `chat.*` project events — the conversation is history,
+not ephemera — which is why there is no idempotency key: appending to the log
+twice records two turns, it cannot corrupt the project. See `orchestrator.py`.
 """
 
 from __future__ import annotations
@@ -21,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import get_settings
 from .db import get_session
+from .domain import emit
 from .models import Artifact, ArtifactType, ArtifactVersion
 from .orchestrator import SceneRef, build_orchestrator
 from .projects.router import project_or_404
@@ -152,12 +155,32 @@ async def orchestrator_turn(
     observer = _ProjectObserver(session, project_id, steps)
 
     async def run() -> None:
+        # The turn is durable, not just streamed: the ask is committed before the
+        # model runs (a dropped connection cannot lose it), and the reply +
+        # observe trace are committed when it finishes. The project event feed
+        # (GET /events, Last-Event-ID) replays them, so chat history survives a
+        # reload instead of living only in this response stream.
         try:
+            await emit(
+                session, project_id, "chat.turn.started", data={"message": command.message}
+            )
+            await session.commit()
             turn = await build_orchestrator(get_settings()).turn(
                 command.message, scenes, observer
             )
-            await steps.put({"done": turn.model_dump() | {"observed": observer.calls}})
+            payload = turn.model_dump() | {"observed": observer.calls}
+            for name in observer.calls:
+                await emit(session, project_id, "chat.observed", data={"tool": name})
+            await emit(session, project_id, "chat.replied", data=payload)
+            await session.commit()
+            await steps.put({"done": payload})
         except Exception as exc:  # surface as a stream error, never a dead spinner
+            await session.rollback()
+            try:
+                await emit(session, project_id, "chat.turn.failed", data={"error": str(exc)})
+                await session.commit()
+            except Exception:
+                await session.rollback()
             await steps.put({"error": str(exc)})
 
     async def sse():

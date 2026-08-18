@@ -157,9 +157,8 @@ async def test_scene_graph_fans_out_then_publishes_once_after_fan_in(client):
         *(execute_task(None, task.id, 1) for task in scenes[1:])
     )
     assert {result["status"] for result in results} == {"candidate_ready"}
-    # Scenes auto-accept as they land, so the fan-in releases without clicks.
     assembly = (await _tasks(run_id, ASSEMBLY_TASK))[0]
-    assert assembly.status == "queued"
+    assert assembly.status == "pending"
 
     candidates = (
         await client.get(f"/api/v1/projects/{project_id}/jobs/{job_id}/scene-candidates")
@@ -272,12 +271,10 @@ async def test_candidate_acceptance_revalidates_the_exact_previewed_source(clien
         headers={"Idempotency-Key": "reject-invalid-candidate"},
     )
 
-    # The candidate auto-accepted with its generated source, so a different
-    # source is refused rather than replacing the accepted one.
     assert rejected.status_code == 409
     refreshed = (await _tasks(run_id, SCENE_TASK))[0]
-    assert refreshed.accepted_at is not None
-    assert (await _tasks(run_id, ASSEMBLY_TASK))[0].status == "queued"
+    assert refreshed.accepted_at is None
+    assert (await _tasks(run_id, ASSEMBLY_TASK))[0].status == "pending"
 
 
 async def test_cancellation_discards_a_scene_result_that_finishes_late(client, monkeypatch):

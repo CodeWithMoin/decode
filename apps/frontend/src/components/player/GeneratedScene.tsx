@@ -1,7 +1,7 @@
 "use client";
 
-import { Component, useEffect, useState, type ReactNode } from "react";
-import { AbsoluteFill } from "@decode/animation-api";
+import { Component, useEffect, useRef, useState, type ReactNode } from "react";
+import { AbsoluteFill, inspectLayout } from "@decode/animation-api";
 import { loadSceneModule, SceneModuleError, type SceneComponent } from "@/lib/scene-module";
 import { useStudio } from "@/store/studio";
 import type { Scene } from "@/lib/types";
@@ -65,8 +65,41 @@ function GeneratedSceneSource({
 
   return (
     <SceneRenderBoundary key={source}>
-      <Component {...controlProps(scene, overrides)} />
+      <LayoutInspection sceneId={scene.id}>
+        <Component {...controlProps(scene, overrides)} />
+      </LayoutInspection>
     </SceneRenderBoundary>
+  );
+}
+
+/**
+ * Runs the animation-api's layout inspector against the mounted scene while it
+ * plays, so a collision or overflow the static gate cannot see (it needs real
+ * text metrics) surfaces as a warning instead of shipping silently. Findings
+ * are deduped per scene; the DOM walk is small and paced, not per-frame.
+ */
+function LayoutInspection({ sceneId, children }: { sceneId: string; children: ReactNode }) {
+  const root = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const reported = new Set<string>();
+    const inspect = () => {
+      if (!root.current) return;
+      for (const finding of inspectLayout(root.current)) {
+        const key = `${finding.code}:${finding.elements.join("+")}`;
+        if (reported.has(key)) continue;
+        reported.add(key);
+        console.warn(`[decode] scene ${sceneId} layout: ${finding.message}`, finding);
+      }
+    };
+    const timer = setInterval(inspect, 800);
+    return () => clearInterval(timer);
+  }, [sceneId]);
+
+  return (
+    <div ref={root} style={{ position: "absolute", inset: 0 }}>
+      {children}
+    </div>
   );
 }
 

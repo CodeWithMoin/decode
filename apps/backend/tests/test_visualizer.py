@@ -54,9 +54,10 @@ export default function Scene(props) {
   const frame = useCurrentFrame();
   return (
     <AbsoluteFill style={{
-      background: props.background,
       opacity: interpolate(frame, [0, 8], [0, 1], { extrapolateRight: "clamp" }),
-    }} />
+    }}>
+      <div style={{ width: 400, height: 200, background: props.background, borderRadius: 16 }} />
+    </AbsoluteFill>
   );
 }
 """
@@ -210,7 +211,7 @@ def test_renderer_config_keeps_the_persisted_scene_visuals_name():
 
     config = AgentConfig.from_skillset(prompt.SKILLS)
     assert config.produces == "scene_visuals"  # persisted contract, unchanged
-    assert prompt.SKILLS.version == "raw-remotion-v1"
+    assert prompt.SKILLS.version == "raw-remotion-v2"
     assert config.max_turns == 8
     assert tuple(skill.name for skill in config.skills) == (
         "remotion-best-practices",

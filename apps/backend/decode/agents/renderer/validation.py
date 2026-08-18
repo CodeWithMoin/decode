@@ -112,7 +112,9 @@ def module_source(scene: SceneModule) -> str:
     return f"{controls_export(scene.controls)}\n\n{scene.component_source or ''}\n"
 
 
-def validate_scenes(scenes: list[SceneModule], plan: TeachingPlan) -> list[dict[str, str]]:
+def validate_scenes(
+    scenes: list[SceneModule], plan: TeachingPlan, palette: dict | None = None
+) -> list[dict[str, str]]:
     """Return deterministic violations that a single repair turn can address."""
 
     violations: list[dict[str, str]] = []
@@ -141,6 +143,7 @@ def validate_scenes(scenes: list[SceneModule], plan: TeachingPlan) -> list[dict[
 
     for scene in scenes:
         violations.extend(_validate_one(scene))
+        violations.extend(_validate_stage_and_palette(scene, palette))
 
     return violations
 
@@ -261,3 +264,66 @@ def repair_message(violations: list[dict[str, str]], guidance: str) -> str:
 
 def _violation(code: str, message: str) -> dict[str, str]:
     return {"code": code, "message": message}
+
+
+# The host paints the stage; an opaque root turns the film back into slides.
+_OPAQUE_ROOT = re.compile(
+    r"<AbsoluteFill[^>]{0,400}?\b(?:backgroundColor|background)\s*:", re.DOTALL
+)
+_HEX = re.compile(r"#[0-9a-fA-F]{6}\b")
+
+
+def _hue_sat(hex_color: str) -> tuple[float, float]:
+    r, g, b = (int(hex_color[i : i + 2], 16) / 255 for i in (1, 3, 5))
+    high, low = max(r, g, b), min(r, g, b)
+    delta = high - low
+    lightness = (high + low) / 2
+    if delta == 0:
+        return 0.0, 0.0
+    sat = delta / (1 - abs(2 * lightness - 1)) if lightness not in (0, 1) else 0.0
+    if high == r:
+        hue = 60 * (((g - b) / delta) % 6)
+    elif high == g:
+        hue = 60 * ((b - r) / delta + 2)
+    else:
+        hue = 60 * ((r - g) / delta + 4)
+    return hue, sat
+
+
+def _validate_stage_and_palette(scene: SceneModule, palette: dict | None) -> list[dict[str, str]]:
+    source = scene.component_source or ""
+    found: list[dict[str, str]] = []
+    first_fill = source.find("<AbsoluteFill")
+    if first_fill != -1 and _OPAQUE_ROOT.search(source, first_fill, first_fill + 500):
+        found.append(
+            _violation(
+                "opaque_root",
+                f"{scene.beat_id}: the root element paints a background. The host paints the "
+                "stage; remove the root background so the scene is transparent over it.",
+            )
+        )
+    if palette:
+        # Saturated hues must stay in a palette color's hue family; desaturated
+        # values (surfaces, greys, near-blacks, off-whites) are always allowed.
+        allowed = [_hue_sat(value)[0] for value in palette.values() if _HEX.fullmatch(value)]
+        off = sorted(
+            {
+                color
+                for color in _HEX.findall(source)
+                if _hue_sat(color)[1] > 0.35
+                and not any(
+                    min(abs(_hue_sat(color)[0] - hue), 360 - abs(_hue_sat(color)[0] - hue)) <= 25
+                    for hue in allowed
+                )
+            }
+        )
+        if off:
+            found.append(
+                _violation(
+                    "off_palette",
+                    f"{scene.beat_id}: colors outside the project palette: {', '.join(off)}. "
+                    "Replace each with the palette slot (or a tint in its hue family) that "
+                    "carries the same meaning.",
+                )
+            )
+    return found

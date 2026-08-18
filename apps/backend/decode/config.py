@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     evaluator: str = "fake"
     openai_api_key: str | None = None
     openai_model: str = "gpt-5.6-luna"
+    # The side chat answers a human mid-thought; routing a message to one tool
+    # does not need the scene-authoring model, it needs to be quick. Overridable
+    # via DECODE_ORCHESTRATOR_MODEL.
+    orchestrator_model: str = "gpt-5.4-mini"
     # Any OpenAI-compatible endpoint (e.g. DeepSeek) — set DECODE_OPENAI_BASE_URL
     # and point openai_model at that provider's model. None = OpenAI's default.
     openai_base_url: str | None = None

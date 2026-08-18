@@ -316,7 +316,7 @@ def _component_source(label: str) -> str:
         '  const titleIn = interpolate(frame, [0, 12], [0, 1], '
         '{ extrapolateLeft: "clamp", extrapolateRight: "clamp" });\n'
         "  return (\n"
-        '    <AbsoluteFill style={{ backgroundColor: background, color: "#F3F0EA", '
+        '    <AbsoluteFill style={{ color: "#F3F0EA", '
         'fontFamily: "system-ui, sans-serif" }}>\n'
         '      <div style={{ position: "absolute", top: 130, width: "100%", textAlign: '
         '"center", fontSize: 66, fontWeight: 800, opacity: titleIn }}>\n'
