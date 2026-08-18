@@ -119,18 +119,31 @@ SCRIPT = Script(
 
 
 async def main() -> None:
+    # One generate() per beat with a single-beat plan — the same per-scene shape
+    # the production design_scene tasks use, avoiding the batch truncation the
+    # one-pass path can hit.
     out = Path(__file__).parent / "verify_out"
     out.mkdir(exist_ok=True)
     provider = build_visualizer(Settings())
-    visuals = await provider.generate(INTENT, PLAN, SCRIPT)
     meta = {}
-    for scene in visuals.scenes:
+    for beat in PLAN.beats:
+        sub_plan = PLAN.model_copy(
+            update={
+                "beats": [beat],
+                "sections": [s for s in PLAN.sections if s.id == beat.section_id],
+            }
+        )
+        sub_script = SCRIPT.model_copy(
+            update={"beats": [b for b in SCRIPT.beats if b.beat_id == beat.id]}
+        )
+        visuals = await provider.generate(INTENT, sub_plan, sub_script)
+        scene = visuals.scenes[0]
         (out / f"{scene.beat_id}.tsx").write_text(scene.component_source)
-        beat = next(b for b in PLAN.beats if b.id == scene.beat_id)
         meta[scene.beat_id] = {
             "duration_seconds": beat.target_duration_seconds,
             "controls": {c.name: c.default for c in scene.controls},
         }
+        print("done:", beat.id)
     (out / "meta.json").write_text(json.dumps(meta, indent=2))
     print("scenes:", ", ".join(sorted(meta)))
 

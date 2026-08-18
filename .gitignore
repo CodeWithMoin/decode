@@ -36,3 +36,7 @@ apps/backend/.data/
 .serena/
 .playwright-mcp/
 .claude/settings.local.json
+
+# prompt-verification outputs
+apps/backend/scripts/verify_out/
+apps/frontend/.verify/*.png
