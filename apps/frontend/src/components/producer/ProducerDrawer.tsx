@@ -533,10 +533,13 @@ export function ProducerDrawer() {
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 112)}px`;
   }, [draft]);
+  // The last message's length is a dep so the scroller follows a stream as it
+  // grows token by token — appendToken changes text, not thread.length.
+  const lastMessageLength = thread.at(-1)?.text.length ?? 0;
   useEffect(() => {
     const el = scroller.current;
     if (el && (open || docked)) el.scrollTop = el.scrollHeight;
-  }, [thread.length, thinking, open, docked]);
+  }, [thread.length, lastMessageLength, thinking, open, docked]);
 
   return (
     <aside
@@ -586,10 +589,12 @@ export function ProducerDrawer() {
               <span className="font-mono text-[8.5px] tracking-[0.12em] text-t8 uppercase">Decode</span>
             </span>
             <p className="mt-4 max-w-[28ch] font-display text-[19px] font-semibold leading-[1.25] tracking-[-0.025em] text-ink">
-              Direct the work in plain language.
+              {connectedUnbuilt ? "Start with a topic." : "Direct the work in plain language."}
             </p>
             <p className="mt-2 max-w-[34ch] text-[12.5px] leading-[1.65] text-t6">
-              Ask about the cut or describe a change. Decode will show its scope before anything moves.
+              {connectedUnbuilt
+                ? "Your first message becomes the video — Decode plans the lesson, writes the narration and animates the scenes from it."
+                : "Ask about the cut or describe a change. Decode will show its scope before anything moves."}
             </p>
             <div className="mt-5 h-px bg-line-div" aria-hidden />
           </div>
@@ -824,14 +829,15 @@ export function ProducerDrawer() {
               }
             }}
             aria-label="Write in Project Chat"
-            placeholder="Describe the change you want…"
+            placeholder={connectedUnbuilt ? "What should we teach? e.g. “Explain backpropagation”" : "Describe the change you want…"}
             className={cx("max-h-[112px] min-h-[30px] flex-1 resize-none self-center border-none bg-transparent py-[5px] text-[14px] leading-[20px]", dark ? "text-[var(--nle-text)] placeholder:text-[var(--nle-faint)]" : "placeholder:text-t9")}
           />
           <Graphite
             type="button"
             onClick={send}
+            disabled={!draft.trim()}
             aria-label="Send production note"
-            className="flex h-7 w-7 flex-none items-center justify-center self-end text-[10px]"
+            className="flex h-7 w-7 flex-none items-center justify-center self-end text-[10px] disabled:opacity-40"
           >
             <PaperPlaneTilt size={13} weight="fill" aria-hidden />
           </Graphite>
@@ -853,22 +859,52 @@ export function ProducerDrawer() {
  */
 function ThinkingBlock({ text, streaming, dark }: { text: string; streaming?: boolean; dark?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
+  // A finished thought collapses to its label — a build streams several
+  // agents' worth of reasoning, and left expanded it buries the conversation.
+  const [expanded, setExpanded] = useState(false);
   useEffect(() => {
     if (streaming && ref.current) ref.current.scrollTop = ref.current.scrollHeight;
   }, [text, streaming]);
   const clean = text.replace(/\*\*/g, "");
   return (
     <div className={cx("grid gap-1.5 border-l-2 pl-3", dark ? "border-[var(--nle-line)]" : "border-line-input")}>
-      <span className={cx("flex items-center gap-1.5 font-mono text-[9px] tracking-[0.1em] uppercase", dark ? "text-[var(--nle-faint)]" : "text-t9")}>
-        <span aria-hidden className={cx("inline-block h-1 w-1 rounded-full bg-current", streaming ? "animate-pulse" : "opacity-50")} />
-        {streaming ? "Thinking" : "Thought"}
-      </span>
-      <div ref={ref} className={cx("max-h-[128px] overflow-y-auto pr-1 text-[11.5px] leading-[1.55] italic", dark ? "text-[var(--nle-muted)]" : "text-t7")}>
-        {clean}
-        {streaming && (
-          <span aria-hidden className="ml-0.5 inline-block h-[0.9em] w-[2px] translate-y-[2px] animate-pulse bg-current" />
-        )}
-      </div>
+      {streaming ? (
+        <span className={cx("flex items-center gap-1.5 font-mono text-[9px] tracking-[0.1em] uppercase", dark ? "text-[var(--nle-faint)]" : "text-t9")}>
+          <span aria-hidden className="inline-block h-1 w-1 animate-pulse rounded-full bg-current" />
+          Thinking
+        </span>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          className={cx(
+            "flex w-fit items-center gap-1.5 font-mono text-[9px] tracking-[0.1em] uppercase transition-colors",
+            dark ? "text-[var(--nle-faint)] hover:text-[var(--nle-text)]" : "text-t9 hover:text-ink",
+          )}
+        >
+          <span aria-hidden className="inline-block h-1 w-1 rounded-full bg-current opacity-50" />
+          Thought
+          <span aria-hidden className={cx("inline-block transition-transform duration-[var(--t-fast)]", expanded && "rotate-90")}>
+            ›
+          </span>
+        </button>
+      )}
+      {(streaming || expanded) && (
+        <div
+          ref={ref}
+          className={cx(
+            "overflow-y-auto pr-1 text-[11.5px] leading-[1.55] italic",
+            streaming && "max-h-[128px]",
+            dark ? "text-[var(--nle-muted)]" : "text-t7",
+          )}
+        >
+          {clean}
+          {streaming && (
+            <span aria-hidden className="ml-0.5 inline-block h-[0.9em] w-[2px] translate-y-[2px] animate-pulse bg-current" />
+          )}
+        </div>
+      )}
     </div>
   );
 }
