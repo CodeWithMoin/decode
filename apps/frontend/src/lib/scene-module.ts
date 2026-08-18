@@ -39,6 +39,9 @@ import type { ComponentType } from "react";
  * the specifiers a human would think to write.
  */
 const SHIMS: Record<string, () => Promise<Record<string, unknown>>> = {
+  // Generated source names one curated module. The compiler itself adds the JSX
+  // runtime import; neither is permission for source to import React or Remotion
+  // directly, which the backend gate rejects.
   "@decode/animation-api": () => import("@decode/animation-api"),
   "react/jsx-runtime": () => import("react/jsx-runtime"),
 };

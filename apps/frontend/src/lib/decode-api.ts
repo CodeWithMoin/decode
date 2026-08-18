@@ -15,9 +15,12 @@ import type {
   ProductionIntentPayload,
   ProjectEvent,
   ProjectListResponse,
+  SceneCandidate,
   SceneVisualsPayload,
   ScriptPayload,
   SourceUploadResult,
+  OrchestratorTurn,
+  SceneComposition,
   StudioSnapshot,
   TeachingPlanPayload,
   UsageResponse,
@@ -219,6 +222,16 @@ export const decodeApi = {
       },
     ),
 
+  cancelJob: (projectId: string, jobId: string, runId: string, key: string) =>
+    request<{ job_id: string; run_id: string; status: "cancelled" }>(
+      `/api/v1/projects/${projectId}/jobs/${jobId}/cancellations`,
+      {
+        method: "POST",
+        headers: { "Idempotency-Key": key },
+        body: JSON.stringify({ expected_active_run_id: runId }),
+      },
+    ),
+
   getSceneVisuals: (projectId: string, artifactId: string) =>
     request<ArtifactHistoryResponse<SceneVisualsPayload>>(
       `/api/v1/projects/${projectId}/artifacts/${artifactId}/versions?limit=50`,
@@ -268,8 +281,48 @@ export const decodeApi = {
   getStudio: (projectId: string) =>
     request<StudioSnapshot>(`/api/v1/projects/${projectId}/studio`),
 
+  // A scene's HyperFrames composition, resolved + stamped for playback: real
+  // data-duration and the beats' timing injected from the narration.
+  sceneComposition: (projectId: string, beatId: string) =>
+    request<SceneComposition>(
+      `/api/v1/projects/${projectId}/scene-visuals/${beatId}/composition`,
+    ),
+
+  // The side chat's one turn: a natural-language message → a reply and, when it
+  // maps to a tool, a scoped proposal. Read-only — the tool runs on Apply.
+  //
+  // Streams as SSE: each observe the room does arrives as an `onStep` callback so
+  // the chat prints what it is doing live, and the promise resolves with the
+  // final turn (reply + optional proposal/question + observed trace).
+  orchestratorTurn: (
+    projectId: string,
+    message: string,
+    onStep?: (step: OrchestratorStep) => void,
+  ): Promise<OrchestratorTurn> => streamOrchestratorTurn(projectId, message, onStep),
+
   getJob: (projectId: string, jobId: string) =>
     request<JobDetail>(`/api/v1/projects/${projectId}/jobs/${jobId}`),
+
+  getSceneCandidates: (projectId: string, jobId: string) =>
+    request<{ items: SceneCandidate[] }>(
+      `/api/v1/projects/${projectId}/jobs/${jobId}/scene-candidates`,
+    ),
+
+  acceptSceneCandidate: (
+    projectId: string,
+    jobId: string,
+    taskId: string,
+    componentSource: string,
+    key: string,
+  ) =>
+    request<SceneCandidate>(
+      `/api/v1/projects/${projectId}/jobs/${jobId}/scene-candidates/${taskId}/acceptances`,
+      {
+        method: "POST",
+        headers: { "Idempotency-Key": key },
+        body: JSON.stringify({ component_source: componentSource }),
+      },
+    ),
 
   retryJob: (projectId: string, jobId: string, failedRunId: string, key: string) =>
     request<{ run_id: string }>(
@@ -363,7 +416,81 @@ export const decodeApi = {
     request<{ render_id: string; status: string; error?: string; download_path?: string }>(
       `/api/v1/renders/${renderId}`,
     ),
+
+  /** The direction loop: a scene's own source + a human instruction, patched in place. */
+  direct: (source: string, direction: string) =>
+    request<{ source: string }>(`/api/v1/direct`, {
+      method: "POST",
+      body: JSON.stringify({ source, direction }),
+    }),
 };
+
+/** One thing the room did on its way to an answer (an observe tool call). */
+export interface OrchestratorStep {
+  name: string;
+  args?: Record<string, string>;
+}
+
+/**
+ * The orchestrator turn, streamed. Emits each observe step as it happens via
+ * `onStep`, then resolves with the final turn on `event: done`. Rejects on
+ * `event: error` or a transport failure. Read-only — nothing mutates here.
+ */
+async function streamOrchestratorTurn(
+  projectId: string,
+  message: string,
+  onStep?: (step: OrchestratorStep) => void,
+): Promise<OrchestratorTurn> {
+  const response = await fetch(
+    `${API_BASE}/api/v1/projects/${projectId}/orchestrator/turn`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+      body: JSON.stringify({ message }),
+      cache: "no-store",
+    },
+  );
+  if (!response.ok || !response.body) {
+    throw new Error(`Orchestrator unavailable (${response.status}).`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let result: OrchestratorTurn | null = null;
+  let streamError: string | null = null;
+
+  const handle = (block: string) => {
+    let event = "message";
+    const dataLines: string[] = [];
+    for (const line of block.split("\n")) {
+      if (line.startsWith("event:")) event = line.slice(6).trim();
+      else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
+    }
+    if (dataLines.length === 0) return;
+    const data = JSON.parse(dataLines.join("\n"));
+    if (event === "step") onStep?.(data as OrchestratorStep);
+    else if (event === "done") result = data as OrchestratorTurn;
+    else if (event === "error") streamError = String(data?.error ?? "orchestrator error");
+  };
+
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
+    let boundary = buffer.indexOf("\n\n");
+    while (boundary >= 0) {
+      handle(buffer.slice(0, boundary));
+      buffer = buffer.slice(boundary + 2);
+      boundary = buffer.indexOf("\n\n");
+    }
+  }
+  if (buffer.trim()) handle(buffer);
+
+  if (streamError) throw new Error(streamError);
+  if (!result) throw new Error("Orchestrator closed without answering.");
+  return result;
+}
 
 /** Fetch-based SSE allows an explicit Last-Event-ID on reconnect. */
 export async function streamProjectEvents({

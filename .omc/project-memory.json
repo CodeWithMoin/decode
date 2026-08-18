@@ -64,6 +64,19 @@
       "keyFiles": []
     }
   },
-  "hotPaths": [],
+  "hotPaths": [
+    {
+      "path": "apps/frontend/src/components/connected/ConnectedEdit.tsx",
+      "accessCount": 4,
+      "lastAccessed": 1787072971732,
+      "type": "file"
+    },
+    {
+      "path": "apps/frontend/src/components/project/stages/Edit.tsx",
+      "accessCount": 3,
+      "lastAccessed": 1787072950244,
+      "type": "file"
+    }
+  ],
   "userDirectives": []
 }
