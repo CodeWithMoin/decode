@@ -54,9 +54,10 @@ export default function Scene(props) {
   const frame = useCurrentFrame();
   return (
     <AbsoluteFill style={{
-      background: props.background,
       opacity: interpolate(frame, [0, 8], [0, 1], { extrapolateRight: "clamp" }),
-    }} />
+    }}>
+      <div style={{ width: 400, height: 200, background: props.background, borderRadius: 16 }} />
+    </AbsoluteFill>
   );
 }
 """

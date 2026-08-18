@@ -91,12 +91,13 @@ class ModelVisualizer:
     ) -> SceneVisuals:
         narration = {item.beat_id: item.narration for item in script.beats}
         segments = {item.beat_id: item.segments for item in script.beats}
+        palette = intent.palette or pick_palette(plan.structure_name + plan.through_line)
         instructions = build_instructions(
             visual_direction={
                 "audience": intent.audience,
                 "depth": intent.depth,
                 "art_direction": intent.creative_brief,
-                "palette": intent.palette or pick_palette(plan.structure_name + plan.through_line),
+                "palette": palette,
                 "brand_colors": intent.brand.colors,
                 "brand_fonts": intent.brand.fonts,
                 "brand_guidelines": intent.brand.guidelines,
@@ -116,7 +117,7 @@ class ModelVisualizer:
             ],
         )
 
-        scenes, rationale, repair = await self._author(instructions, plan, intent.audience)
+        scenes, rationale, repair = await self._author(instructions, plan, intent.audience, palette)
         return self._visuals(scenes, rationale, repair)
 
     def _visuals(self, scenes: list[SceneModule], rationale: str, repair: dict) -> SceneVisuals:
@@ -134,7 +135,7 @@ class ModelVisualizer:
         )
 
     async def _author(
-        self, instructions: str, plan: TeachingPlan, audience: str
+        self, instructions: str, plan: TeachingPlan, audience: str, palette: dict | None = None
     ) -> tuple[list[SceneModule], str, dict]:
         """Draft → validate → one repair → SceneModules. The draft-and-gate loop
         behind `generate()`."""
@@ -154,7 +155,7 @@ class ModelVisualizer:
             result = await self.runtime.run(
                 instructions,
                 SceneVisualsDraft,
-                validate=lambda draft: validate_scenes(draft.modules(), plan),
+                validate=lambda draft: validate_scenes(draft.modules(), plan, palette),
                 repair_prompt=lambda violations: repair_message(violations, REPAIR_PROMPT),
             )
             draft = result.output
@@ -193,12 +194,13 @@ class ModelVisualizer:
 
         narration = {item.beat_id: item.narration for item in script.beats}
         segments = {item.beat_id: item.segments for item in script.beats}
+        palette = intent.palette or pick_palette(plan.structure_name + plan.through_line)
         instructions = build_instructions(
             visual_direction={
                 "audience": intent.audience,
                 "depth": intent.depth,
                 "art_direction": intent.creative_brief,
-                "palette": intent.palette or pick_palette(plan.structure_name + plan.through_line),
+                "palette": palette,
                 "brand_colors": intent.brand.colors,
                 "brand_fonts": intent.brand.fonts,
                 "brand_guidelines": intent.brand.guidelines,
@@ -249,7 +251,7 @@ class ModelVisualizer:
             result = await self.runtime.run(
                 instructions,
                 SceneVisualsDraft,
-                validate=lambda draft: validate_scenes(merge(draft.modules()), plan),
+                validate=lambda draft: validate_scenes(merge(draft.modules()), plan, palette),
                 repair_prompt=lambda violations: repair_message(violations, REPAIR_PROMPT),
             )
             draft = result.output

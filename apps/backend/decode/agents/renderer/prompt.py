@@ -24,12 +24,15 @@ visual idea and composition. Return the complete corrected scene draft."""
 # deterministically from the plan (same project -> same palette, no extra model
 # call) and injected into every beat's brief. Creator brand colors, when present,
 # override the accent (the prompt already says so).
+# Semantic slots (positive/negative/warn) exist because teaching frames need
+# meaning-colors — a "definite no" is red whatever the accent is. Scenes may use
+# them only when the meaning calls for it; the accent stays the one emphasis hue.
 PALETTES = [
-    {"surface": "#151A21", "border": "#3A4656", "ink": "#F2F5F8", "support": "#8B98A9", "accent": "#55E6FF"},
-    {"surface": "#1A1714", "border": "#4A4034", "ink": "#F7F3EC", "support": "#A39682", "accent": "#F4B860"},
-    {"surface": "#141A16", "border": "#37493C", "ink": "#F0F6F1", "support": "#8FA394", "accent": "#5EE6A0"},
-    {"surface": "#1A141C", "border": "#473A4E", "ink": "#F5F0F7", "support": "#A08FA9", "accent": "#C08FFF"},
-    {"surface": "#1A1518", "border": "#4E3A44", "ink": "#F7F0F3", "support": "#A98F9C", "accent": "#FF8FA8"},
+    {"surface": "#151A21", "border": "#3A4656", "ink": "#F2F5F8", "support": "#8B98A9", "accent": "#55E6FF", "positive": "#5EE6A0", "negative": "#FF5C70", "warn": "#FFC857"},
+    {"surface": "#1A1714", "border": "#4A4034", "ink": "#F7F3EC", "support": "#A39682", "accent": "#F4B860", "positive": "#7FE0A5", "negative": "#FF6B62", "warn": "#FFD28C"},
+    {"surface": "#141A16", "border": "#37493C", "ink": "#F0F6F1", "support": "#8FA394", "accent": "#5EE6A0", "positive": "#8FE6C0", "negative": "#FF7A70", "warn": "#F2CE72"},
+    {"surface": "#1A141C", "border": "#473A4E", "ink": "#F5F0F7", "support": "#A08FA9", "accent": "#C08FFF", "positive": "#79E0B0", "negative": "#FF6E85", "warn": "#F5C86E"},
+    {"surface": "#1A1518", "border": "#4E3A44", "ink": "#F7F0F3", "support": "#A98F9C", "accent": "#FF8FA8", "positive": "#74E0AC", "negative": "#FF5C70", "warn": "#F7CD75"},
 ]
 
 
@@ -78,10 +81,12 @@ def build_instructions(*, visual_direction: dict, beats: list[dict]) -> str:
   a full-frame background color, gradient, or vignette. Paint only your surfaces, shapes and text;
   the dark stage shows through everywhere else, and it is what keeps the whole video feeling like
   one film instead of a deck of slides.
-- Use exactly the `palette` in the production direction for every color decision — surfaces,
-  borders, primary and support text, and the single accent. Do not invent additional hues; vary
-  emphasis with opacity and weight, not new colors. Brand colors in the direction, when present,
-  replace the accent.
+- Use exactly the `palette` in the production direction for every color decision. Surfaces,
+  borders, primary and support text and the single accent come from their named slots; `positive`,
+  `negative` and `warn` exist for frames whose meaning needs them (a definite no, a success, a
+  caution) and for nothing else. Do not invent hues outside the palette; vary emphasis with opacity
+  and weight, not new colors. Tints must stay in a palette color's hue family. Brand colors in the
+  direction, when present, replace the accent.
 - Follow the creator's art direction and brand constraints within that palette.
 - Show the relationship or mechanism in the beat. Keep on-screen copy to short labels.
 - Stage the narration segments in order across the whole scene duration rather than revealing

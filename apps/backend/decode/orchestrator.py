@@ -535,7 +535,7 @@ class ModelOrchestrator:
             raise ValueError("DECODE_OPENAI_API_KEY is required when DECODE_ORCHESTRATOR=openai")
         from openai import AsyncOpenAI
 
-        self.model = settings.openai_model
+        self.model = settings.orchestrator_model
         self.client = AsyncOpenAI(
             api_key=settings.openai_api_key, base_url=settings.openai_base_url
         )
