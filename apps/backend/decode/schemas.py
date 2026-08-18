@@ -2,6 +2,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from .timing import Anchor, NarrationTiming, Word
+
 
 class Brand(BaseModel):
     colors: list[str] = Field(default_factory=list)
@@ -121,6 +123,12 @@ class BeatNarration(BaseModel):
 
     beat_id: str = Field(min_length=1)
     narration: str = Field(min_length=1)
+    # The narration split into ordered semantic moments — idea-units, not
+    # sentences by length. Each is one thing the beat's visual should stage, in
+    # spoken order, so the animation reveals a moment as its words are said rather
+    # than all at once (ADR-005, sub-scene timing). Empty on legacy scripts; the
+    # visual then treats the whole narration as a single moment.
+    segments: list[str] = Field(default_factory=list)
 
 
 class Script(BaseModel):
@@ -156,17 +164,46 @@ class SceneControl(BaseModel):
     step: float | None = None
 
 
-class SceneModule(BaseModel):
-    """The animation for one beat, as code.
+class VisualBeat(BaseModel):
+    """One animated moment inside a scene, declared *when* by an anchor, never a
+    hardcoded second (VISUALIZER-TO-HYPERFRAMES §2). The name matches the beat's
+    id in the HyperFrames composition; Decode resolves the anchor to a start time
+    against the narration and hands the composition `{beat, start, duration}`.
 
-    No duration. Osmo's clips declare their own length; ours cannot, because the
-    plan owns runtime and `total = Σ dur`. The component is handed `progress`
-    and never learns how many seconds it is on screen for.
+    `duration_s` is the beat's own animation length (how long the move takes) —
+    an authoring choice, distinct from the scene's duration, which comes from the
+    narration. The Visualizer never writes the scene length or the start second.
+    """
+
+    name: str = Field(min_length=1, max_length=60)
+    anchor: Anchor
+    duration_s: float = Field(default=0.6, gt=0, le=30)
+
+
+class SceneModule(BaseModel):
+    """The animation for one beat.
+
+    No declared duration. The plan owns runtime and `total = Σ dur`; a React scene
+    may read the enclosing Sequence's frame clock so motion scales to 24, 30 or 60
+    fps, but it cannot register or replace that duration.
+
+    Two render substrates during the migration (VISUALIZER-TO-HYPERFRAMES): the
+    legacy `component_source` (React against `@decode/animation-api`, played by
+    Remotion) and `composition_html` (a HyperFrames composition + anchored
+    `beats`). A module carries at least one during the migration window.
     """
 
     beat_id: str = Field(min_length=1)
     controls: list[SceneControl] = Field(max_length=20)
-    component_source: str = Field(min_length=1)
+    component_source: str | None = Field(default=None, min_length=1)
+    composition_html: str | None = Field(default=None, min_length=1)
+    beats: list[VisualBeat] = Field(default_factory=list, max_length=40)
+
+    @model_validator(mode="after")
+    def _has_a_renderable(self) -> "SceneModule":
+        if not self.component_source and not self.composition_html:
+            raise ValueError("a scene needs component_source or composition_html")
+        return self
 
 
 class SceneVisuals(BaseModel):
@@ -176,11 +213,23 @@ class SceneVisuals(BaseModel):
 
 
 class VoiceNarration(BaseModel):
-    """Spoken audio for one beat, referenced by object key."""
+    """Spoken audio for one beat, referenced by object key.
+
+    `words` carries per-word timings when the provider (or a forced-alignment
+    pass) supplies them; it is empty when no alignment was performed. It is what
+    turns this clip into a `NarrationTiming` — the authority sub-scene beats
+    resolve against (see `timing.py`). Absent words means phrase anchors in that
+    scene cannot resolve yet, which the resolver surfaces rather than guessing.
+    """
 
     beat_id: str = Field(min_length=1)
     audio_key: str = Field(min_length=1)
     duration_seconds: float = Field(gt=0)
+    words: list[Word] = Field(default_factory=list)
+
+    def narration_timing(self) -> NarrationTiming:
+        """This clip as the timing authority for its scene's beats."""
+        return NarrationTiming(duration=self.duration_seconds, words=self.words)
 
 
 class Voice(BaseModel):
@@ -241,6 +290,12 @@ class RegenerateSceneVisual(BaseModel):
     direction: str = Field(min_length=1, max_length=2000)
 
 
+class AcceptSceneCandidate(BaseModel):
+    """The exact candidate source the creator previewed and chose to apply."""
+
+    component_source: str = Field(min_length=1, max_length=200_000)
+
+
 class EditArtifact(BaseModel):
     """A creator's complete replacement of one artifact version.
 
@@ -262,3 +317,7 @@ class ApproveVersion(BaseModel):
 
 class RetryRun(BaseModel):
     expected_failed_run_id: str
+
+
+class CancelRun(BaseModel):
+    expected_active_run_id: str

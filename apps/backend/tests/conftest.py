@@ -14,6 +14,7 @@ os.environ["DECODE_ARCHITECT"] = "fake"
 os.environ["DECODE_AUTHOR"] = "fake"
 os.environ["DECODE_VISUALIZER"] = "fake"
 os.environ["DECODE_EVALUATOR"] = "fake"
+os.environ["DECODE_ORCHESTRATOR"] = "fake"
 # A developer .env now carries real Fish Audio credentials. Null them so the
 # suite is deterministic — the fish_audio tests pass their own explicit keys,
 # and the "missing credentials raises" guard must see genuinely absent ones.

@@ -100,7 +100,7 @@ export interface Source {
    ------------------------------------------------------------------ */
 
 export type ProjectStatus = "draft" | "processing" | "ready" | "failed" | string;
-export type JobStatus = "queued" | "running" | "succeeded" | "failed";
+export type JobStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled";
 export type JobKind = "generate_production_brief" | "generate_teaching_plan" | string;
 
 export interface ValidationFieldError {
@@ -250,13 +250,32 @@ export interface SceneControl {
 export interface SceneModule {
   beat_id: string;
   controls: SceneControl[];
-  component_source: string;
+  /** Legacy React scene (Remotion). Optional during the HyperFrames migration. */
+  component_source?: string;
+  /** A HyperFrames composition (duration-agnostic template) — the new substrate. */
+  composition_html?: string;
+}
+
+/** The stamped composition for one scene, resolved by the backend for playback. */
+export interface SceneComposition {
+  html: string;
+  duration: number;
+  beats: { beat: string; start: number; duration: number }[];
+  unresolved: { name: string; reason: string }[];
 }
 
 export interface SceneVisualsPayload {
   rationale: string;
   scenes: SceneModule[];
   visual_findings: Record<string, unknown>;
+}
+
+export interface SceneCandidate {
+  task_id: string;
+  beat_id: string;
+  accepted_at: string | null;
+  scene: SceneModule;
+  rationale: string;
 }
 
 export interface VoiceClip {
@@ -357,6 +376,21 @@ export interface JobFailure {
   retryable: boolean;
 }
 
+export interface ProductionTaskSummary {
+  task_id: string;
+  kind: string;
+  stable_key: string;
+  status: "pending" | JobStatus;
+  priority: number;
+  attempt: number;
+  max_attempts: number;
+  input: Record<string, unknown>;
+  failure: JobFailure | null;
+  started_at: string | null;
+  finished_at: string | null;
+  accepted_at: string | null;
+}
+
 export interface JobDetail {
   job_id: string;
   project_id?: string;
@@ -371,6 +405,7 @@ export interface JobDetail {
   created_at: string;
   started_at: string | null;
   finished_at: string | null;
+  tasks?: ProductionTaskSummary[];
 }
 
 export interface GenerateBriefResult {
@@ -536,6 +571,14 @@ export interface Scene {
    * and still has to render something.
    */
   componentSource?: string;
+  /**
+   * A stamped HyperFrames composition (HTML + one seekable GSAP timeline), the
+   * render substrate replacing Remotion. Present only on a connected HyperFrames
+   * scene, already resolved by the backend (data-duration + injected timing). The
+   * player renders it in a sandboxed iframe seeked from the transport, in place of
+   * `componentSource`.
+   */
+  compositionHtml?: string;
   /** The knobs that module declares, read from its manifest — never executed. */
   controls?: SceneControl[];
   /** URL of this beat's narration audio, present only once voice is generated. */
@@ -566,6 +609,10 @@ export interface ThreadMessage {
   text: string;
   /** A short proof that something actually changed. */
   receipt?: string;
+  /** What the room looked at before answering — e.g. "Looked at the plan". */
+  note?: string;
+  /** True while this message's text is still streaming in (live agent output). */
+  streaming?: boolean;
 }
 
 export interface ProcessingStep {
@@ -604,6 +651,39 @@ export interface ExampleSource {
   name: string;
   meta: string;
   src: Source;
+}
+
+/** A scoped change the orchestrator proposes; nothing runs until Apply. */
+export interface ProposedChange {
+  tool: string;
+  args: Record<string, string>;
+  summary: string;
+  changes: string;
+  untouched: string;
+  receipt: string;
+}
+
+/** One option in a clarifying question. `label` is sent back as the next turn. */
+export interface ClarifyOption {
+  label: string;
+  detail: string;
+}
+
+/** Asked only when a request is too ambiguous to scope — a prompt + picks. */
+export interface Clarification {
+  prompt: string;
+  options: ClarifyOption[];
+}
+
+/**
+ * One turn of the side-chat orchestrator: a reply, and at most one of a scoped
+ * proposal or a clarifying question. `observed` is what it looked at on demand.
+ */
+export interface OrchestratorTurn {
+  reply: string;
+  proposal: ProposedChange | null;
+  question?: Clarification | null;
+  observed?: string[];
 }
 
 export type RenderState = "idle" | "rendering" | "done";

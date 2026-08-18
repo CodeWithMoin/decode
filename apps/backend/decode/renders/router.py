@@ -16,6 +16,7 @@ from ..domain import idempotent_replay, save_idempotency
 from ..problems import AppProblem
 from ..projects.router import project_or_404
 from . import department
+from .hyperframes import prepare_scenes, render_cut_sync
 from .schemas import RenderResponse, StartRender
 
 router = APIRouter(tags=["renders"])
@@ -43,12 +44,19 @@ async def start_render(
     render_id = uuid.uuid4().hex[:12]
     department.write_status(render_id, "queued")
 
-    background_tasks.add_task(
-        department.render_sync,
-        render_id,
-        command.scenes,
-        command.visual_pick,
-    )
+    # A HyperFrames cut renders via `hyperframes render`, prepared server-side
+    # from the artifacts (each scene's composition resolved + stamped, its
+    # narration fetched). A legacy React cut renders the scenes the frontend sent
+    # through Remotion. The substrate is decided by what the scenes carry, not a
+    # flag — so a project renders on whichever it was built with.
+    settings = get_settings()
+    prepared = await prepare_scenes(session, project_id, settings)
+    if prepared is not None:
+        background_tasks.add_task(render_cut_sync, render_id, prepared, settings)
+    else:
+        background_tasks.add_task(
+            department.render_sync, render_id, command.scenes, command.visual_pick
+        )
 
     body = RenderResponse(render_id=render_id, status="queued").model_dump(mode="json")
     save_idempotency(session, actor, scope, key, raw, 202, body)

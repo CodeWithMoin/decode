@@ -9,9 +9,12 @@ from sqlalchemy import text
 
 from .api import request_context
 from .artifacts.router import router as artifacts_router
+from .composition_router import router as composition_router
 from .config import get_settings
 from .db import SessionLocal
+from .direct_router import router as direct_router
 from .execution.router import router as execution_router
+from .orchestrator_router import router as orchestrator_router
 from .problems import AppProblem, problem_handler
 from .projects.router import router as projects_router
 from .renders.router import router as renders_router
@@ -27,7 +30,7 @@ app.add_middleware(
     allow_origins=[get_settings().frontend_origin],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["Content-Type", "Idempotency-Key", "Last-Event-ID", "X-Request-ID"],
+    allow_headers=["Content-Type", "Idempotency-Key", "Last-Event-ID", "Range", "X-Request-ID"],
     # The Remotion player seeks narration audio cross-origin; it must be able to
     # read the range headers to know the clip is seekable.
     expose_headers=["Accept-Ranges", "Content-Range", "Content-Length"],
@@ -84,5 +87,8 @@ async def ready():
 app.include_router(projects_router, prefix="/api/v1")
 app.include_router(artifacts_router, prefix="/api/v1")
 app.include_router(execution_router, prefix="/api/v1")
+app.include_router(orchestrator_router, prefix="/api/v1")
+app.include_router(composition_router, prefix="/api/v1")
 app.include_router(renders_router, prefix="/api/v1")
 app.include_router(voice_router, prefix="/api/v1")
+app.include_router(direct_router, prefix="/api/v1")

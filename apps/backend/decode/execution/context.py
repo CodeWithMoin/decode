@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from ..departments import SourceInput
+from ..agents import SourceInput
 from ..models import ArtifactVersion, JobInput
 from ..schemas import (
     ProductionBrief,

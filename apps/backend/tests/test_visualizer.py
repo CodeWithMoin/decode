@@ -1,14 +1,13 @@
 import pytest
 
-from decode.config import Settings
-from decode.departments.registry import visualizer as build_visualizer
-from decode.departments.visualizer import prompt
-from decode.departments.visualizer.validation import (
-    RUNTIME_MODULE,
+from decode.agents.registry import visualizer as build_visualizer
+from decode.agents.renderer import prompt
+from decode.agents.renderer.validation import (
     controls_export,
     module_source,
     validate_scenes,
 )
+from decode.config import Settings
 from decode.execution.pipeline import STAGES
 from decode.models import ArtifactType
 from decode.schemas import (
@@ -47,14 +46,16 @@ PLAN = TeachingPlan(
     ],
 )
 
-GOOD = """import { useProgress, interpolate, Easing, AbsoluteFill } from "@decode/animation-api";
+GOOD = """import {
+  useCurrentFrame, interpolate, Easing, AbsoluteFill
+} from "@decode/animation-api";
 
 export default function Scene(props) {
-  const progress = useProgress();
+  const frame = useCurrentFrame();
   return (
     <AbsoluteFill style={{
       background: props.background,
-      opacity: interpolate(progress, [0, 0.25], [0, 1], { extrapolateRight: "clamp" }),
+      opacity: interpolate(frame, [0, 8], [0, 1], { extrapolateRight: "clamp" }),
     }} />
   );
 }
@@ -82,15 +83,20 @@ def test_the_stage_is_discovered_from_its_manifest():
 
 
 def test_shipped_skills_load():
-    system = prompt.SKILLS.system()
-    assert "untrusted content" in system
-    assert RUNTIME_MODULE in system
-    api = prompt.SKILLS.reference("scene-api")
-    # The reference the model reads and the rule the validator enforces have to
-    # describe the same API, or the department is set up to fail its own gate.
-    assert "useProgress" in api
-    assert "useVideoConfig" in api  # named only to say it is absent
-    assert "Easing.bezier" in api
+    from decode.agents.agent_config import AgentConfig
+
+    system = AgentConfig.from_skillset(prompt.SKILLS).system
+    assert "untrusted data" in system
+    rendered = prompt.build_instructions(
+        visual_direction={"audience": "Beginners", "brand_colors": []},
+        beats=[{"beat_id": "beat-01", "narration": "A loop responds."}],
+    )
+    assert "useCurrentFrame" in rendered
+    assert "interpolate" in rendered
+    assert "@decode/animation-api" in rendered
+    assert "defineLayout" in rendered  # named only in the explicit do-not-use line
+    assert "scene-api.md" not in rendered
+    assert len(system) + len(rendered) < 6000
 
 
 def test_visualizer_requires_a_key(tmp_path):
@@ -105,6 +111,7 @@ def test_a_clean_scene_passes():
 
 
 def test_imports_outside_the_scene_api_are_rejected():
+    assert "forbidden_import" in codes(GOOD.replace('"@decode/animation-api"', '"gsap"'))
     assert "forbidden_import" in codes(GOOD.replace('"@decode/animation-api"', '"remotion"'))
     assert "forbidden_import" in codes('import x from "./helper";\n' + GOOD)
 
@@ -112,13 +119,6 @@ def test_imports_outside_the_scene_api_are_rejected():
 def test_reaching_for_code_or_the_network_is_rejected():
     for snippet in ('eval("1")', 'fetch("/x")', "new Function()", 'require("fs")'):
         assert "forbidden_api" in codes(GOOD + f"\n// {snippet}\nconst z = {snippet};")
-
-
-def test_a_scene_may_not_learn_its_own_duration():
-    # The API does not export these, so this is the backstop rather than the
-    # lock — but a scene that names them is still refused.
-    for snippet in ("const fps = 30;", "const { durationInFrames } = x;", "useVideoConfig()"):
-        assert "declares_duration" in codes(GOOD + f"\n{snippet}")
 
 
 def test_css_motion_is_rejected():
@@ -138,6 +138,25 @@ def test_a_scene_must_export_a_default():
 
 def test_a_scene_may_not_write_its_own_controls_block():
     assert "declares_controls" in codes(GOOD + "\nexport const CONTROLS = {};")
+
+
+def test_define_layout_requires_the_complete_runtime_format():
+    broken = GOOD.replace(
+        "const frame = useCurrentFrame();",
+        "const frame = useCurrentFrame();\n"
+        "  const layout = defineLayout({designWidth: 1920, designHeight: 1080}, {\n"
+        '    hero: {x: 0, y: 0, width: 1, height: 1, space: "safe"},\n'
+        "  });",
+    )
+    assert "literal_layout_format" in codes(broken)
+
+
+def test_new_scenes_do_not_use_decode_layout_helpers():
+    broken = GOOD.replace(
+        "const frame = useCurrentFrame();",
+        "const frame = useCurrentFrame();\n  const layout = defineLayout(format, regions);",
+    )
+    assert "decode_layout_helper" in codes(broken)
 
 
 def test_reading_an_undeclared_control_is_rejected():
@@ -172,13 +191,44 @@ def test_decode_writes_the_controls_block_not_the_model():
 
 
 async def test_the_fixture_writes_scenes_that_pass_their_own_gate():
-    from decode.departments.fixtures import FakeAuthor, FakeVisualizer
+    from decode.agents.fixtures import FakeAuthor, FakeVisualizer
 
     script = await FakeAuthor().generate(INTENT, PLAN)
     visuals = await FakeVisualizer().generate(INTENT, PLAN, script)
     assert validate_scenes(visuals.scenes, PLAN) == []
     assert visuals.visual_findings["fixture"] is True
-    assert visuals.visual_findings["runtime_version"] == "decode-animation-api-v1"
+    assert visuals.visual_findings["runtime_version"] == "decode-animation-api-v2"
+    # Remotion f(frame), driven through Decode's generated-code boundary.
+    src = visuals.scenes[0].component_source
+    assert src and 'from "@decode/animation-api"' in src and "useCurrentFrame" in src
+    assert visuals.scenes[0].composition_html is None
+
+
+def test_renderer_config_keeps_the_persisted_scene_visuals_name():
+    from decode.agents.agent_config import AgentConfig
+    from decode.agents.agent_runtime import SkillLibrary
+
+    config = AgentConfig.from_skillset(prompt.SKILLS)
+    assert config.produces == "scene_visuals"  # persisted contract, unchanged
+    assert prompt.SKILLS.version == "raw-remotion-v1"
+    assert config.max_turns == 8
+    assert tuple(skill.name for skill in config.skills) == (
+        "remotion-best-practices",
+        "remotion-create",
+        "remotion-markup",
+        "remotion-interactivity",
+        "remotion-captions",
+        "remotion-maps",
+        "remotion-multimedia",
+        "remotion-render",
+        "remotion-saas",
+        "remotion-studio",
+        "remotion-docs",
+        "remotion-upgrade",
+    )
+    assert all(not skill.eager for skill in config.skills)
+    library = SkillLibrary()
+    assert all(library.load(skill.name).strip() for skill in config.skills)
 
 
 async def test_regenerate_one_rebuilds_only_the_target_beat():

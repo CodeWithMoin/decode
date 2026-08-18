@@ -7,3 +7,4 @@
 __pycache__/
 *.db
 *.py[cod]
+dial-in-*.json

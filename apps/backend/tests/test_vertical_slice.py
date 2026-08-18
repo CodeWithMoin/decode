@@ -8,6 +8,12 @@ from sqlalchemy import func, select
 
 from decode.db import SessionLocal, new_id, utcnow
 from decode.domain import canonical_hash
+from decode.execution.graph import (
+    ASSEMBLY_TASK,
+    SCENE_TASK,
+    accept_scene_candidate,
+    execute_task,
+)
 from decode.execution.worker import execute_run
 from decode.models import (
     ApprovalDecision,
@@ -19,6 +25,7 @@ from decode.models import (
     Job,
     JobInput,
     OutboxEvent,
+    ProductionTask,
     Project,
     ProjectEvent,
     Run,
@@ -65,6 +72,52 @@ async def create_inputs(client, auto_continue: bool = False):
         )
     ).json()
     return project, source, intent
+
+
+async def execute_visual_graph(run_id: str) -> dict:
+    """Drive the same independently queued graph nodes ARQ runs in production."""
+    started = await execute_run(None, run_id)
+    assert started["status"] == "scheduled"
+    async with SessionLocal() as session:
+        scenes = list(
+            (
+                await session.scalars(
+                    select(ProductionTask).where(
+                        ProductionTask.run_id == run_id,
+                        ProductionTask.kind == SCENE_TASK,
+                    )
+                )
+            ).all()
+        )
+    await asyncio.gather(*(execute_task(None, task.id, task.attempt) for task in scenes))
+    async with SessionLocal() as session:
+        run = await session.get(Run, run_id)
+        assert run is not None
+        job = await session.get(Job, run.job_id)
+        assert job is not None
+        refreshed = list(
+            (
+                await session.scalars(
+                    select(ProductionTask).where(
+                        ProductionTask.run_id == run_id,
+                        ProductionTask.kind == SCENE_TASK,
+                    )
+                )
+            ).all()
+        )
+        for task in refreshed:
+            source = task.output["visuals"]["scenes"][0]["component_source"]
+            await accept_scene_candidate(session, job.project_id, job.id, task.id, source)
+        await session.commit()
+        assembly = await session.scalar(
+            select(ProductionTask).where(
+                ProductionTask.run_id == run_id,
+                ProductionTask.kind == ASSEMBLY_TASK,
+            )
+        )
+        assert assembly is not None and assembly.status == "queued"
+        assembly_id, attempt = assembly.id, assembly.attempt
+    return await execute_task(None, assembly_id, attempt)
 
 
 @pytest.mark.asyncio
@@ -807,7 +860,7 @@ async def test_a_chaining_project_starts_the_next_stage_itself(client):
         assert visuals_job is not None
         visuals_run_id = visuals_job.active_run_id
 
-    assert (await execute_run(None, visuals_run_id))["status"] == "succeeded"
+    assert (await execute_visual_graph(visuals_run_id))["status"] == "succeeded"
     # Visuals are done, but the chain has already queued the narration, so the
     # project is still processing rather than resting on Edit.
     studio = (await client.get(f"/api/v1/projects/{pid}/studio")).json()

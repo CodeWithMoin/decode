@@ -18,6 +18,7 @@ export function ConnectedProjectFrame({
   loading,
   fill = false,
   onExport,
+  exportDisabled = false,
   children,
 }: {
   // Callers still pass projectId; the frame no longer needs it (the stage rail
@@ -29,6 +30,7 @@ export function ConnectedProjectFrame({
   loading: boolean;
   fill?: boolean;
   onExport?: () => void;
+  exportDisabled?: boolean;
   children: ReactNode;
 }) {
   const router = useRouter();
@@ -43,19 +45,15 @@ export function ConnectedProjectFrame({
   }, [activeStage]);
   const sourceCount = stableStudio?.sources.length;
 
-  // The cutting room is dark, and the whole shell goes with it — same as
-  // ProjectShell. Derived from the stage rather than from whether the scenes
-  // have arrived, which is the difference between opening dark and flashing
-  // white first: the header paints before any fetch resolves.
+  // Edit keeps a distinct workstation layout, but its chrome uses the same
+  // warm paper material as every other project surface. The authored 16:9
+  // frame remains the only cinematic surface.
   const editing = activeStage === "edit";
 
   return (
     <div
       data-editing={editing || undefined}
-      className={cx(
-        "app-field app-field-global min-h-dvh p-0 lg:h-dvh lg:overflow-hidden",
-        editing && "bg-[var(--nle-bg)]",
-      )}
+      className="app-field app-field-global min-h-dvh w-full overflow-x-hidden p-0 lg:h-dvh lg:overflow-hidden"
     >
       {/* No global rail inside a project.
           The studio's rail carried a wordmark, New decode, Home and the account
@@ -65,20 +63,20 @@ export function ConnectedProjectFrame({
           into the header, where they read as one line instead of a column. */}
       <div
         className={cx(
-          "min-w-0 lg:relative lg:z-[1] lg:flex lg:h-dvh lg:flex-col lg:overflow-hidden",
-          editing ? "bg-[var(--nle-bg)]" : "lg:bg-sunken-2",
+          "min-w-0 lg:relative lg:z-[1] lg:flex lg:h-dvh lg:flex-col lg:overflow-hidden lg:bg-sunken-2",
         )}
       >
         <header
           className={cx(
-            "sticky top-0 z-30 flex items-center justify-between gap-3 border-b px-4 py-2.5",
-            editing
-              ? "border-[var(--nle-line)] bg-[var(--nle-panel)] text-[var(--nle-text)]"
-              : "panel-glass border-line-head",
+            "panel-glass sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-line-head px-4 py-2.5",
           )}
         >
           <div className="flex min-w-0 items-center gap-3 justify-self-start">
-          <button onClick={() => router.push("/studio")} aria-label="Back to projects" className="grid h-9 w-9 place-items-center rounded-full border border-line-input bg-card lg:hidden">
+          <button
+            onClick={() => router.push("/studio")}
+            aria-label="Back to projects"
+              className="grid h-9 w-9 place-items-center rounded-full border border-line-input bg-card text-t6 transition-transform duration-[var(--t-fast)] active:scale-[0.97] lg:hidden"
+          >
             <ArrowLeft size={14} />
           </button>
           {/* Identity, the way back, and where you are — one line. */}
@@ -95,10 +93,7 @@ export function ConnectedProjectFrame({
             </button>
             <span
               aria-hidden
-              className={cx(
-                "hidden flex-none text-[13px] lg:inline",
-                editing ? "text-[var(--nle-faint)]" : "text-t8",
-              )}
+              className="hidden flex-none text-[13px] text-t8 lg:inline"
             >
               /
             </span>
@@ -113,20 +108,12 @@ export function ConnectedProjectFrame({
 
           <div className="flex min-w-0 items-center justify-self-end gap-3">
           <span
-            className={cx(
-              "hidden rounded-full border px-2.5 py-1 font-mono text-[9px] tracking-[0.1em] uppercase 2xl:inline",
-              editing
-                ? "border-[var(--nle-line)] bg-[var(--nle-panel-raised)] text-[var(--nle-muted)]"
-                : "border-line-input bg-sunken text-t6",
-            )}
+            className="hidden rounded-full border border-line-input bg-sunken px-2.5 py-1 font-mono text-[9px] tracking-[0.1em] text-t6 uppercase 2xl:inline"
           >
             {statusLabel}
           </span>
           <span
-            className={cx(
-              "hidden font-mono text-[9px] tracking-[0.1em] uppercase 2xl:inline",
-              editing ? "text-[var(--nle-muted)]" : "text-t6",
-            )}
+            className="hidden font-mono text-[9px] tracking-[0.1em] text-t6 uppercase 2xl:inline"
           >
             {sourceCount === undefined
               ? "Checking sources"
@@ -136,8 +123,9 @@ export function ConnectedProjectFrame({
             <button
               type="button"
               onClick={() => onExport ? onExport() : setExportOpen(true)}
+              disabled={exportDisabled}
               aria-label={onExport ? "Export video" : "Open export settings showcase"}
-              className="flex h-[31px] flex-none items-center rounded-full border border-transparent px-3 text-[11.5px] text-[var(--nle-muted)] transition-[background-color,border-color,color,transform] duration-[var(--t-fast)] hover:border-[var(--nle-line)] hover:bg-[var(--nle-panel-raised)] hover:text-[var(--nle-text)] active:scale-[0.98]"
+              className="flex h-[31px] flex-none items-center rounded-full bg-ink px-3.5 text-[11.5px] font-medium text-white shadow-xs transition-[background-color,transform] duration-[var(--t-fast)] hover:bg-ink-2 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-35"
             >
               Export
             </button>

@@ -1,21 +1,22 @@
 "use client";
 
-// Sequence and the frame clock come straight from Remotion here, not from
-// `@decode/animation-api`. That module is the door a *generated scene* comes
-// through, and it deliberately withholds the clock so a scene cannot learn its
-// own duration. This file is the host that lays scenes out on the real
-// timeline, so it is exactly the code that should have frames.
-import { Audio, interpolate, Sequence, useCurrentFrame } from "remotion";
+import { Fragment } from "react";
+// This host owns the production timeline. Generated scenes use the same Remotion
+// clock through `@decode/animation-api`, but they do not register compositions or
+// decide where they sit in the production.
+import { Audio, Easing, interpolate, Sequence, useCurrentFrame } from "remotion";
 import { AbsoluteFill, fontCss, Interactive } from "@decode/animation-api";
 import { SceneVisual } from "@/components/project/canvas/SceneVisual";
 import { GeneratedScene } from "@/components/player/GeneratedScene";
-import { startsAll, totalAll } from "@/lib/derive";
+import { HyperframesScene } from "@/components/player/HyperframesScene";
+import { DECODE_FPS, getDecodeTimeline } from "@/components/player/decode-timeline";
 import { sceneVisualStyleAt } from "@/lib/scene-style";
 import type { Scene } from "@/lib/types";
 
-export const DECODE_FPS = 24;
+export { DECODE_FPS } from "@/components/player/decode-timeline";
 export const DECODE_WIDTH = 1920;
 export const DECODE_HEIGHT = 1080;
+const SCENE_SEAM_FRAMES = 10;
 
 export type DecodeCompositionProps = {
   scenes: Scene[];
@@ -23,32 +24,64 @@ export type DecodeCompositionProps = {
 };
 
 export function getDecodeDurationInFrames(scenes: Scene[]) {
-  return Math.max(1, Math.ceil(totalAll(scenes) * DECODE_FPS));
+  return getDecodeTimeline(scenes).durationInFrames;
 }
 
 export function DecodeComposition({ scenes, visualPick }: DecodeCompositionProps) {
-  const sceneStarts = startsAll(scenes);
+  const timeline = getDecodeTimeline(scenes);
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#0B0B0B" }}>
-      {scenes.map((scene, index) => {
-        const durationInFrames = Math.max(1, scene.dur * DECODE_FPS);
-        const start = Math.round(sceneStarts[index] * DECODE_FPS);
-
+      {timeline.clips.map(({ scene, sceneIndex, startFrame, durationInFrames }) => {
         if (scene.disabled) return null;
+        const hasIncomingSeam = sceneIndex > 0 && !timeline.clips[sceneIndex - 1]?.scene.disabled;
+        const hasOutgoingSeam = sceneIndex < timeline.clips.length - 1 && !timeline.clips[sceneIndex + 1]?.scene.disabled;
+        const seamFrames = Math.min(SCENE_SEAM_FRAMES, Math.max(1, durationInFrames - 1));
 
         return (
-          <Sequence key={scene.id} name={`Scene ${index + 1}`} from={start} durationInFrames={durationInFrames} premountFor={DECODE_FPS}>
-            {scene.audioUrl && <Audio src={scene.audioUrl} />}
-            <DecodeScene scene={scene} index={index} durationInFrames={durationInFrames} pick={visualPick[index]} />
-          </Sequence>
+          <Fragment key={scene.id}>
+            {scene.audioUrl && !scene.muted && (
+              <Sequence name={`Scene ${sceneIndex + 1} audio`} from={startFrame} durationInFrames={durationInFrames} premountFor={DECODE_FPS}>
+                <Audio src={scene.audioUrl} />
+              </Sequence>
+            )}
+            <Sequence
+              name={`Scene ${sceneIndex + 1} visual`}
+              from={startFrame}
+              durationInFrames={durationInFrames + (hasOutgoingSeam ? seamFrames : 0)}
+              premountFor={DECODE_FPS}
+            >
+              <DecodeScene
+                scene={scene}
+                index={sceneIndex}
+                durationInFrames={durationInFrames}
+                seamInFrames={hasIncomingSeam ? seamFrames : 0}
+                seamOutFrames={hasOutgoingSeam ? seamFrames : 0}
+                pick={visualPick[sceneIndex]}
+              />
+            </Sequence>
+          </Fragment>
         );
       })}
     </AbsoluteFill>
   );
 }
 
-function DecodeScene({ scene, index, durationInFrames, pick }: { scene: Scene; index: number; durationInFrames: number; pick?: "A" | "B" }) {
+function DecodeScene({
+  scene,
+  index,
+  durationInFrames,
+  seamInFrames,
+  seamOutFrames,
+  pick,
+}: {
+  scene: Scene;
+  index: number;
+  durationInFrames: number;
+  seamInFrames: number;
+  seamOutFrames: number;
+  pick?: "A" | "B";
+}) {
   const frame = useCurrentFrame();
   const progress = Math.min(1, Math.max(0, frame / Math.max(1, durationInFrames - 1)));
   const style = sceneVisualStyleAt(scene, progress);
@@ -60,17 +93,44 @@ function DecodeScene({ scene, index, durationInFrames, pick }: { scene: Scene; i
   const fadeOutOpacity = fadeOutFrames > 0
     ? interpolate(frame, [durationInFrames - fadeOutFrames - 1, durationInFrames - 1], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })
     : 1;
-  const opacity = Math.min(fadeInOpacity, fadeOutOpacity);
+  const seamIn = seamInFrames > 0
+    ? interpolate(frame, [0, seamInFrames], [0, 1], {
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+        easing: Easing.out(Easing.poly(4)),
+      })
+    : 1;
+  const seamOut = seamOutFrames > 0
+    ? interpolate(frame, [durationInFrames, durationInFrames + seamOutFrames], [0, 1], {
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+        easing: Easing.in(Easing.poly(4)),
+      })
+    : 0;
+  const seamOpacity = Math.min(1, seamIn * 0.65 + 0.35) * (1 - seamOut * 0.85);
+  const seamX = (1 - seamIn) * 230 - seamOut * 230;
+  const seamBlur = Math.max((1 - seamIn) * 8, seamOut * 8);
+  const opacity = Math.min(fadeInOpacity, fadeOutOpacity) * seamOpacity;
 
   // A connected scene brings its own animation as code. Everything below is the
   // prototype's chip stand-in for a visual that does not exist yet, so a scene
   // that has the real thing skips it.
   const hostStyle: React.CSSProperties = {
-    translate: `${style.x}px ${style.y}px`,
+    translate: `${style.x + seamX}px ${style.y}px`,
     scale: style.scale / 100,
     opacity: opacity * (style.opacity / 100),
-    filter: style.blur > 0 ? `blur(${style.blur}px)` : undefined,
+    filter: style.blur + seamBlur > 0 ? `blur(${style.blur + seamBlur}px)` : undefined,
   };
+
+  // A HyperFrames scene is the render substrate replacing Remotion: play its
+  // stamped composition, seeked to this scene's local time. Legacy React scenes
+  // keep Remotion until they are migrated.
+  if (scene.compositionHtml)
+    return (
+      <AbsoluteFill style={hostStyle}>
+        <HyperframesScene scene={scene} timeSeconds={frame / DECODE_FPS} />
+      </AbsoluteFill>
+    );
 
   if (scene.componentSource) return <AbsoluteFill style={hostStyle}><GeneratedScene scene={scene} /></AbsoluteFill>;
 

@@ -1,6 +1,6 @@
 """The Project Manager: what Decode knows how to produce, and how work starts.
 
-`PROJECT_CONTEXT.md` calls this the Project Manager and `decode-backend-foundation.md`
+`docs/PROJECT_CONTEXT.md` calls this the Project Manager and `decode-backend-foundation.md`
 §6 places it in the application layer, between the command handlers and the
 departments. Departments never invoke each other; this is what routes between
 them.
@@ -33,11 +33,11 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..agents.contracts import Department
+from ..agents.registry import architect, author, evaluator, intake, visualizer, voice
+from ..agents.skills import Manifest
 from ..config import Settings
 from ..db import utcnow
-from ..departments.contracts import Department
-from ..departments.registry import architect, author, evaluator, intake, visualizer, voice
-from ..departments.skills import Manifest
 from ..domain import canonical_hash, emit
 from ..models import (
     ApprovalDecision,
@@ -74,11 +74,11 @@ def _discover() -> dict[str, Stage]:
     produces, what it consumes and which crew role it presents as, and keeping a
     second copy here is how the two drift. Adding a department is a folder.
     """
-    from ..departments.architect.prompt import SKILLS as ARCHITECT
-    from ..departments.author.prompt import SKILLS as AUTHOR
-    from ..departments.intake.prompt import SKILLS as INTAKE
-    from ..departments.visualizer.prompt import SKILLS as VISUALIZER
-    from ..departments.voice.prompt import SKILLS as VOICE
+    from ..agents.architect.prompt import SKILLS as ARCHITECT
+    from ..agents.author.prompt import SKILLS as AUTHOR
+    from ..agents.intake.prompt import SKILLS as INTAKE
+    from ..agents.renderer.prompt import SKILLS as VISUALIZER
+    from ..agents.voice.prompt import SKILLS as VOICE
 
     return {
         skills.manifest.job_kind: Stage(skills.manifest)

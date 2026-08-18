@@ -133,8 +133,10 @@ slab.
 
 ### Edit workstation
 
-Edit expands the cinematic surface into a focused laptop NLE. It uses neutral
-tool surfaces only; burnt amber remains the sole interaction accent.
+Edit expands the cinematic surface into a focused laptop editor. Its warm-white
+paper and card surfaces match the rest of the studio; burnt amber remains the
+sole interaction accent, while the 16:9 production frame keeps its authored
+scene background.
 
 Scene settings is a real properties inspector, not a regeneration menu. The
 selected scene exposes its name, caption, visual labels, motion treatment,
@@ -150,6 +152,11 @@ Frame events update Decode's playhead, and external seeks or edits update the
 Player. There is one clock, never a React interval running beside it. Server
 rendering remains behind Decode's renderer port until a deployment target is
 selected.
+
+Scene boundaries never hard-cut in preview. The composition host holds the
+outgoing final frame beneath a ten-frame leftward seam while the incoming scene
+continues the same vector into place. Narration remains gapless and authoritative:
+the visual overlap changes neither clip timing nor total runtime.
 
 Edit also owns its native interaction material. The preview and timeline cannot
 be text-selected; Chat and Inspector content can. Text selection uses translucent
@@ -168,15 +175,17 @@ scene modules.
 
 | Token | Hex | Use |
 |---|---|---|
-| `nle-bg` | `#080808` | Preview surround and timeline ground. |
-| `nle-panel` | `#111111` | Chat, Inspector and tool bars. |
-| `nle-panel-raised` | `#1B1B1B` | Inputs and pressed tool surfaces. |
-| `nle-line` / `nle-line-strong` | `#2D2D2D` / `#484848` | Major structural separators and selected edges. |
-| `nle-grid-line` | `rgb(255 255 255 / 0.04)` | Timeline row and gutter rules; visible only as low-opacity separation. |
-| `nle-track` / `nle-track-active` | `#101010` / `#171513` | Timeline depth without bright outlines. |
+| `nle-bg` | `#F6F6F4` | Preview surround and editor ground. |
+| `nle-panel` | `#FFFFFF` | Chat, Inspector and tool bars. |
+| `nle-panel-raised` | `#FBFBFA` | Inputs and pressed tool surfaces. |
+| `nle-line` / `nle-line-strong` | `#E3E3DF` / `#D4D4CF` | Major structural separators and selected edges. |
+| `nle-grid-line` | `rgb(20 20 20 / 0.07)` | Timeline row and gutter rules; visible only as low-opacity separation. |
+| `nle-track` / `nle-track-active` | `#F4F4F1` / `#FDF7F3` | Timeline depth without dark mode. |
 | `nle-clip` / `nle-clip-hover` | `#C46A3B` / `#D47D4E` | Amber-copper scene clips, derived from the accent family. |
-| `nle-clip-line` / `nle-clip-selected` | `#E0956C` / `#FFE4D4` | Clip edge and selected-clip outline. |
-| `nle-text` / `nle-muted` / `nle-faint` | `#F5F5F5` / `#B8B8B8` / `#7E7E7E` | Tool hierarchy. |
+| `nle-clip-line` / `nle-clip-selected` | `#E0956C` / `#9A3412` | Clip edge and selected-clip outline. |
+| `nle-audio-clip` / `nle-audio-clip-hover` | `#5E776D` / `#6E887D` | Desaturated sage audio clips; a functional track colour, not an interaction accent. |
+| `nle-audio-line` / `nle-audio-waveform` | `#83998F` / `#DCE8E2` | Audio clip edge and high-contrast waveform. |
+| `nle-text` / `nle-muted` / `nle-faint` | `#141414` / `#6B6B68` / `#9A9A96` | Tool hierarchy. |
 
 ### Crew
 

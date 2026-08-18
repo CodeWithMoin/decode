@@ -2,9 +2,9 @@ from types import SimpleNamespace
 
 import pytest
 
+from decode.agents.architect import ModelArchitect, TeachingPlanDraft, prompt
+from decode.agents.registry import architect as build_architect
 from decode.config import Settings
-from decode.departments.architect import OpenAIArchitect, TeachingPlanDraft, prompt
-from decode.departments.registry import architect as build_architect
 from decode.execution.pipeline import STAGES, stage_for
 from decode.models import ArtifactType
 from decode.schemas import Beat, PlanSection, ProductionBrief, ProductionIntent
@@ -113,7 +113,7 @@ class FakeResponses:
 
 
 def architect_with(monkeypatch, drafts, reflection: str | None):
-    director = OpenAIArchitect.__new__(OpenAIArchitect)
+    director = ModelArchitect.__new__(ModelArchitect)
     director.model = "test-model"
     director.client = SimpleNamespace(responses=FakeResponses(drafts))
     director.last_usage = None
@@ -193,7 +193,7 @@ async def test_invalid_repair_is_not_published(monkeypatch):
 async def test_fake_architect_meets_the_requested_runtime():
     # The fixture has to be arithmetically honest at any target, or it teaches
     # the wrong lesson about what a plan owes the creator.
-    from decode.departments.fixtures import FakeArchitect
+    from decode.agents.fixtures import FakeArchitect
 
     for seconds in (60, 180, 300, 600):
         intent = INTENT.model_copy(update={"target_duration_seconds": seconds})

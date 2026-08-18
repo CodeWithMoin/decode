@@ -1,0 +1,133 @@
+# Langfuse, self-hosted, opt-in.
+#
+# Separate from compose.yaml on purpose. This is six containers — web, worker,
+# ClickHouse, MinIO, Redis and its own Postgres — to observe one department, so
+# `make dev` must not pay for it. Start it with `make langfuse` when you are
+# working on prompts and leave it stopped otherwise.
+#
+# Self-hosted rather than cloud because traces carry the creator's source
+# material. See `decode/departments/tracing.py` for what is redacted before it
+# leaves the process; this file is the second half of the same decision.
+#
+# Ports are shifted off Langfuse's defaults: 3000 is the Decode frontend and
+# 5432/6379 are Decode's own Postgres and Redis.
+#
+# Image tags are pinned to a major so upgrades are deliberate. `langfuse>=4.10`
+# in pyproject.toml must stay in step with the `:4` tags here — that version is
+# the first with Responses API tools and `instructions` captured correctly.
+
+name: decode-langfuse
+
+services:
+  langfuse-web:
+    image: docker.io/langfuse/langfuse:4
+    depends_on:
+      langfuse-postgres:
+        condition: service_healthy
+      langfuse-clickhouse:
+        condition: service_healthy
+      langfuse-minio:
+        condition: service_healthy
+    ports:
+      - "3001:3000"
+    environment: &langfuse-env
+      DATABASE_URL: postgresql://postgres:postgres@langfuse-postgres:5432/langfuse
+      SALT: "local-development-salt"
+      # Quoted, and not a run of zeros: YAML reads bare digits as a number, so an
+      # unquoted hex key of all zeros reaches the container as "0" and Langfuse
+      # rejects it at boot with a Zod error that never mentions YAML.
+      ENCRYPTION_KEY: "1a5f3c9e2b7d4086af1c6e5b3d9027f4e8a1b6c3d5079e2f4a8b1c6d3e5079af"
+      NEXTAUTH_SECRET: "local-development-secret"
+      NEXTAUTH_URL: http://localhost:3001
+      CLICKHOUSE_URL: http://langfuse-clickhouse:8123
+      CLICKHOUSE_MIGRATION_URL: clickhouse://langfuse-clickhouse:9000
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: clickhouse
+      CLICKHOUSE_CLUSTER_ENABLED: "false"
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: minio
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: miniosecret
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://langfuse-minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+      REDIS_HOST: langfuse-redis
+      REDIS_PORT: 6379
+      REDIS_AUTH: langfuse
+      # Nothing here is a secret worth protecting: this stack is local-only and
+      # every value is fixed so a teammate's traces land in the same place.
+      # A deployed Langfuse must generate its own SALT, ENCRYPTION_KEY and
+      # NEXTAUTH_SECRET.
+      TELEMETRY_ENABLED: "false"
+      LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: "false"
+
+  langfuse-worker:
+    image: docker.io/langfuse/langfuse-worker:4
+    depends_on:
+      langfuse-postgres:
+        condition: service_healthy
+      langfuse-clickhouse:
+        condition: service_healthy
+      langfuse-minio:
+        condition: service_healthy
+    environment: *langfuse-env
+
+  langfuse-postgres:
+    image: docker.io/postgres:17-alpine
+    environment:
+      POSTGRES_DB: langfuse
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d langfuse"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - langfuse_postgres_data:/var/lib/postgresql/data
+
+  langfuse-clickhouse:
+    image: docker.io/clickhouse/clickhouse-server:25.12
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: clickhouse
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8123/ping || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    volumes:
+      - langfuse_clickhouse_data:/var/lib/clickhouse
+
+  langfuse-minio:
+    image: docker.io/minio/minio:latest
+    entrypoint: sh
+    # The bucket has to exist before the web container starts or event upload
+    # fails on the first trace rather than at boot, which reads as data loss.
+    command: -c 'mkdir -p /data/langfuse && minio server /data --console-address ":9001"'
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: miniosecret
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    volumes:
+      - langfuse_minio_data:/data
+
+  langfuse-redis:
+    image: docker.io/redis:7-alpine
+    command: --requirepass langfuse
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "langfuse", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  langfuse_postgres_data:
+  langfuse_clickhouse_data:
+  langfuse_minio_data:

@@ -4,8 +4,8 @@ from types import ModuleType
 
 import pytest
 
+from decode.agents import tracing
 from decode.config import Settings
-from decode.departments import tracing
 
 
 @pytest.fixture(autouse=True)

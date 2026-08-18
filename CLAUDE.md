@@ -35,12 +35,23 @@ There is no test runner on the frontend — `make test` typechecks and lints it 
 | File | What it is |
 |---|---|
 | **`MASTER.md`** | **Authoritative.** Design system + product invariants. Every hex, size, radius and duration is a decided value. Its machine-readable form is `apps/frontend/src/app/globals.css`; the two must never disagree. |
-| `PROJECT_CONTEXT.md` | Vision and the eight backend departments. The "why". |
-| `APP-STRUCTURE.md` | Frontend map. Partially stale — see "Known drift". |
-| `CREATOR-LANGUAGE.md` | Internal term → creator-facing language. "Agent", "artifact", "job" are not user-facing words. |
-| `LANDING-PLAN.md` | Landing page composition, as built. |
-| `HYPERFRAMES-ARCHITECTURE-REVIEW.md` | Decision: adopt HyperFrames as a replaceable render substrate behind a Decode-owned port, never as the framework. No adapter exists yet. |
+| `docs/PROJECT_CONTEXT.md` | Vision and the eight backend departments. The "why". |
+| `docs/APP-STRUCTURE.md` | Frontend map. Partially stale — see "Known drift". |
+| `docs/CREATOR-LANGUAGE.md` | Internal term → creator-facing language. "Agent", "artifact", "job" are not user-facing words. |
+| `docs/LANDING-PLAN.md` | Landing page composition, as built. |
+| `docs/HYPERFRAMES-ARCHITECTURE-REVIEW.md` | Decision: adopt HyperFrames as a replaceable render substrate behind a Decode-owned port, never as the framework. Migration has begun (one scene ported); `docs/VISUALIZER-TO-HYPERFRAMES.md` is the live plan. |
 | `.omc/autopilot/spec.md` + `.omc/plans/` | The approved walking-skeleton contract. |
+
+**The planned pivot.** Three design docs describe where the execution model is
+going — they are proposals, not shipped: `docs/AGENT-GRAPH.md` (authoritative on the
+orchestrator + graph-of-agents model and its §10 settled decisions; supersedes the
+staged departments as the *execution* model), `docs/VISUALIZER-TO-HYPERFRAMES.md` (the
+Motion Designer's Remotion-flavored output generalized onto HyperFrames), and
+`docs/AUDIO-SYNC-PROPOSAL.md` (the Sound Designer department + full beat-sync system).
+None of the orchestrator, snapshot/checkpoint state model, HyperFrames
+generalization, or Sound Designer is built yet — today's reality is still the
+department pipeline + immutable artifacts + Remotion under the hood, with the
+single-workspace UI on top.
 
 Where `MASTER.md` and any other document conflict, `MASTER.md` wins.
 
@@ -54,13 +65,21 @@ before you edit.
 | Entry | `/` → `components/Studio.tsx` | `/studio/*` App Router pages |
 | Navigation | `useStudio.screen` switch | real URLs |
 | Data | `lib/api.ts` — seeded, synchronous | `lib/decode-api.ts` — fetch + SSE |
-| Project screen | `project/ProjectShell.tsx`, four seeded stages | `connected/ConnectedProjectFrame.tsx`, four durable stage routes |
+| Project screen | `project/ProjectShell.tsx`, four seeded stages | `connected/ConnectedProjectFrame.tsx`, single Edit workspace |
 
-`Dashboard` and `NewDecode` serve both through a `connected` prop. Script shares a
-prop-driven stage surface, and connected Edit adapts durable artifacts into the
-prototype workstation. Everything else belongs to one side. The prototype is the
-full product, faked; the connected app is the real vertical slice. New
-backend-backed work goes on the connected side.
+`Dashboard` and `NewDecode` serve both through a `connected` prop. Connected Edit
+adapts durable artifacts into the prototype workstation. Everything else belongs to
+one side. The prototype is the full product, faked; the connected app is the real
+vertical slice. New backend-backed work goes on the connected side.
+
+**Single workspace shipped (connected side).** A new project runs inputs → a named
+build screen → **Edit** automatically; there is no staged wizard the creator clicks
+through. Understanding / Teaching Plan / Script are **removed from nav** — reachable
+by deep-link only — and plan + script are **tabs in the Edit inspector**, not
+separate stage routes. The staged flow below (`unlockLevel`, locked nudges, the
+Continuous ↔ Stage-by-stage toggle) is the prototype's model and the backend
+department pipeline; the connected UI no longer surfaces it. `docs/AGENT-GRAPH.md`
+describes the planned orchestrator that replaces the pipeline entirely.
 
 ### Frontend seams (prototype side)
 
@@ -90,13 +109,19 @@ person, past tense for finished work, and always states *why*.
 timeline start and video track after a free drag. Scenes without explicit
 placement use the gapless cumulative fallback. Runtime is the furthest enabled
 clip end; playhead lookup, timecodes and word timings derive from placement and
-duration. There is no sync step and there must never be one.
+duration. There is no sync step and there must never be one. Narration is the
+timing authority (ADR-005), now extended to *sub-scene* events: `decode/timing.py`
+(`NarrationTiming` with per-word timestamps, semantic `Anchor`s resolving to
+seconds) lets a beat's internal moments land on the words that name them —
+narration clips carry `words`. Built and tested.
 
-**Stage gating.** `unlockLevel()`: `script → 5`, `plan → 2`, `understanding → 1`,
-else `0`. Nav levels: overview 0, plan 1, script 2, edit 5. Export is an Edit
-action, not a stage. A locked
-stage calls `lockedNudge()` — the Production room opens and explains. Never a
-tooltip. Approving advances the tab.
+**Stage gating** *(current; prototype + backend pipeline — the connected UI no
+longer surfaces stages, and `docs/AGENT-GRAPH.md` replaces gating with an orchestrator
+that gates on readiness and says what's missing).* `unlockLevel()`: `script → 5`,
+`plan → 2`, `understanding → 1`, else `0`. Nav levels: overview 0, plan 1, script 2,
+edit 5. Export is an Edit action, not a stage. A locked stage calls `lockedNudge()`
+— the Production room opens and explains. Never a tooltip. Approving advances the
+tab.
 
 **Re-approval asymmetry.** Plan-level edits (reorder, cut, add a beat) reset
 `plan` *and* `script`. Scene-level operations in Edit (split, merge, duplicate,
@@ -108,8 +133,9 @@ rebuilds none of it until the user asks. Stale uses `--color-stale*`, deliberate
 not the error ramp: it is the expected result of an edit, not a fault.
 
 **Script writes, Timeline navigates.** Narration is editable in exactly one place,
-the Script stage, in place. Edit links back to Script. Never two editable copies of
-the same text.
+in place — the Script surface (its own stage in the prototype, the Script tab of the
+Edit inspector on the connected side). The Timeline links back to it. Never two
+editable copies of the same text.
 
 **Everything the room can do, a hand can do.** Nothing the chat can act on may
 exist without a direct control that does the same thing. This used to be enforced
@@ -160,6 +186,11 @@ rendered copy.
 
 ## Backend invariants
 
+The version/lineage invariants below are the **current** state model. `docs/AGENT-GRAPH.md`
+§8 plans to replace per-artifact version chains with one project snapshot + a
+checkpoint history — designed, not built. The atomic-idempotent-apply and history
+guarantees carry over; treat these as load-bearing until that migration lands.
+
 - **Artifact versions are immutable** — enforced by a Postgres trigger, not just
   by code. Publish a new version; never mutate one.
 - **Latest and approved are distinct pointers** on the artifact.
@@ -175,7 +206,18 @@ rendered copy.
 - The Producer and Evaluator are **deterministic fakes** that label themselves
   (`source_findings.fixture: true`). Never claim extraction or citations the
   backend did not perform — the UI reads that flag and says "sample brief".
-- `providers/renderer.py` is a boundary only. No HyperFrames adapter exists.
+- **The "Visualizer" department's role is the Motion Designer** — how a beat's
+  teaching intent becomes animated, positioned and synced to narration (Decode
+  decides *what visual teaches*; the Motion Designer turns it into motion;
+  HyperFrames renders it). The role name is not the contract: the persisted names
+  stay put — `scene_visuals` (artifact type), `generate_scene_visuals` /
+  `regenerate_scene_visual` (job kinds), `DECODE_VISUALIZER` (provider),
+  `visualizer/<v>` (provenance id) and the `visualizer/` department folder.
+  Renaming them would be a data/config migration for no gain; don't "fix" them.
+- `providers/renderer.py` is a boundary only, and the Motion Designer still emits
+  Remotion-flavored React that the frontend preview plays via `@remotion/player`.
+  One HyperFrames scene is ported by hand (`hyperframes/self-attention/`); the full
+  generalization is planned, not built — see `docs/VISUALIZER-TO-HYPERFRAMES.md`.
 
 ## Traps — regressions with a history
 
@@ -204,7 +246,7 @@ Re-introducing one of these is a regression, not a preference.
 
 Fix opportunistically; do not treat as intended.
 
-- `APP-STRUCTURE.md` remains a prototype-oriented map and does not fully document
+- `docs/APP-STRUCTURE.md` remains a prototype-oriented map and does not fully document
   `components/app/*`, `components/connected/*`, `lib/decode-api.ts` or
   `lib/creator-errors.ts`.
 - `ConnectedProject` re-declares its stage list, rail and header instead of reusing

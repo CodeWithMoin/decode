@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ArrowClockwise,
+  ArrowCounterClockwise,
   ArrowDown,
   ArrowUp,
   ArrowsInLineHorizontal,
@@ -15,11 +17,12 @@ import {
   SkipForward,
   Trash,
 } from "@phosphor-icons/react";
-import { fmt, num, startsAll, timecode, totalAll } from "@/lib/derive";
+import { fmt, num, timecode } from "@/lib/derive";
 import { cx } from "@/components/ui/primitives";
 import { usePlayerRef } from "@/components/player/player-ref";
 import { useCurrentPlayerFrame } from "@/components/player/use-current-player-frame";
-import { DECODE_FPS } from "@/components/player/DecodeComposition";
+import { DECODE_FPS, getDecodeTimeline } from "@/components/player/decode-timeline";
+import { AudioWaveform } from "@/components/project/timeline/AudioWaveform";
 import { useStudio } from "@/store/studio";
 
 /**
@@ -39,8 +42,11 @@ const RULER_STEPS = [1, 2, 5, 10, 15, 30, 60, 120, 300] as const;
 /** Track gutter. Shared by the ruler, the rows and the scrub maths. */
 const GUTTER = 160;
 
-/** Pixels per second at 1x zoom. */
-const PPS = 3;
+/** Pixels per second at 1x zoom; 0.25x retains the compact whole-cut overview. */
+const PPS = 12;
+
+/** Breathing room after the cut, like the empty timeline in an NLE. */
+const MIN_POST_ROLL_SECONDS = 30;
 
 const minorStepFor = (major: number) => {
   if (major >= 300) return 60;
@@ -80,21 +86,32 @@ export function Timeline() {
   const dupScene = useStudio((s) => s.dupScene);
   const removeScene = useStudio((s) => s.removeScene);
   const addScene = useStudio((s) => s.addScene);
+  const undo = useStudio((s) => s.undo);
+  const redo = useStudio((s) => s.redo);
+  const canUndo = useStudio((s) => s._history.length > 0);
+  const canRedo = useStudio((s) => s._future.length > 0);
   const playing = useStudio((s) => s.playing);
   const playbackRate = useStudio((s) => s.playbackRate);
-  const [deleteArmed, setDeleteArmed] = useState(false);
+  const [deleteArmedScene, setDeleteArmedScene] = useState<number | null>(null);
+  const deleteArmed = deleteArmedScene === sceneIdx;
   const [zoom, setZoom] = useState(1);
+  const [viewportWidth, setViewportWidth] = useState(0);
   const zoomProgress = (zoom - 0.25) / 3.75;
+  const trackRef = useRef<HTMLDivElement>(null);
+  const detachRef = useRef<(() => void) | null>(null);
+  const fadeDetachRef = useRef<(() => void) | null>(null);
 
-  const fullDur = totalAll(sc) || 1;
-  const zoomPx = fullDur * PPS * zoom;
-  const st = startsAll(sc);
+  const timeline = useMemo(() => getDecodeTimeline(sc), [sc]);
+  const fullDur = timeline.durationInFrames / DECODE_FPS;
+  const pixelsPerSecond = PPS * zoom;
+  const postRoll = Math.max(MIN_POST_ROLL_SECONDS, fullDur * 0.2);
+  const visibleDuration = Math.max(0, (viewportWidth - GUTTER) / pixelsPerSecond);
+  const rulerDuration = Math.max(fullDur + postRoll, visibleDuration);
 
   const ruler = useMemo(() => {
-    const pixelsPerSecond = PPS * zoom;
     const majorStep = RULER_STEPS.find((step) => step * pixelsPerSecond >= 56) ?? RULER_STEPS[RULER_STEPS.length - 1];
     const minorStep = minorStepFor(majorStep);
-    const max = Math.ceil(fullDur / majorStep) * majorStep;
+    const max = Math.ceil(rulerDuration / majorStep) * majorStep;
     const major: { t: number; left: number }[] = [];
     const minor: { t: number; left: number; middle: boolean }[] = [];
     for (let t = 0; t <= max + 0.000001; t += minorStep) {
@@ -104,12 +121,19 @@ export function Timeline() {
       if (isMajor) major.push({ t: normalized, left: normalized * pixelsPerSecond });
       else minor.push({ t: normalized, left: normalized * pixelsPerSecond, middle: Math.abs((normalized % majorStep) - majorStep / 2) < 0.000001 });
     }
-    return { major, minor };
-  }, [fullDur, zoom]);
+    return { major, minor, end: max };
+  }, [pixelsPerSecond, rulerDuration]);
+  const timelineWidth = GUTTER + ruler.end * pixelsPerSecond;
 
-  const trackRef = useRef<HTMLDivElement>(null);
-  const detachRef = useRef<(() => void) | null>(null);
-  const fadeDetachRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setViewportWidth(Math.round(entry.contentRect.width));
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   /** Map a viewport x to a time, measuring fresh so mid-drag scroll is honoured. */
   const seekAtX = useCallback(
@@ -120,7 +144,8 @@ export function Timeline() {
       const x = clientX - r.left - GUTTER + (el.scrollLeft || 0);
       const t = Math.round((x / (PPS * zoom)) * DECODE_FPS) / DECODE_FPS;
       if (t < 0) return;
-      seek(Math.min(t, totalAll(useStudio.getState().sc)));
+      const duration = getDecodeTimeline(useStudio.getState().sc).durationInFrames / DECODE_FPS;
+      seek(Math.min(t, duration));
     },
     [seek, zoom],
   );
@@ -202,7 +227,6 @@ export function Timeline() {
 
   useEffect(() => () => detachRef.current?.(), []);
   useEffect(() => () => fadeDetachRef.current?.(), []);
-  useEffect(() => setDeleteArmed(false), [sceneIdx]);
 
   useEffect(() => {
     const onPlayerKey = (event: KeyboardEvent) => {
@@ -236,7 +260,7 @@ export function Timeline() {
       if (event.code === "Space") {
         if (event.repeat) return;
         event.preventDefault();
-        const duration = totalAll(state.sc);
+        const duration = getDecodeTimeline(state.sc).durationInFrames / DECODE_FPS;
         if (state.playing) {
           state.setPlaybackRate(0);
         } else {
@@ -255,7 +279,7 @@ export function Timeline() {
       } else if (event.code === "KeyL") {
         if (event.repeat) return;
         event.preventDefault();
-        if (state.playhead >= totalAll(state.sc)) state.seek(0);
+        if (state.playhead >= getDecodeTimeline(state.sc).durationInFrames / DECODE_FPS) state.seek(0);
         const next = state.playbackRate > 0 ? Math.min(4, state.playbackRate * 2) : 1;
         state.setPlaybackRate(next);
       }
@@ -292,9 +316,9 @@ export function Timeline() {
   };
 
   return (
-    <div className="flex min-h-0 w-full select-none flex-col overflow-hidden bg-[#141414] text-[var(--nle-text)]">
+    <div className="studio-surface flex min-h-0 w-full select-none flex-col overflow-hidden bg-[var(--nle-track)] text-[var(--nle-text)]">
       {/* Transport — the controls that act on time, above the axis they act on. */}
-      <div className="flex h-11 flex-none items-center gap-1 border-b border-[var(--nle-grid-line)] bg-[var(--nle-panel)] px-2.5">
+      <div className="rail-x flex h-11 flex-none items-center gap-1 overflow-x-auto border-b border-[var(--nle-grid-line)] bg-[var(--nle-panel)] px-2.5">
         <button type="button" onClick={() => splitScene(sceneIdx)} aria-label="Split selected scene" title="Split selected scene" className="nle-icon-button h-8 w-8 rounded-md">
           <Scissors size={16} weight="regular" aria-hidden />
         </button>
@@ -332,22 +356,29 @@ export function Timeline() {
           type="button"
           onClick={() => {
             if (!deleteArmed) {
-              setDeleteArmed(true);
+              setDeleteArmedScene(sceneIdx);
               return;
             }
             removeScene(sceneIdx);
-            setDeleteArmed(false);
+            setDeleteArmedScene(null);
           }}
           disabled={sc.length <= 2}
           aria-label={deleteArmed ? "Confirm delete selected scene" : "Delete selected scene"}
           title={deleteArmed ? "Press again to delete" : "Delete scene"}
           className={cx(
             "nle-icon-button h-8 rounded-md px-2 disabled:opacity-30 disabled:hover:bg-transparent",
-            deleteArmed && "border-[var(--accent)] bg-[var(--accent-tint)] text-[var(--accent-lit)]",
+            deleteArmed && "border-[var(--accent)] bg-[var(--accent-tint)] text-accent-deep",
           )}
         >
           <Trash size={15} weight="regular" aria-hidden />
           {deleteArmed && <span className="ml-1 text-[10px] font-medium">Delete?</span>}
+        </button>
+        <span className="mx-1 h-5 w-px bg-[var(--nle-grid-line)]" aria-hidden />
+        <button type="button" onClick={undo} disabled={!canUndo} aria-label="Undo" title="Undo · ⌘Z" className="nle-icon-button h-8 w-8 rounded-md disabled:opacity-30 disabled:hover:bg-transparent">
+          <ArrowCounterClockwise size={15} weight="regular" aria-hidden />
+        </button>
+        <button type="button" onClick={redo} disabled={!canRedo} aria-label="Redo" title="Redo · ⇧⌘Z" className="nle-icon-button h-8 w-8 rounded-md disabled:opacity-30 disabled:hover:bg-transparent">
+          <ArrowClockwise size={15} weight="regular" aria-hidden />
         </button>
         <span className="mx-1 h-5 w-px bg-[var(--nle-grid-line)]" aria-hidden />
         <button
@@ -382,7 +413,7 @@ export function Timeline() {
         </button>
 
         {playing && (
-          <span className="ml-1 rounded-[4px] bg-[var(--nle-panel-raised)] px-1.5 py-0.5 font-mono text-[9px] tabular-nums text-[var(--accent-lit)]">
+          <span className="ml-1 rounded-[4px] bg-[var(--nle-panel-raised)] px-1.5 py-0.5 font-mono text-[9px] tabular-nums text-accent-deep">
             {playbackRate < 0 ? `−${Math.abs(playbackRate)}×` : `${playbackRate}×`}
           </span>
         )}
@@ -431,10 +462,10 @@ export function Timeline() {
               event.preventDefault();
             }}
           >
-            <span className="absolute right-2 top-1/2 left-2 h-[3px] -translate-y-1/2 overflow-hidden rounded-full bg-[#090909]" aria-hidden>
-              <span className="block h-full origin-left rounded-full bg-[#626262]" style={{ transform: `scaleX(${zoomProgress.toFixed(4)})` }} />
+            <span className="absolute right-2 top-1/2 left-2 h-[3px] -translate-y-1/2 overflow-hidden rounded-full bg-line-strong" aria-hidden>
+              <span className="block h-full origin-left rounded-full bg-t6" style={{ transform: `scaleX(${zoomProgress.toFixed(4)})` }} />
             </span>
-            <span className="absolute left-0 top-1/2 h-3.5 w-3.5 rounded-full border border-[#111111] bg-[#929292] shadow-[0_1px_2px_rgb(0_0_0_/_0.65)]" style={{ transform: `translate3d(${(zoomProgress * 74).toFixed(2)}px,-50%,0)` }} aria-hidden />
+            <span className="absolute left-0 top-1/2 h-3.5 w-3.5 rounded-full border border-line-strong bg-card shadow-sm" style={{ transform: `translate3d(${(zoomProgress * 74).toFixed(2)}px,-50%,0)` }} aria-hidden />
           </div>
           <button
             type="button"
@@ -456,12 +487,12 @@ export function Timeline() {
       {/* Scrub track — one time axis, one track hung off it. */}
       <div
         ref={trackRef}
-        className="timeline-scroll relative flex min-h-0 flex-1 flex-col overflow-auto bg-[var(--nle-track)] outline-none"
+        className="timeline-scroll relative flex min-h-0 flex-1 flex-col overflow-auto overscroll-x-none bg-[var(--nle-track)] outline-none"
       >
-        <div className="relative" style={{ width: zoomPx, minWidth: "100%" }}>
+        <div className="relative" style={{ width: timelineWidth, minWidth: "100%" }}>
           {/* Ruler — sticky so it stays on screen while you scroll */}
-          <div className="sticky top-0 z-10 flex h-8 flex-none border-b border-[#2B2B2B] bg-[#171717]" style={{ minWidth: "100%" }}>
-            <div className="flex flex-none items-center justify-center border-r border-[#2B2B2B] bg-[#141414] px-2" style={{ width: GUTTER }}>
+          <div className="sticky top-0 z-10 flex h-8 flex-none border-b border-[var(--nle-line)] bg-[var(--nle-panel)]" style={{ minWidth: "100%" }}>
+            <div className="flex flex-none items-center justify-center border-r border-[var(--nle-line)] bg-[var(--nle-panel-raised)] px-2" style={{ width: GUTTER }}>
               <span className="font-mono text-[17px] font-semibold tabular-nums tracking-[-0.035em] text-[var(--nle-text)]">
                 <PlayheadTime fallback={playhead} />
               </span>
@@ -488,7 +519,7 @@ export function Timeline() {
               {ruler.minor.map((tick) => (
                 <div
                   key={`minor-${tick.t}`}
-                  className="absolute bottom-0 w-px bg-[#3C3C3C]"
+                  className="absolute bottom-0 w-px bg-line-mid"
                   style={{ left: tick.left, height: tick.middle ? 9 : 5 }}
                 />
               ))}
@@ -498,12 +529,12 @@ export function Timeline() {
                   className="absolute inset-y-0"
                   style={{ left: `${tick.left}px` }}
                 >
-                  <span className="absolute bottom-0 h-3 w-px bg-[#737373]" />
+                  <span className="absolute bottom-0 h-3 w-px bg-t8" />
                   <span
-                    className="absolute top-1 font-mono text-[9.5px] tabular-nums tracking-[0.015em] text-[#A4A4A4]"
-                    style={{ transform: tick.t / fullDur > 0.96 ? "translateX(-100%)" : tick.t === 0 ? undefined : "translateX(8px)" }}
+                    className="absolute top-1 font-mono text-[9.5px] tabular-nums tracking-[0.015em] text-t7"
+                    style={{ transform: tick.t / ruler.end > 0.96 ? "translateX(-100%)" : tick.t === 0 ? undefined : "translateX(8px)" }}
                   >
-                    {rulerLabel(tick.t, fullDur)}
+                    {rulerLabel(tick.t, ruler.end)}
                   </span>
                 </div>
               ))}
@@ -512,11 +543,10 @@ export function Timeline() {
           </div>
 
           <div className="relative flex flex-col">
-            <TimelineRow label="V1" height={52}>
-              {sc.map((scene, sceneIndex) => {
+            <TimelineRow label="V1" name="Video" tone="video" height={52}>
+              {timeline.clips.map(({ scene, sceneIndex, startFrame, durationInFrames }) => {
                 const active = sceneIndex === sceneIdx;
                 const locked = scene.locked;
-                const start = st[sceneIndex];
                 return (
                   <button
                     key={scene.id}
@@ -526,21 +556,56 @@ export function Timeline() {
                     aria-label={`Scene ${num(sceneIndex)}, ${scene.title}`}
                     aria-current={active}
                     className={cx(
-                      "group/clip absolute top-[4px] bottom-[4px] flex cursor-grab items-center overflow-hidden rounded-[3px] border px-2.5 text-left active:cursor-grabbing",
-                      "border-[var(--nle-clip-line)] bg-[var(--nle-clip)] text-white shadow-[inset_0_1px_0_rgb(255_255_255_/_0.06)] hover:brightness-[1.08] focus-visible:outline-none",
-                      active && "z-10 border-[var(--nle-clip-selected)] shadow-[inset_0_1px_0_rgb(255_255_255_/_0.14),0_0_0_1px_rgb(0_0_0_/_0.5)]",
+                      "group/clip absolute top-[4px] bottom-[4px] flex cursor-grab items-start overflow-hidden rounded-[5px] border text-left active:cursor-grabbing",
+                      "border-[var(--nle-clip-line)] bg-[var(--nle-clip)] text-white shadow-[inset_0_1px_0_rgb(255_255_255_/_0.12)] transition-[background-color,box-shadow] duration-[var(--t-fast)] hover:bg-[var(--nle-clip-hover)] focus-visible:outline-none",
+                      active && "z-10 border-[var(--nle-clip-selected)] ring-1 ring-[var(--nle-clip-selected)] shadow-[inset_0_1px_0_rgb(255_255_255_/_0.18)]",
                       scene.disabled && "opacity-40 saturate-0 line-through",
                       locked && "timeline-clip-locked cursor-not-allowed",
                     )}
-                    style={{ left: start * PPS * zoom, width: Math.max(1, scene.dur * PPS * zoom - 1) }}
+                    style={{ left: (startFrame / DECODE_FPS) * PPS * zoom, width: Math.max(1, (durationInFrames / DECODE_FPS) * PPS * zoom - 1) }}
                   >
                     <ClipFadeHandle edge="in" seconds={scene.fadeIn ?? 0} duration={scene.dur} onMouseDown={(event) => startFadeDrag(event, sceneIndex, "in")} />
                     <ClipFadeHandle edge="out" seconds={scene.fadeOut ?? 0} duration={scene.dur} onMouseDown={(event) => startFadeDrag(event, sceneIndex, "out")} />
-                    <svg className="absolute bottom-0.5 left-2.5 right-2.5 h-[6px] opacity-[0.28]" preserveAspectRatio="none" viewBox="0 0 1000 32" aria-hidden>
-                      <polygon points={Array.from({ length: 21 }, (_, i) => `${(i / 20) * 1000},${16 - (((Math.sin(i * 1.3) * 0.5 + 0.5) * (Math.sin(i * 0.7 + sceneIndex) * 0.5 + 0.5)) * 14)}`).join(" ")} fill="currentColor" />
-                    </svg>
-                    <span className="relative z-[1] mr-1.5 font-mono text-[8px] tabular-nums text-white/40">{num(sceneIndex)}</span>
-                    <span className="relative z-[1] truncate whitespace-nowrap text-[10px] font-medium leading-[1.15]">{scene.title}</span>
+                    <span className="absolute inset-x-0 top-0 z-[1] flex h-[18px] items-center border-b border-white/10 bg-black/10 px-2">
+                      <span className="mr-1.5 font-mono text-[8px] tabular-nums text-white/55">{num(sceneIndex)}</span>
+                      <span className="truncate whitespace-nowrap text-[9.5px] font-semibold leading-none">{scene.title}</span>
+                    </span>
+                    <span className="absolute inset-x-0 top-[18px] bottom-0 opacity-40" aria-hidden>
+                      <span className="absolute inset-y-1 left-1/4 w-px bg-white/25" />
+                      <span className="absolute inset-y-1 left-1/2 w-px bg-white/25" />
+                      <span className="absolute inset-y-1 left-3/4 w-px bg-white/25" />
+                    </span>
+                  </button>
+                );
+              })}
+            </TimelineRow>
+            <TimelineRow label="A1" name="Audio" tone="audio" height={46}>
+              {timeline.clips.map(({ scene, sceneIndex, startFrame, durationInFrames }) => {
+                const active = sceneIndex === sceneIdx;
+                return (
+                  <button
+                    key={`audio-${scene.id}`}
+                    type="button"
+                    onMouseDown={(event) => startClipDrag(event, sceneIndex)}
+                    title={`${num(sceneIndex)} audio · ${fmt(scene.dur)}`}
+                    aria-label={`Audio for scene ${num(sceneIndex)}, ${scene.title}`}
+                    className={cx(
+                      "group/audio absolute top-[4px] bottom-[4px] flex items-center overflow-hidden rounded-[5px] border border-[var(--nle-audio-line)] bg-[var(--nle-audio-clip)] text-white shadow-[inset_0_1px_0_rgb(255_255_255_/_0.12)] transition-[background-color,box-shadow] duration-[var(--t-fast)] hover:bg-[var(--nle-audio-clip-hover)]",
+                      active && "z-10 ring-1 ring-[var(--nle-clip-selected)]",
+                      !scene.audioUrl && "opacity-60",
+                    )}
+                    style={{ left: (startFrame / DECODE_FPS) * PPS * zoom, width: Math.max(1, (durationInFrames / DECODE_FPS) * PPS * zoom - 1) }}
+                  >
+                    {scene.audioUrl ? (
+                      <>
+                        <span className="absolute top-1 left-2 z-[1] max-w-[calc(100%_-_1rem)] truncate font-mono text-[7.5px] tracking-[0.06em] text-white/75 uppercase">
+                          {num(sceneIndex)} · Narration
+                        </span>
+                        <AudioWaveform src={scene.audioUrl} />
+                      </>
+                    ) : (
+                      <span className="px-2 font-mono text-[8px] tracking-[0.06em] text-white/65 uppercase">No narration</span>
+                    )}
                   </button>
                 );
               })}
@@ -559,22 +624,36 @@ export function Timeline() {
 /** One track: a fixed gutter, then the time axis it shares with every other. */
 function TimelineRow({
   label,
+  name,
+  tone,
   height,
   children,
 }: {
   label: string;
+  name?: string;
+  tone?: "video" | "audio";
   height?: number;
   children: React.ReactNode;
 }) {
   return (
     <div
-      className="relative flex flex-none border-b border-white/[0.045] bg-[var(--nle-track)]"
+      className="relative flex flex-none border-b border-[var(--nle-grid-line)] bg-[var(--nle-track)]"
       style={{ height }}
     >
-      <div className="flex flex-none items-center gap-1 border-r border-white/[0.055] bg-[#0D0D0D] px-1.5" style={{ width: GUTTER }}>
+      <div className="flex flex-none items-center gap-1 border-r border-[var(--nle-grid-line)] bg-[var(--nle-panel-raised)] px-1.5" style={{ width: GUTTER }}>
+        {tone && (
+          <span
+            aria-hidden
+            className={cx(
+              "mr-1 h-2.5 w-[3px] rounded-full",
+              tone === "video" ? "bg-[var(--nle-clip)]" : "bg-[var(--nle-audio-clip)]",
+            )}
+          />
+        )}
         <span className="font-mono text-[9.5px] tracking-[0.08em] text-[var(--nle-faint)] uppercase">
           {label}
         </span>
+        {name && <span className="ml-1 truncate text-[9px] text-[var(--nle-faint)]">{name}</span>}
       </div>
       <div className="relative min-w-0 flex-1">{children}</div>
     </div>
@@ -643,7 +722,7 @@ function LivePlayhead({ fallback, pixelsPerSecond, flag = false }: { fallback: n
       />
       {flag && (
         <div
-          className="absolute top-0 -left-[8px] h-[16px] w-[16px] border border-[#0B0B0B]"
+          className="absolute top-0 -left-[8px] h-[16px] w-[16px] border border-accent-deep"
           style={{ background: "var(--accent)", clipPath: "polygon(0 0,100% 0,100% 62%,50% 100%,0 62%)" }}
         />
       )}

@@ -189,7 +189,7 @@ export function NewDecode({ connected = false }: { connected?: boolean }) {
         attempt.intentVersionId = intent.version_id;
       }
       setSubmitStatus("Starting the Producer…");
-      const job = await decodeApi.generateBrief(
+      await decodeApi.generateBrief(
         attempt.projectId,
         attempt.sourceVersionIds.filter((id): id is string => Boolean(id)),
         attempt.intentVersionId,
@@ -197,7 +197,7 @@ export function NewDecode({ connected = false }: { connected?: boolean }) {
       );
       const projectId = attempt.projectId;
       attemptRef.current = null;
-      router.push(`/studio/projects/${projectId}/jobs/${job.job_id}`);
+      router.push(`/studio/projects/${projectId}/edit`);
     } catch (error) {
       setSubmitError(creatorError(error, "We couldn’t create your project. Please try again."));
       setSubmitStatus("");

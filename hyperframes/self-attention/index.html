@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600&display=block"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #000;
+      }
+      /* Full-bleed stage fill lives on a child, never on #root — the producer's
+         frame compositing can drop the root element's own background. */
+      #stage-bg {
+        position: absolute;
+        inset: 0;
+        background: #0b0b0b;
+      }
+      #center {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+      }
+      #label {
+        font-family: "Bricolage Grotesque", sans-serif;
+        font-weight: 600;
+        font-size: 56px;
+        line-height: 1;
+        color: #e8e8ec;
+        /* No CSS opacity/transform — the tween owns both (gsap_css_transform_conflict). */
+        will-change: transform, opacity;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="4"
+      data-width="1920"
+      data-height="1080"
+    >
+      <div id="stage-bg"></div>
+      <div id="center">
+        <div
+          id="label"
+          class="clip"
+          data-start="0"
+          data-duration="4"
+          data-track-index="1"
+        >
+          Self-Attention
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Ported from a Remotion scene (apps/.../visualizer/samples/scene.tsx):
+      //   opacity  interpolate(progress,[0,0.25],[0,1])  -> fade over the first 1.0s of 4s
+      //   translateY interpolate(progress,[0,0.35],[20,0]) -> slide over the first 1.4s
+      //   easing  Easing.bezier(0.22, 1, 0.36, 1) ~= GSAP "power4.out" (see TRANSLATION_NOTES)
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#label", { opacity: 0 }, { opacity: 1, duration: 1.0, ease: "power4.out" }, 0);
+      tl.fromTo("#label", { y: 20 }, { y: 0, duration: 1.4, ease: "power4.out" }, 0);
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

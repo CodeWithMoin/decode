@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowClockwise, ArrowCounterClockwise, CaretDown, Check, Diamond } from "@phosphor-icons/react";
+import { ArrowClockwise, ArrowCounterClockwise, CaretDown, Check, Diamond, SpeakerSimpleHigh } from "@phosphor-icons/react";
 import { Stepper, cx } from "@/components/ui/primitives";
 import { fmt, num, wordCount } from "@/lib/derive";
 import { changeProjectStage } from "@/lib/project-theme-transition";
@@ -31,12 +31,20 @@ export function Inspector({
   inactive = false,
   onDirectScene,
   onEditNarration,
+  candidateState = null,
+  candidateApplying = false,
+  candidateProgress,
+  onApplyCandidate,
 }: {
   inactive?: boolean;
   /** Connected only: direct one scene in words and rebuild just that scene. */
   onDirectScene?: (beatId: string, direction: string) => void;
   /** Connected only: open the real Script editor (narration's one editable home). */
   onEditNarration?: () => void;
+  candidateState?: "waiting" | "accepted" | null;
+  candidateApplying?: boolean;
+  candidateProgress?: { accepted: number; total: number };
+  onApplyCandidate?: () => void;
 }) {
   const sc = useStudio((s) => s.sc);
   const sceneIdx = useStudio((s) => s.sceneIdx);
@@ -136,7 +144,7 @@ export function Inspector({
       aria-hidden={inactive || undefined}
       aria-label="Scene settings"
       className={cx(
-        "flex min-h-[520px] w-full flex-none flex-col overflow-hidden border-l border-white/[0.06] bg-[#0B0B0B] text-[var(--nle-text)] shadow-[inset_1px_0_0_rgb(255_255_255_/_0.015)] lg:min-h-0 lg:w-[344px] lg:min-w-[304px]",
+        "flex min-h-[520px] min-w-0 w-full max-w-full flex-none flex-col overflow-hidden border-l border-white/[0.06] bg-[#0B0B0B] text-[var(--nle-text)] shadow-[inset_1px_0_0_rgb(255_255_255_/_0.015)] lg:min-h-0 lg:w-[clamp(280px,22vw,344px)] lg:min-w-[280px]",
         inactive && "pointer-events-none",
       )}
     >
@@ -188,7 +196,7 @@ export function Inspector({
               disabled={regen !== null}
               aria-label="Regenerate selected scene"
               title="Regenerate"
-              className="grid h-9 w-8 flex-none place-items-center rounded-[6px] text-[var(--nle-faint)] transition-[background-color,color] duration-[var(--t-fast)] hover:bg-white/[0.06] hover:text-[var(--nle-muted)] active:scale-[0.96] disabled:opacity-40"
+              className="grid h-9 w-8 flex-none place-items-center rounded-[6px] text-[var(--nle-faint)] transition-[background-color,color,transform] duration-[var(--t-fast)] hover:bg-white/[0.06] hover:text-[var(--nle-muted)] active:scale-[0.96] disabled:opacity-40"
             >
               <ArrowClockwise size={14} weight="regular" aria-hidden />
             </button>
@@ -199,6 +207,85 @@ export function Inspector({
             </p>
           )}
         </section>
+
+        {candidateState && (
+          <section className="border-t border-white/[0.06] px-3.5 py-3.5">
+            <div className="overflow-hidden rounded-[8px] border border-[var(--accent-line)] bg-[var(--nle-track-active)]">
+              <div className="flex items-center gap-2 border-b border-[var(--accent-line)] px-3 py-2.5">
+                <span className="grid h-5 w-5 flex-none place-items-center rounded-full bg-[var(--accent)] text-white">
+                  {candidateState === "accepted" ? <Check size={11} weight="bold" aria-hidden /> : <Diamond size={10} weight="fill" aria-hidden />}
+                </span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 font-mono text-[8.5px] tracking-[0.1em] text-[var(--accent-lit)] uppercase">
+                    <span>{candidateState === "accepted" ? "Scene applied" : "Candidate ready"}</span>
+                    {candidateProgress && (
+                      <span className="text-[var(--nle-faint)]">
+                        {candidateProgress.accepted}/{candidateProgress.total} applied
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-0.5 truncate text-[11.5px] font-medium text-[var(--nle-text)]">
+                    {candidateState === "accepted" ? "Included in the production" : "Review this scene in the player"}
+                  </div>
+                </div>
+              </div>
+              <div className="px-3 py-2.5">
+                <p className="m-0 text-[10.5px] leading-[1.55] text-[var(--nle-muted)]">
+                  {candidateState === "accepted"
+                    ? "You can keep directing it; accepted scenes remain independently editable."
+                    : "Scrub the scene, direct any changes below, then apply exactly what you reviewed."}
+                </p>
+                {candidateState === "waiting" && onApplyCandidate && (
+                  <button
+                    type="button"
+                    onClick={onApplyCandidate}
+                    disabled={candidateApplying || regen !== null}
+                    className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-[6px] bg-[var(--accent)] px-3 py-2 text-[11.5px] font-medium text-white transition-[opacity,transform] duration-[var(--t-fast)] hover:opacity-90 active:scale-[0.98] disabled:opacity-40"
+                  >
+                    <Check size={13} weight="bold" aria-hidden />
+                    {candidateApplying ? "Applying scene…" : "Apply scene"}
+                  </button>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Directing sits beside candidate review because it changes the exact
+            scene the creator is deciding whether to apply. */}
+        {onDirectScene && (
+          <section className="border-t border-white/[0.06] px-3.5 py-4">
+            <div className="mb-2 font-mono text-[8.5px] tracking-[0.12em] text-[var(--nle-faint)] uppercase">
+              Direct this scene
+            </div>
+            <textarea
+              value={direction}
+              onChange={(event) => setDirection(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                  event.preventDefault();
+                  submitDirection();
+                }
+              }}
+              rows={3}
+              disabled={regen !== null}
+              placeholder="Describe what should change. Everything outside this scene stays put."
+              aria-label="Direct this scene"
+              className="nle-field w-full resize-none rounded-[7px] px-2.5 py-2 text-[12px] leading-[1.5] text-[var(--nle-text)] outline-none placeholder:text-[var(--nle-faint)] disabled:opacity-50"
+            />
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <span className="font-mono text-[8px] text-[var(--nle-faint)]">⌘↵ to redraw</span>
+              <button
+                type="button"
+                onClick={submitDirection}
+                disabled={regen !== null || direction.trim().length === 0}
+                className="rounded-[6px] border border-white/[0.08] bg-[var(--nle-panel-raised)] px-3 py-1.5 text-[11px] font-medium text-[var(--nle-muted)] transition-[background-color,border-color,color,transform] duration-[var(--t-fast)] hover:border-white/[0.12] hover:text-[var(--nle-text)] active:scale-[0.98] disabled:opacity-40"
+              >
+                {regen ? "Redrawing…" : "Redraw scene"}
+              </button>
+            </div>
+          </section>
+        )}
 
         <div className="border-t border-white/[0.06] py-4">
           <div className="grid gap-3 px-3.5">
@@ -225,48 +312,14 @@ export function Inspector({
                 type="button"
                 onClick={() => regenerate(kind)}
                 disabled={regen !== null}
-                className="flex-1 rounded-[6px] border border-white/[0.06] bg-[#111111] px-3 py-2 text-center text-[11.5px] font-medium text-[var(--nle-muted)] transition-[background-color,border-color,color] duration-[var(--t-fast)] hover:border-white/[0.1] hover:bg-[#181818] hover:text-[var(--nle-text)] active:scale-[0.98] disabled:opacity-40"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-[6px] border border-white/[0.06] bg-[#111111] px-2 py-2 text-[11.5px] font-medium text-[var(--nle-muted)] transition-[background-color,border-color,color,transform] duration-[var(--t-fast)] hover:border-white/[0.1] hover:bg-[#181818] hover:text-[var(--nle-text)] active:scale-[0.98] disabled:opacity-40"
               >
+                {kind === "visuals" ? <ArrowClockwise size={13} weight="regular" aria-hidden /> : <SpeakerSimpleHigh size={13} weight="regular" aria-hidden />}
                 {kind === "visuals" ? "Regenerate visual" : "Regenerate voice"}
               </button>
             ))}
           </div>
         </div>
-
-        {/* Direct this scene — the per-scene direction loop. The creator says how
-            they want this one scene to look, in their words, and only this scene
-            is redrawn. Connected only: it needs a real backend to redraw against,
-            so the prototype (no onDirectScene) never shows it. */}
-        {onDirectScene && (
-          <div className="border-t border-white/[0.06] px-3.5 py-4">
-            <div className="mb-2 font-mono text-[8.5px] tracking-[0.12em] text-[var(--nle-faint)] uppercase">
-              Direct this scene
-            </div>
-            <textarea
-              value={direction}
-              onChange={(event) => setDirection(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                  event.preventDefault();
-                  submitDirection();
-                }
-              }}
-              rows={3}
-              disabled={regen !== null}
-              placeholder="Describe how this scene should look. Only this scene changes."
-              aria-label="Direct this scene"
-              className="nle-field w-full resize-none rounded-[7px] bg-[#151515] px-2.5 py-2 text-[12px] leading-[1.5] text-[var(--nle-text)] shadow-[inset_0_0_0_1px_rgb(255_255_255_/_0.04)] outline-none placeholder:text-[var(--nle-faint)] disabled:opacity-50"
-            />
-            <button
-              type="button"
-              onClick={submitDirection}
-              disabled={regen !== null || direction.trim().length === 0}
-              className="mt-2 w-full rounded-[6px] bg-[var(--accent)] px-3 py-2 text-center text-[11.5px] font-medium text-white transition-[opacity,transform] duration-[var(--t-fast)] hover:opacity-90 active:scale-[0.98] disabled:opacity-40"
-            >
-              {regen ? "Redrawing…" : "Redraw this scene"}
-            </button>
-          </div>
-        )}
 
         {scene.componentSource && scene.controls && scene.controls.length > 0 && (
           <div className="border-t border-white/[0.06] px-3.5 py-4">
@@ -619,7 +672,7 @@ function ScrubbyControl({ label, value, min, max, step, suffix, onChange, onBegi
   );
 }
 
-const fieldClass = "nle-field h-9 w-full rounded-[7px] bg-[#151515] px-2.5 text-[12.5px] text-[var(--nle-text)] shadow-[inset_0_0_0_1px_rgb(255_255_255_/_0.04)] outline-none transition-[background-color,box-shadow] duration-[var(--t-fast)] hover:shadow-[inset_0_0_0_1px_rgb(255_255_255_/_0.07)] focus-within:shadow-[inset_0_0_0_1px_rgb(255_255_255_/_0.12)]";
+const fieldClass = "nle-field h-9 min-w-0 w-full rounded-[7px] bg-[#151515] px-2.5 text-[12.5px] text-[var(--nle-text)] shadow-[inset_0_0_0_1px_rgb(255_255_255_/_0.04)] outline-none transition-[background-color,box-shadow] duration-[var(--t-fast)] hover:shadow-[inset_0_0_0_1px_rgb(255_255_255_/_0.07)] focus-within:shadow-[inset_0_0_0_1px_rgb(255_255_255_/_0.12)]";
 const controlRowClass = "flex h-[34px] items-center gap-2 px-1";
 
 type DragStyles = { cursor: string; userSelect: string };

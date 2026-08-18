@@ -1,10 +1,46 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, PaperPlaneTilt } from "@phosphor-icons/react";
+import { Check, PaperPlaneTilt, X } from "@phosphor-icons/react";
+import { AnimatePresence, motion } from "motion/react";
 import { num, observations } from "@/lib/derive";
+import { decodeApi } from "@/lib/decode-api";
+import type { Clarification } from "@/lib/types";
 import { useStudio } from "@/store/studio";
 import { AppMark, Ghost, Graphite, Spinner, cx } from "@/components/ui/primitives";
+
+// What the room looked at, in the creator's words. Read-only observe tools
+// (orchestrator.py) map to a plain-language noun so "Looked at the plan" reads
+// as a step, not a function call.
+const OBSERVED_LABEL: Record<string, string> = {
+  get_plan: "the plan",
+  get_script: "the narration",
+  get_brief: "the brief",
+  get_project_state: "the whole project",
+};
+
+function observedNote(observed: string[] | undefined): string | undefined {
+  if (!observed || observed.length === 0) return undefined;
+  const seen = [...new Set(observed)].map((name) => OBSERVED_LABEL[name] ?? name);
+  const list =
+    seen.length === 1
+      ? seen[0]
+      : `${seen.slice(0, -1).join(", ")} and ${seen.at(-1)}`;
+  return `Looked at ${list}`;
+}
+
+// The present-tense line shown while the room is doing a step, streamed live.
+const STEP_LABEL: Record<string, string> = {
+  get_plan: "Reading the plan…",
+  get_script: "Reading the narration…",
+  get_brief: "Reading the brief…",
+  get_project_state: "Reading the project…",
+  render_still: "Rendering a scene to check it…",
+};
+
+function stepLabel(name: string): string {
+  return STEP_LABEL[name] ?? "Checking the current cut…";
+}
 
 /**
  * The Production room — conversation, scoped proposals and change receipts.
@@ -50,6 +86,10 @@ export function ProducerDrawer() {
   const shortenCurrent = useStudio((s) => s.shortenCurrent);
   const reorder = useStudio((s) => s.reorder);
   const applyRegen = useStudio((s) => s.applyRegen);
+  const connectedProjectId = useStudio((s) => s.connectedProjectId);
+  const directScene = useStudio((s) => s.directScene);
+  const connectedUnbuilt = useStudio((s) => s.connectedUnbuilt);
+  const startBuild = useStudio((s) => s.startBuild);
 
   /* Every pending reply is tracked so unmounting can never fire a setState
      into a dead component. */
@@ -58,8 +98,12 @@ export function ProducerDrawer() {
   const scroller = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
   const [proposal, setProposal] = useState<QuickAction | null>(null);
+  const [question, setQuestion] = useState<Clarification | null>(null);
+  // The live "what the room is doing now" line, streamed from the orchestrator.
+  const [liveStep, setLiveStep] = useState<string | null>(null);
   const docked = screen === "project";
-  const dark = docked && tab === "edit";
+  // The room keeps one paper-white material across every project surface.
+  const dark = false;
   const turns = useMemo(
     () =>
       thread.reduce<Array<{ who: "u" | "p"; messages: typeof thread }>>((groups, message) => {
@@ -87,7 +131,17 @@ export function ProducerDrawer() {
   // one more nested update on every stage switch even when there was nothing to
   // clear. Returning the same reference lets React bail out entirely.
   useEffect(() => {
-    setProposal((current) => (current === null ? current : null));
+    let active = true;
+    const clearScopedState = async () => {
+      await Promise.resolve();
+      if (!active) return;
+      setProposal((current) => (current === null ? current : null));
+      setQuestion((current) => (current === null ? current : null));
+    };
+    void clearScopedState();
+    return () => {
+      active = false;
+    };
   }, [screen, tab, sceneIdx]);
 
   const after = useCallback((ms: number, fn: () => void) => {
@@ -320,23 +374,142 @@ export function ProducerDrawer() {
     [ask, setThinking, say, after],
   );
 
+  const sendText = useCallback(
+    (t: string) => {
+      if (!t) return;
+      setProposal(null);
+      setQuestion(null);
+      ask(t);
+
+      // Connected: the real orchestrator. A turn returns a reply and, at most,
+      // one of a scoped proposal or a clarifying question. Apply runs the real
+      // tool and posts the receipt the orchestrator scoped; nothing moves until
+      // then (propose → apply → receipt). An ambiguous turn asks instead.
+      if (connectedProjectId) {
+        // v1: the first message on an unbuilt project IS the topic — kick the
+        // whole build. The backend auto-continues; ConnectedEdit narrates each
+        // stage as it lands, and flips the project to "built" so later messages
+        // are revisions to the orchestrator.
+        if (connectedUnbuilt && startBuild) {
+          workingLine.current = "Setting up your video…";
+          setLiveStep(null);
+          setThinking(true);
+          startBuild(t)
+            .then(() => {
+              setThinking(false);
+              say(
+                "On it — I’m building the whole video from that. I’ll show each step as it happens.",
+                undefined,
+                "Build started",
+              );
+            })
+            .catch(() => {
+              setThinking(false);
+              say("I couldn’t start building that just now — nothing was created. Try again in a moment.");
+            });
+          return;
+        }
+
+        workingLine.current = "Reading that against the current cut…";
+        setLiveStep(null);
+        setThinking(true);
+        decodeApi
+          .orchestratorTurn(connectedProjectId, t, (step) => setLiveStep(stepLabel(step.name)))
+          .then((turn) => {
+            setThinking(false);
+            setLiveStep(null);
+            say(turn.reply, undefined, observedNote(turn.observed));
+            if (turn.question) setQuestion(turn.question);
+            const p = turn.proposal;
+            if (p) {
+              setProposal({
+                label: p.summary,
+                proposal: { title: p.summary, scope: p.changes, untouched: p.untouched },
+                run: () => {
+                  // Apply through the real operation the tool maps to. `store:*`
+                  // tools dispatch the workspace's own actions (the hand
+                  // controls); `direct_scene` runs the connected regenerate path
+                  // and narrates itself. Endpoint/planned tools aren't wired yet.
+                  const state = useStudio.getState();
+                  const indexOf = (beatId: string) => state.sc.findIndex((s) => s.id === beatId);
+                  const a = p.args;
+                  // Every applied change posts a receipt naming what changed.
+                  const done = () => state.say(`${p.summary}.`, p.receipt);
+                  switch (p.tool) {
+                    case "direct_scene":
+                      if (directScene) void directScene(a.beat_id, a.direction);
+                      return; // directScene posts its own progress + receipt
+                    case "split_scene":
+                      state.splitScene(indexOf(a.beat_id));
+                      return done();
+                    case "merge_scenes":
+                      state.mergeScene(indexOf(a.beat_id));
+                      return done();
+                    case "duplicate_scene":
+                      state.dupScene(indexOf(a.beat_id));
+                      return done();
+                    case "delete_scene":
+                    case "cut_beat":
+                      state.removeScene(indexOf(a.beat_id));
+                      return done();
+                    case "retime_scene":
+                    case "retime_beat":
+                      state.nudgeDur(indexOf(a.beat_id), Number(a.delta_seconds) || 0);
+                      return done();
+                    case "set_fade":
+                      state.setClipFade(indexOf(a.beat_id), a.edge as "in" | "out", Number(a.seconds) || 0);
+                      return done();
+                    case "set_control":
+                      state.setControlValue(a.beat_id, a.name, a.value);
+                      return done();
+                    case "reorder_beats":
+                      state.reorder(indexOf(a.beat_id), Number(a.to_index) || 0);
+                      return done();
+                    case "add_beat":
+                      state.addScene(Number(a.after_index));
+                      return done();
+                    default:
+                      // Endpoint tools (record_narration, render_export, …) and
+                      // planned tools aren't wired from the chat yet. Never run
+                      // silently — say what stayed put.
+                      state.say(
+                        "That one isn't wired from the chat yet — use its direct control in the workspace. Nothing changed.",
+                      );
+                      return;
+                  }
+                },
+              });
+            }
+          })
+          .catch(() => {
+            setThinking(false);
+            setLiveStep(null);
+            say("I couldn’t reach the studio just now — nothing changed. Try again in a moment.");
+          });
+        return;
+      }
+
+      // Prototype: the seeded reply.
+      workingLine.current = "Reading that against the current draft…";
+      setThinking(true);
+      after(900, () => {
+        setThinking(false);
+        say(
+          screen === "project"
+            ? `I’ve got the direction. Before I change anything: should this apply only to scene ${num(sceneIdx)}, or to every similar beat in this stage? Nothing has changed yet.`
+            : "I’ve got the direction. I’ll keep it with the project brief; nothing has changed yet.",
+        );
+      });
+    },
+    [ask, setThinking, say, after, screen, sceneIdx, connectedProjectId, directScene, connectedUnbuilt, startBuild],
+  );
+
   const send = useCallback(() => {
     const t = draft.trim();
     if (!t) return;
-    setProposal(null);
-    ask(t);
     setDraft("");
-    workingLine.current = "Reading that against the current draft…";
-    setThinking(true);
-    after(900, () => {
-      setThinking(false);
-      say(
-        screen === "project"
-          ? `I’ve got the direction. Before I change anything: should this apply only to scene ${num(sceneIdx)}, or to every similar beat in this stage? Nothing has changed yet.`
-          : "I’ve got the direction. I’ll keep it with the project brief; nothing has changed yet.",
-      );
-    });
-  }, [draft, ask, setDraft, setThinking, say, after, screen, sceneIdx]);
+    sendText(t);
+  }, [draft, setDraft, sendText]);
 
   /* Newest message stays in view. Jump, don't animate — a second scroll
      animation would compete with the panel's own materialization. */
@@ -386,17 +559,17 @@ export function ProducerDrawer() {
         "production-room flex flex-col overflow-hidden",
         "fixed right-3 bottom-3 z-80 w-[380px] max-w-[calc(100vw-1.5rem)]",
         "top-[calc(var(--header-h)+3.5rem)]",
-        "rounded-[20px] border border-white/70 shadow-[0_28px_70px_rgb(30_30_28_/_0.22)]",
-        docked && "lg:static lg:inset-auto lg:z-auto lg:h-full lg:w-[344px] lg:max-w-none lg:flex-none lg:rounded-none lg:border-0",
+        "rounded-[20px] border border-white/70 shadow-[var(--shadow-float)]",
+        docked && "lg:static lg:inset-auto lg:z-auto lg:my-3 lg:ml-3 lg:h-auto lg:w-[clamp(340px,27vw,400px)] lg:max-w-none lg:self-stretch lg:flex-none lg:rounded-[22px] lg:border lg:border-white/80",
         dark
           ? "bg-[var(--nle-panel)] text-[var(--nle-text)] lg:shadow-[14px_0_34px_rgb(0_0_0_/_0.2)]"
-          : "bg-drawer lg:shadow-[12px_0_30px_rgb(30_30_28_/_0.08)]",
+          : "bg-[var(--color-drawer)] lg:shadow-[12px_0_30px_rgb(30_30_28_/_0.05)]",
       )}
     >
       {/* thread ---------------------------------------------------- */}
       <div
         ref={scroller}
-        className={cx("flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3", docked && "rail-y")}
+        className={cx("flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-5", docked && "rail-y")}
       >
         {/* Bottom-aligned only while the panel floats.
             The spacer was added when the room was a short overlay, where two
@@ -406,12 +579,34 @@ export function ProducerDrawer() {
             thread starts at the top and grows down from there. */}
         <div className={cx("mt-auto", docked && "hidden")} />
 
+        {turns.length === 0 && (
+          <div className="px-1 pt-2">
+            <span className="flex items-center gap-2">
+              <AppMark gradient size={20} radius={6} font={10} />
+              <span className="font-mono text-[8.5px] tracking-[0.12em] text-t8 uppercase">Decode</span>
+            </span>
+            <p className="mt-4 max-w-[28ch] font-display text-[19px] font-semibold leading-[1.25] tracking-[-0.025em] text-ink">
+              Direct the work in plain language.
+            </p>
+            <p className="mt-2 max-w-[34ch] text-[12.5px] leading-[1.65] text-t6">
+              Ask about the cut or describe a change. Decode will show its scope before anything moves.
+            </p>
+            <div className="mt-5 h-px bg-line-div" aria-hidden />
+          </div>
+        )}
+
+        <AnimatePresence initial={false}>
         {turns.map((turn) => {
           const mine = turn.who === "u";
 
           return (
-            <div
+            <motion.div
               key={turn.messages[0].id}
+              layout="position"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
               className={cx(
                 "flex w-full flex-col",
                 mine && "items-end",
@@ -419,23 +614,33 @@ export function ProducerDrawer() {
             >
               <div
                 className={cx(
-                  "overflow-hidden rounded-[12px] text-[12.5px] leading-[1.65]",
+                  "overflow-hidden rounded-[15px] leading-[1.7]",
                   mine ? "w-fit max-w-[88%]" : "w-full",
                   dark
                     ? "bg-[var(--nle-panel-raised)] text-[var(--nle-text)] shadow-[inset_0_1px_0_rgb(255_255_255_/_0.04),0_10px_24px_rgb(0_0_0_/_0.14)]"
-                    : "bg-card text-ink-2 shadow-[inset_0_1px_0_rgb(255_255_255_/_0.9),0_8px_22px_rgb(30_30_28_/_0.07)]",
-                  mine && (dark ? "bg-[#242424]" : "bg-sunken-4"),
+                    : "border border-line-input bg-card text-ink-2 shadow-sm",
+                  mine && (dark ? "bg-sunken-3" : "border-transparent bg-sunken-4 shadow-none"),
+                  !mine && "relative before:absolute before:inset-y-3 before:left-0 before:w-[2px] before:rounded-full before:bg-accent",
                 )}
               >
-                <div className="grid gap-3 px-3.5 py-3">
+                <div className={cx("grid gap-3.5", mine ? "px-3.5 py-2.5 text-[12.5px]" : "px-4 py-4 text-[13.5px]")}>
                   {!mine && (
                     <span className="flex items-center gap-1.5">
                       <AppMark gradient size={15} radius={5} font={8} />
                       <span className={cx("font-mono text-[9px] tracking-[0.12em] uppercase", dark ? "text-[var(--nle-faint)]" : "text-t9")}>Decode</span>
                     </span>
                   )}
-                  {turn.messages.map((message) => (
+                  {turn.messages.map((message) =>
+                    message.id.startsWith("stream:") ? (
+                      <ThinkingBlock key={message.id} text={message.text} streaming={message.streaming} dark={dark} />
+                    ) : (
                     <div key={message.id} className="grid gap-2">
+                      {message.note ? (
+                        <span className={cx("flex items-center gap-1.5 font-mono text-[9px] tracking-[0.1em] uppercase", dark ? "text-[var(--nle-faint)]" : "text-t9")}>
+                          <span aria-hidden className="inline-block h-1 w-1 rounded-full bg-current opacity-60" />
+                          {message.note}
+                        </span>
+                      ) : null}
                       <div>{message.text}</div>
                       {message.receipt ? (
                         <div className="flex items-center gap-1.5">
@@ -447,43 +652,83 @@ export function ProducerDrawer() {
                   ))}
                 </div>
               </div>
-            </div>
+            </motion.div>
           );
         })}
+        </AnimatePresence>
 
-        {/* Never a bare spinner — it always says what it is doing. */}
-        {thinking ? (
-          <div className="flex items-center gap-2 self-start pt-0.5 pl-0.5">
-            <Spinner size={13} />
-            <span className="text-[11.5px] text-t8">{workingLine.current}</span>
-          </div>
-        ) : null}
-      </div>
+        {/* Clarifications and proposals belong to the conversation turn, not
+            to the composer footer. Keeping them here makes Decode's response
+            readable before the creator decides what to do. */}
+        <AnimatePresence initial={false} mode="popLayout">
+        {question && !proposal && (
+          <motion.div
+            key="clarification"
+            layout
+            initial={{ opacity: 0, y: 8, scale: 0.99 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -5, scale: 0.99 }}
+            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden rounded-[15px] border border-line-input bg-sunken"
+          >
+            <div className="border-b border-line-div px-4 py-3.5">
+              <div className="font-mono text-[8.5px] tracking-[0.13em] text-t9 uppercase">
+                One thing first
+              </div>
+              <div className="mt-1.5 text-[14px] font-semibold text-ink">
+                {question.prompt}
+              </div>
+            </div>
+            <div className="grid gap-2 p-3">
+              {question.options.map((option) => (
+                <button
+                  key={option.label}
+                  type="button"
+                  disabled={thinking}
+                  onClick={() => {
+                    setQuestion(null);
+                    sendText(option.label);
+                  }}
+                  className="grid gap-0.5 rounded-[10px] border border-line-input bg-card px-3.5 py-2.5 text-left transition-[border-color,transform] duration-[var(--t-fast)] hover:border-line-strong active:scale-[0.99] disabled:opacity-50"
+                >
+                  <span className="text-[12.5px] font-medium text-ink-2">{option.label}</span>
+                  {option.detail ? <span className="text-[11px] leading-[1.45] text-t6">{option.detail}</span> : null}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
-      {/* quick actions + composer ---------------------------------- */}
-      <div className={cx("flex-none px-4 pt-3 pb-3.5", dark ? "bg-[var(--nle-panel)] shadow-[0_-12px_28px_rgb(0_0_0_/_0.2)]" : "bg-drawer shadow-[0_-10px_24px_rgb(30_30_28_/_0.07)]")}>
         {proposal?.proposal && (
-          <div className={cx("mb-3 overflow-hidden rounded-[12px] border border-[var(--accent-line)]", dark ? "bg-[var(--nle-panel-raised)]" : "bg-[var(--accent-tint)]")}>
-            <div className="border-b border-[var(--accent-line)] px-3 py-2.5">
-              <div className="font-mono text-[8.5px] tracking-[0.13em] text-accent-deep uppercase">
+          <motion.div
+            key="proposal"
+            layout
+            initial={{ opacity: 0, y: 10, scale: 0.985 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -5, scale: 0.99 }}
+            transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden rounded-[16px] border border-[var(--accent-line)] bg-[var(--accent-tint)]"
+          >
+            <div className="border-b border-[var(--accent-line)] px-4 py-3.5">
+              <div className="font-mono text-[8.5px] tracking-[0.14em] text-accent-deep uppercase">
                 Proposed change
               </div>
-              <div className={cx("mt-1 text-[12.5px] font-medium", dark ? "text-[var(--nle-text)]" : "text-ink")}>
+              <div className="mt-1.5 font-display text-[16px] font-semibold leading-[1.25] tracking-[-0.02em] text-ink">
                 {proposal.proposal.title}
               </div>
             </div>
-            <div className="grid gap-2 px-3 py-2.5">
-              <ProposalLine label="Changes" value={proposal.proposal.scope} dark={dark} />
-              <ProposalLine label="Keeps" value={proposal.proposal.untouched} dark={dark} />
+            <div className="grid gap-2.5 px-4 py-3.5">
+              <ProposalLine label="Changes" value={proposal.proposal.scope} />
+              <ProposalLine label="Keeps" value={proposal.proposal.untouched} />
             </div>
-            <div className="flex items-center justify-end gap-2 border-t border-[var(--accent-line)] px-3 py-2.5">
+            <div className="flex items-center justify-end gap-2 border-t border-[var(--accent-line)] px-4 py-3">
               <button
                 type="button"
                 onClick={() => {
                   setProposal(null);
                   say("Kept the current draft. Nothing changed.");
                 }}
-                className={cx("rounded-full px-3 py-1.5 text-[11.5px] font-medium transition-colors", dark ? "text-[var(--nle-muted)] hover:text-[var(--nle-text)]" : "text-t6 hover:text-ink")}
+                className="rounded-full px-3 py-1.5 text-[12px] font-medium text-t6 transition-colors hover:text-ink"
               >
                 Keep current
               </button>
@@ -494,45 +739,69 @@ export function ProducerDrawer() {
                   setProposal(null);
                   action.run();
                 }}
-                className={cx("px-3.5 py-1.5 text-[11.5px] font-medium", dark && "bg-[var(--accent)] text-white")}
+                className="px-4 py-2 text-[12px] font-medium"
               >
                 Apply change
               </Graphite>
             </div>
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
 
-        <Noticed dark={dark} />
+        {/* Never a bare spinner — it always says what it is doing. */}
+        <AnimatePresence initial={false}>
+        {thinking ? (
+          <motion.div
+            key="thinking"
+            layout="position"
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            className="flex items-center gap-2 self-start pt-0.5 pl-0.5"
+          >
+            <Spinner size={13} />
+            <span className="text-[11.5px] text-t8">{liveStep ?? workingLine.current}</span>
+          </motion.div>
+        ) : null}
+        </AnimatePresence>
+      </div>
+
+      {/* quick actions + composer ---------------------------------- */}
+      <div className={cx("flex-none border-t px-4 pt-3 pb-4", dark ? "border-[var(--nle-line)] bg-[var(--nle-panel)]" : "border-line-div bg-[var(--color-drawer)]")}>
+        {!connectedProjectId && <Noticed dark={dark} />}
 
         {/* Wrapped, not a horizontal scroller. Docked, the room is narrower
             than the floating panel was, and a sideways-scrolling row of two or
-            three suggestions reads as a truncated one — the second action
-            looked broken rather than scrollable. */}
-        <div className="-mx-1 mb-2.5 flex flex-wrap gap-1.5 px-1 pb-0.5">
-          {actions.map((a) => (
-            dark ? (
-              <button
-                key={a.label}
-                type="button"
-                onClick={() => runAction(a)}
-                disabled={thinking || proposal !== null}
-                className="max-w-full rounded-lg border border-[var(--nle-line)] bg-[var(--nle-panel-raised)] px-3 py-1.5 text-left text-[11.5px] font-medium text-[var(--nle-muted)] transition-[border-color,color,transform] duration-[var(--t-fast)] hover:border-[var(--nle-line-strong)] hover:text-[var(--nle-text)] active:scale-[0.98] disabled:opacity-50"
-              >
-                {a.label}
-              </button>
-            ) : (
-              <Ghost
-                key={a.label}
-                type="button"
-                onClick={() => runAction(a)}
-                disabled={thinking || proposal !== null}
-                className="max-w-full px-3 py-1.5 text-left text-[11.5px] disabled:opacity-50"
-              >
-                {a.label}
-              </Ghost>
-            )
-          ))}
-        </div>
+            three suggestions reads as a truncated one. Prototype only — the
+            connected room sends straight to the orchestrator. */}
+        {!connectedProjectId && (
+          <div className="-mx-1 mb-2.5 flex flex-wrap gap-1.5 px-1 pb-0.5">
+            {actions.map((a) =>
+              dark ? (
+                <button
+                  key={a.label}
+                  type="button"
+                  onClick={() => runAction(a)}
+                  disabled={thinking || proposal !== null}
+                  className="max-w-full rounded-lg border border-[var(--nle-line)] bg-[var(--nle-panel-raised)] px-3 py-1.5 text-left text-[11.5px] font-medium text-[var(--nle-muted)] transition-[border-color,color,transform] duration-[var(--t-fast)] hover:border-[var(--nle-line-strong)] hover:text-[var(--nle-text)] active:scale-[0.98] disabled:opacity-50"
+                >
+                  {a.label}
+                </button>
+              ) : (
+                <Ghost
+                  key={a.label}
+                  type="button"
+                  onClick={() => runAction(a)}
+                  disabled={thinking || proposal !== null}
+                  className="max-w-full px-3 py-1.5 text-left text-[11.5px] disabled:opacity-50"
+                >
+                  {a.label}
+                </Ghost>
+              ),
+            )}
+          </div>
+        )}
 
         {/* The field grows with what you write.
             It was `rows={1}` with no auto-grow, so the second line of any real
@@ -541,7 +810,8 @@ export function ProducerDrawer() {
             19px text box against a 24px button, leaving the text sitting a
             couple of pixels low. Both are fixed by giving the field a real
             line box and letting the row centre on it. */}
-        <div className={cx("flex items-center gap-2 rounded-[12px] border px-2.5 py-1.5", dark ? "nle-field" : "border-line-input bg-card")}>
+        <div className={cx("studio-shell flex items-center gap-2 rounded-[18px] p-[3px]", dark && "nle-field")}>
+          <div className="studio-surface flex min-w-0 flex-1 items-center gap-2 rounded-[15px] px-3 py-1.5">
           <textarea
             ref={composer}
             rows={1}
@@ -554,8 +824,8 @@ export function ProducerDrawer() {
               }
             }}
             aria-label="Write in Project Chat"
-            placeholder="What do you want Decode to look at?"
-            className={cx("max-h-[112px] min-h-[28px] flex-1 resize-none self-center border-none bg-transparent py-[5px] text-[12.5px] leading-[18px]", dark ? "text-[var(--nle-text)] placeholder:text-[var(--nle-faint)]" : "placeholder:text-t9")}
+            placeholder="Describe the change you want…"
+            className={cx("max-h-[112px] min-h-[30px] flex-1 resize-none self-center border-none bg-transparent py-[5px] text-[14px] leading-[20px]", dark ? "text-[var(--nle-text)] placeholder:text-[var(--nle-faint)]" : "placeholder:text-t9")}
           />
           <Graphite
             type="button"
@@ -565,24 +835,41 @@ export function ProducerDrawer() {
           >
             <PaperPlaneTilt size={13} weight="fill" aria-hidden />
           </Graphite>
+          </div>
         </div>
 
-        {/* The one cross-link back to the do-layer. The palette's footer
-            points here ("⌘J to talk instead"); this is its mirror. Each
-            surface names the other exactly once, so the split is learnable
-            without either becoming a menu of the other. */}
-        <button
-          type="button"
-          onClick={() => {
-            setThreadOpen(false);
-            window.dispatchEvent(new Event("decode:palette"));
-          }}
-          className={cx("mt-2 w-full text-center font-mono text-[9px] tracking-[0.1em] uppercase transition-colors", dark ? "text-[var(--nle-faint)] hover:text-[var(--nle-muted)]" : "text-t9 hover:text-t6")}
-        >
-          ⌘J to write here
-        </button>
+        <div className="mt-2 text-center font-mono text-[8px] tracking-[0.11em] text-t10 uppercase">
+          Enter to send · Shift Enter for a new line
+        </div>
       </div>
     </aside>
+  );
+}
+
+/**
+ * The room's live thinking — streamed reasoning shown like Claude Code's
+ * "thinking": a quiet, italic, capped block with a label and a cursor while it
+ * streams, distinct from Decode's actual replies. Keyed by `stream:{id}`.
+ */
+function ThinkingBlock({ text, streaming, dark }: { text: string; streaming?: boolean; dark?: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (streaming && ref.current) ref.current.scrollTop = ref.current.scrollHeight;
+  }, [text, streaming]);
+  const clean = text.replace(/\*\*/g, "");
+  return (
+    <div className={cx("grid gap-1.5 border-l-2 pl-3", dark ? "border-[var(--nle-line)]" : "border-line-input")}>
+      <span className={cx("flex items-center gap-1.5 font-mono text-[9px] tracking-[0.1em] uppercase", dark ? "text-[var(--nle-faint)]" : "text-t9")}>
+        <span aria-hidden className={cx("inline-block h-1 w-1 rounded-full bg-current", streaming ? "animate-pulse" : "opacity-50")} />
+        {streaming ? "Thinking" : "Thought"}
+      </span>
+      <div ref={ref} className={cx("max-h-[128px] overflow-y-auto pr-1 text-[11.5px] leading-[1.55] italic", dark ? "text-[var(--nle-muted)]" : "text-t7")}>
+        {clean}
+        {streaming && (
+          <span aria-hidden className="ml-0.5 inline-block h-[0.9em] w-[2px] translate-y-[2px] animate-pulse bg-current" />
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -615,54 +902,43 @@ function Noticed({ dark }: { dark: boolean }) {
   const screen = useStudio((s) => s.screen);
   const tab = useStudio((s) => s.tab);
   const select = useStudio((s) => s.select);
+  const [dismissed, setDismissed] = useState(false);
 
   const found = useMemo(() => observations(sc, runtime), [sc, runtime]);
 
   // Only where the cut is the thing on screen. On Understanding the creator is
   // reading a brief and has not chosen any of this yet.
   const relevant = screen === "project" && (tab === "plan" || tab === "script" || tab === "edit");
-  if (!relevant || found.length === 0) return null;
+  if (!relevant || found.length === 0 || dismissed) return null;
 
+  // One muted line, not a stack of cards: the room mentions what it noticed
+  // without repeating itself. Clicking jumps to the scene; × dismisses for the
+  // session so it stops nagging.
+  const first = found[0];
+  const at = /Scene (\d+)/.exec(first.text);
   return (
-    <div className="mb-2.5 flex flex-col gap-1.5">
-      {found.map((item) => (
-        <button
-          key={item.id}
-          type="button"
-          // Clicking takes you to the scene it is about. The room says where a
-          // thing is; the least it can do is take you there.
-          onClick={() => {
-            const at = /Scene (\d+)/.exec(item.text);
-            if (at) select(Number(at[1]) - 1);
-          }}
-          className={cx(
-            "rounded-xl border px-3 py-2 text-left transition-colors duration-[var(--t-fast)]",
-            dark
-              ? "border-[var(--nle-line)] bg-[var(--nle-panel-raised)] hover:border-[var(--nle-line-strong)]"
-              : "border-line-input bg-sunken hover:border-line-strong",
-          )}
-        >
-          <span
-            className={cx(
-              "block text-[12px] leading-[1.5] font-medium",
-              dark ? "text-[var(--nle-text)]" : "text-ink-2",
-            )}
-          >
-            {item.tone === "attention" && (
-              <span aria-hidden className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-accent align-middle" />
-            )}
-            {item.text}
-          </span>
-          <span
-            className={cx(
-              "mt-0.5 block text-[11.5px] leading-[1.5]",
-              dark ? "text-[var(--nle-muted)]" : "text-t6",
-            )}
-          >
-            {item.detail}
-          </span>
-        </button>
-      ))}
+    <div className={cx(
+      "mb-2.5 flex items-center gap-2 rounded-lg border px-2.5 py-1.5",
+      dark ? "border-[var(--nle-line)] bg-[var(--nle-panel-raised)]" : "border-line-input bg-sunken",
+    )}>
+      <button
+        type="button"
+        onClick={() => { if (at) select(Number(at[1]) - 1); }}
+        className="min-w-0 flex-1 text-left"
+      >
+        <span className={cx("block truncate text-[11px]", dark ? "text-[var(--nle-muted)]" : "text-t6")}>
+          {first.tone === "attention" && <span aria-hidden className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-accent align-middle" />}
+          {found.length > 1 ? `${first.text} · +${found.length - 1} more` : first.text}
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={() => setDismissed(true)}
+        aria-label="Dismiss"
+        className={cx("grid h-5 w-5 flex-none place-items-center rounded-[4px] transition-colors", dark ? "text-[var(--nle-faint)] hover:text-[var(--nle-text)]" : "text-t8 hover:text-ink")}
+      >
+        <X size={12} weight="bold" aria-hidden />
+      </button>
     </div>
   );
 }

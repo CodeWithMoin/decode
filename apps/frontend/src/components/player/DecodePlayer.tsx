@@ -13,8 +13,14 @@ import {
 import { usePlayerRef } from "@/components/player/player-ref";
 import { useStudio } from "@/store/studio";
 
-/** Decode-owned preview boundary. Remotion remains an internal implementation detail. */
-export function DecodePlayer() {
+/** Decode-owned preview boundary. Remotion remains an internal implementation detail.
+ *
+ * `selfControlled` (the chat-first connected view, which has no timeline) hands
+ * playback entirely to the Remotion Player's native controls and skips the
+ * store↔player sync effects — the store no longer drives it, so there is no
+ * two-way loop to guard against. With a timeline present, the store owns the
+ * playhead as before. */
+export function DecodePlayer({ selfControlled = false }: { selfControlled?: boolean } = {}) {
   const scenes = useStudio((state) => state.sc);
   const visualPick = useStudio((state) => state.visualPick);
   const playhead = useStudio((state) => state.playhead);
@@ -46,6 +52,7 @@ export function DecodePlayer() {
   useEffect(() => {
     const player = playerRef.current;
     if (!player) return;
+    if (selfControlled) return; // native controls own transport
 
     /**
      * Stop the shuttle at either end.
@@ -71,11 +78,12 @@ export function DecodePlayer() {
       player.removeEventListener("frameupdate", onFrameUpdate);
       player.removeEventListener("ended", onEnded);
     };
-  }, [playerRef, durationInFrames]);
+  }, [playerRef, durationInFrames, selfControlled]);
 
   useEffect(() => {
     const player = playerRef.current;
     if (!player) return;
+    if (selfControlled) return; // native controls own play/pause
     if (playing) {
       player.play();
       return;
@@ -83,24 +91,25 @@ export function DecodePlayer() {
     player.pause();
     // Composition and timeline share the same time — no conversion needed.
     useStudio.getState().seek(player.getCurrentFrame() / DECODE_FPS);
-  }, [playerRef, playing]);
+  }, [playerRef, playing, selfControlled]);
 
   useEffect(() => {
     const player = playerRef.current;
     if (!player) return;
+    if (selfControlled) return; // native controls own the playhead
     // Only while paused. Playing, the Player is the clock, and seeking it to a
     // stale store value would drag it backwards every render.
     if (playing) return;
     const frame = Math.min(durationInFrames - 1, Math.max(0, Math.round(playhead * DECODE_FPS)));
     if (player.getCurrentFrame() !== frame) player.seekTo(frame);
-  }, [playerRef, durationInFrames, playhead, playing, scenes]);
+  }, [playerRef, durationInFrames, playhead, playing, scenes, selfControlled]);
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-[#0B0B0B]">
       <Player
         ref={playerRef}
         // Silences Remotion's console license notice — the terms have been
-        // reviewed (see decisions.md / the ADR-007 renderer-port discussion).
+        // reviewed (see docs/decisions.md / the ADR-007 renderer-port discussion).
         acknowledgeRemotionLicense
         component={DecodeComposition}
         inputProps={inputProps}
@@ -108,11 +117,12 @@ export function DecodePlayer() {
         compositionWidth={DECODE_WIDTH}
         compositionHeight={DECODE_HEIGHT}
         fps={DECODE_FPS}
-        controls={false}
-        clickToPlay={false}
-        doubleClickToFullscreen={false}
-        spaceKeyToPlayOrPause={false}
-        playbackRate={playbackRate === 0 ? 1 : playbackRate}
+        controls={selfControlled}
+        clickToPlay={selfControlled}
+        doubleClickToFullscreen={selfControlled}
+        spaceKeyToPlayOrPause={selfControlled}
+        playbackRate={selfControlled ? 1 : playbackRate === 0 ? 1 : playbackRate}
+        loop={false}
         moveToBeginningWhenEnded={false}
         style={{ width: "100%", height: "100%" }}
       />
@@ -120,7 +130,7 @@ export function DecodePlayer() {
       {regen && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3.5 bg-black/80" role="status" aria-live="polite">
           <Spinner size={22} track="#303030" />
-          <div className="px-6 text-center font-mono text-[13.5px] text-[var(--nle-text)]">{regen}</div>
+          <div className="px-6 text-center font-mono text-[13.5px] text-[var(--color-canvas-cap)]">{regen}</div>
         </div>
       )}
     </div>

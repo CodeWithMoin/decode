@@ -21,9 +21,15 @@ class Settings(BaseSettings):
     author: str = "fake"
     visualizer: str = "fake"
     voice: str = "fake"
+    # Use the model when credentials are present, otherwise keep local/test
+    # environments deterministic without an extra switch.
+    orchestrator: str = "auto"
     evaluator: str = "fake"
     openai_api_key: str | None = None
     openai_model: str = "gpt-5.6-luna"
+    # Any OpenAI-compatible endpoint (e.g. DeepSeek) — set DECODE_OPENAI_BASE_URL
+    # and point openai_model at that provider's model. None = OpenAI's default.
+    openai_base_url: str | None = None
     # Evaluation is a separate model call with a separate quality/cost profile.
     # It may share credentials without coupling its model choice to generation.
     openai_evaluator_model: str = "gpt-5.6-luna"
@@ -57,6 +63,7 @@ class Settings(BaseSettings):
     render_cwd: str = "apps/frontend"
     render_node_bin: str = "npx"
     render_timeout_seconds: int = 300
+    render_fps: int = 24  # HyperFrames export frame rate (matches DECODE_FPS)
 
     @model_validator(mode="after")
     def require_private_production_boundary(self):

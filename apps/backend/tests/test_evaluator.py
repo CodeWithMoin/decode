@@ -2,15 +2,15 @@ from types import SimpleNamespace
 
 import pytest
 
-from decode.config import Settings
-from decode.departments.evaluator import (
+from decode.agents.evaluator import (
     SYSTEM,
     CheckResult,
     EvaluationDraft,
-    OpenAIEvaluator,
+    ModelEvaluator,
     PlanEvaluationDraft,
 )
-from decode.departments.registry import evaluator as build_evaluator
+from decode.agents.registry import evaluator as build_evaluator
+from decode.config import Settings
 from decode.schemas import Beat, PlanSection, ProductionBrief, ProductionIntent, TeachingPlan
 
 INTENT = ProductionIntent(
@@ -92,7 +92,7 @@ async def test_openai_evaluator_derives_decision_and_records_usage():
         downstream_reviewability=result("pass", "Scope boundaries are explicit."),
         summary="The brief needs a narrower scope.",
     )
-    judge = OpenAIEvaluator.__new__(OpenAIEvaluator)
+    judge = ModelEvaluator.__new__(ModelEvaluator)
     judge.model = "judge-model"
     responses = FakeResponses(draft)
     judge.client = SimpleNamespace(responses=responses)
@@ -122,7 +122,7 @@ async def test_unavailable_check_makes_the_whole_evaluation_unavailable():
         downstream_reviewability=result("pass", "The brief is reviewable."),
         summary="Provenance could not be evaluated.",
     )
-    judge = OpenAIEvaluator.__new__(OpenAIEvaluator)
+    judge = ModelEvaluator.__new__(ModelEvaluator)
     judge.model = "judge-model"
     judge.client = SimpleNamespace(responses=FakeResponses(draft))
     judge.last_usage = None
@@ -132,7 +132,7 @@ async def test_unavailable_check_makes_the_whole_evaluation_unavailable():
 
 
 async def test_structural_failure_skips_the_model_judge():
-    judge = OpenAIEvaluator.__new__(OpenAIEvaluator)
+    judge = ModelEvaluator.__new__(ModelEvaluator)
     judge.model = "judge-model"
     responses = FakeResponses(None)
     judge.client = SimpleNamespace(responses=responses)
@@ -157,7 +157,7 @@ async def test_teaching_plan_receives_its_own_semantic_evaluation():
         writer_handoff_quality=result("pass", "Key points guide writing without scripting."),
         summary="The plan is ready for creator review.",
     )
-    judge = OpenAIEvaluator.__new__(OpenAIEvaluator)
+    judge = ModelEvaluator.__new__(ModelEvaluator)
     judge.model = "judge-model"
     responses = FakeResponses(draft)
     judge.client = SimpleNamespace(responses=responses)
