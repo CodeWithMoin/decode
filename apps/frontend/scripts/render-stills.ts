@@ -11,10 +11,16 @@
  * one per sampled progress point, printed one path per line.
  */
 
-import { mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { bundle } from "@remotion/bundler";
 import { renderStill, selectComposition } from "@remotion/renderer";
+
+// Webpack takes ~2 minutes; the scene arrives via inputProps at render time,
+// so ONE bundle serves every scene and project. Reused when present.
+// ponytail: staleness = delete the dir after changing player/composition code;
+// wire a source-hash key if that ever bites.
+const BUNDLE_CACHE = path.join(".data", "vision", "bundle");
 
 // Early, middle, late — enough to judge staged reveals without a full render.
 const POINTS = [0.15, 0.55, 0.9];
@@ -30,22 +36,26 @@ async function main() {
   mkdirSync(outDir, { recursive: true });
 
   const root = process.cwd();
-  const bundled = await bundle({
-    entryPoint: path.join(root, "src", "remotion", "root.tsx"),
-    webpackOverride: (config) => {
-      const aliases = {
-        "@": path.join(root, "src"),
-        "@decode/animation-api": path.join(root, "src", "decode", "animation-api.tsx"),
-      };
-      return {
-        ...config,
-        resolve: {
-          ...config.resolve,
-          alias: { ...(config.resolve?.alias ?? {}), ...aliases },
+  const cache = path.join(root, BUNDLE_CACHE);
+  const bundled = existsSync(path.join(cache, "index.html"))
+    ? cache
+    : await bundle({
+        entryPoint: path.join(root, "src", "remotion", "root.tsx"),
+        outDir: cache,
+        webpackOverride: (config) => {
+          const aliases = {
+            "@": path.join(root, "src"),
+            "@decode/animation-api": path.join(root, "src", "decode", "animation-api.tsx"),
+          };
+          return {
+            ...config,
+            resolve: {
+              ...config.resolve,
+              alias: { ...(config.resolve?.alias ?? {}), ...aliases },
+            },
+          };
         },
-      };
-    },
-  });
+      });
 
   const composition = await selectComposition({
     serveUrl: bundled,

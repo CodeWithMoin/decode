@@ -1,6 +1,7 @@
 "use client";
 
 import { Component, useEffect, useRef, useState, type ReactNode } from "react";
+import { continueRender, delayRender } from "remotion";
 import { AbsoluteFill, inspectScene } from "@decode/animation-api";
 import { loadSceneModule, SceneModuleError, type SceneComponent } from "@/lib/scene-module";
 import { useStudio } from "@/store/studio";
@@ -35,6 +36,10 @@ function GeneratedSceneSource({
 }) {
   const [Component, setComponent] = useState<SceneComponent | null>(null);
   const [error, setError] = useState("");
+  // The module compiles asynchronously; a headless render (stills for the
+  // vision gate, the export) captures the frame as soon as the page settles,
+  // so without delayRender it screenshots the pre-compile black stage.
+  const [renderHandle] = useState(() => delayRender(`compile scene ${scene.id}`));
 
   useEffect(() => {
     let live = true;
@@ -49,11 +54,12 @@ function GeneratedSceneSource({
             ? [cause.message, cause.detail].filter(Boolean).join(" ")
             : "This scene could not be loaded.",
         );
-      });
+      })
+      .finally(() => continueRender(renderHandle));
     return () => {
       live = false;
     };
-  }, [source]);
+  }, [source, renderHandle]);
 
   if (error) {
     return <SceneError message={error} />;
