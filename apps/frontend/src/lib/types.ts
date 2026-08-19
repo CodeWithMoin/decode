@@ -6,6 +6,8 @@
  * values, so swapping seed content for real `fetch` calls touches nothing else.
  */
 
+import type { ChoreographyVerb, WordTimestamp } from "@decode/motion-api";
+
 export type ScreenId =
   | "landing"
   | "dashboard"
@@ -247,6 +249,19 @@ export interface SceneControl {
   step?: number | null;
 }
 
+/** One verb in a scene's script, as the backend serialises it (snake_case).
+ *  Mirrors the backend `ChoreographyVerb`; the player maps it to the camelCase
+ *  `ChoreographyVerb` the runtime consumes. */
+export interface ScriptVerb {
+  id: string;
+  type: string;
+  target_id: string;
+  secondary_target_id?: string | null;
+  at_word_index: number;
+  duration_in_words?: number | null;
+  params?: Record<string, unknown>;
+}
+
 export interface SceneModule {
   beat_id: string;
   controls: SceneControl[];
@@ -254,6 +269,8 @@ export interface SceneModule {
   component_source?: string;
   /** A HyperFrames composition (duration-agnostic template) — the new substrate. */
   composition_html?: string;
+  /** The choreography script (verbs on word indices) for a motion-api scene. */
+  script?: ScriptVerb[];
 }
 
 /** The stamped composition for one scene, resolved by the backend for playback. */
@@ -282,6 +299,8 @@ export interface VoiceClip {
   beat_id: string;
   audio_key: string;
   duration_seconds: number;
+  /** Per-word timings from the TTS provider / forced alignment; empty when unaligned. */
+  words?: { text: string; start: number; end: number }[];
 }
 
 export interface VoicePayload {
@@ -583,6 +602,10 @@ export interface Scene {
   controls?: SceneControl[];
   /** URL of this beat's narration audio, present only once voice is generated. */
   audioUrl?: string;
+  /** The choreography script (verbs on word indices) for a motion-api scene. */
+  script?: ChoreographyVerb[];
+  /** Per-word narration timings for this beat, when voice alignment supplied them. */
+  words?: WordTimestamp[];
 }
 
 /**

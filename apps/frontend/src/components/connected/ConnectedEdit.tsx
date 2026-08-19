@@ -22,11 +22,13 @@ import type {
   SceneCandidate,
   ProjectEvent,
   ScriptPayload,
+  ScriptVerb,
   StudioSnapshot,
   TeachingPlanPayload,
   ThreadMessage,
   VoicePayload,
 } from "@/lib/types";
+import type { ChoreographyVerb } from "@decode/motion-api";
 
 /**
  * The room's conversation, kept per project in this browser. The store is
@@ -219,6 +221,18 @@ const STAGE_HEADLINE: Record<string, string> = {
  * invented here: the plan owns title, objective and duration, the script owns
  * narration, the Motion Designer owns the animation.
  */
+function scriptVerb(verb: ScriptVerb): ChoreographyVerb {
+  return {
+    id: verb.id,
+    type: verb.type as ChoreographyVerb["type"],
+    targetId: verb.target_id,
+    secondaryTargetId: verb.secondary_target_id ?? undefined,
+    atWordIndex: verb.at_word_index,
+    durationInWords: verb.duration_in_words ?? undefined,
+    params: verb.params,
+  };
+}
+
 function toScenes(
   plan: TeachingPlanPayload | null,
   script: ScriptPayload | null,
@@ -265,6 +279,12 @@ function toScenes(
       componentSource: sceneModule?.component_source,
       controls: sceneModule?.controls,
       audioUrl: clip ? mediaUrl(clip.audio_key) : undefined,
+      script: sceneModule?.script?.map(scriptVerb),
+      words: clip?.words?.map((w) => ({
+        word: w.text,
+        startInSeconds: w.start,
+        endInSeconds: w.end,
+      })),
     }];
   });
 }

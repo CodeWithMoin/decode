@@ -199,7 +199,8 @@ def _validate_react(scene: SceneModule) -> list[dict[str, str]]:
         found.append(
             _violation(
                 "forbidden_import",
-                f"{where} imports from {', '.join(outside)}; only {RUNTIME_MODULE} is allowed.",
+                f"{where} imports from {', '.join(outside)}; only {RUNTIME_MODULE} "
+                "and @decode/motion-api are allowed.",
             )
         )
 
@@ -262,7 +263,11 @@ def _validate_react(scene: SceneModule) -> list[dict[str, str]]:
             for name in params.split(",")
             if name.strip()
         }
-    undeclared = sorted(used - declared - {"progress"})
+    # `script` and `words` are the choreography contract's own props — the
+    # prompt REQUIRES `function Scene({ script, words })` — so counting them
+    # as undeclared controls made every choreography scene unrepairable:
+    # the model could satisfy the prompt or this gate, never both.
+    undeclared = sorted(used - declared - {"progress", "script", "words"})
     if undeclared:
         found.append(
             _violation(
@@ -272,9 +277,14 @@ def _validate_react(scene: SceneModule) -> list[dict[str, str]]:
             )
         )
     # A declared control whose name never appears in the source is a dead
-    # slider: the creator drags it and nothing happens.
-    unused = sorted(
-        name for name in declared if not re.search(rf"\b{re.escape(name)}\b", source)
+    # slider: the creator drags it and nothing happens. Choreography scenes are
+    # exempt — their knobs are the verb script, and blocking a whole scene over
+    # an unwired slider cost nine placeholders in one build.
+    choreography = bool(scene.script) or "<Choreography" in source
+    unused = (
+        []
+        if choreography
+        else sorted(name for name in declared if not re.search(rf"\b{re.escape(name)}\b", source))
     )
     if unused:
         found.append(

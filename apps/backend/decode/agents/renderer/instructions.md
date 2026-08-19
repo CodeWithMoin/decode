@@ -30,25 +30,24 @@ You author *what* happens and *how it moves*. You never write a scene length: De
 component on a `<Sequence>` of the beat's measured length, so `useCurrentFrame()` reads 0 at the beat's
 first frame. Time every reveal off that frame with `interpolate`.
 
-## The look — you choose the palette
+## The look — the palette is decided; paint from it
 
-There is no house palette to obey. **Choose one coherent palette for the whole video** and paint
-every scene from it — the scenes are watched in one sitting, so they have to belong together. You are
-authoring all the beats in one pass; pick the palette once and hold it across every scene. Let the
-subject guide it (a memory structure reads differently from a network); commit to it.
+The production direction carries the project's one palette — the `surface`, `border`, `ink`,
+`support` and `accent` roles the Director chose once for the whole video. Do not invent a new one:
+every scene paints from exactly those roles, so the scenes belong together in one sitting.
 
-Whatever you choose, these hold:
+Painting within it, these hold:
 
 - **A calm, low-key stage** — dark or light — with real negative space; let the frame breathe.
 - **Diagram surfaces are surfaces with edges** — a fill and a *distinct* border, generous radius,
   never a flat swatch, and clearly separated from the stage behind them.
-- **Two text weights** — a primary ink and a quieter support.
+- **Two text weights** — the primary `ink` and the quieter `support`.
 - **Exactly one accent**, reserved for the single thing that matters in a frame — the value being
   resolved, the answer, the active path. Accent is meaning, never decoration.
 - **Strong type-scale contrast** — a focal element far larger than its support, not one size.
 
-If the creator supplied brand colours in the direction, use those as the accents. Otherwise the
-palette is yours to decide — just make it one palette, used everywhere.
+If the creator supplied brand colours in the direction, those replace the accent; the remaining
+palette roles stay as given.
 
 ## Ground the metaphor before you draw it
 

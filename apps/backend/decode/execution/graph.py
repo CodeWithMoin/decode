@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from datetime import timedelta
 from time import perf_counter
 
@@ -49,6 +50,8 @@ GRAPH_JOB_KINDS = frozenset({"generate_scene_visuals"})
 # A RUNNING task older than this is considered abandoned by a dead worker and
 # may be re-claimed. 2x the arq job_timeout (worker.py) so a live attempt that
 # is merely slow can never be stolen while its worker still holds it.
+logger = logging.getLogger(__name__)
+
 STALE_TASK_LEASE_SECONDS = 600
 # Wall-clock bound on one scene-generation model call, below arq's job_timeout
 # so exhaustion surfaces as an ordinary Exception that _fail_task can retry —
@@ -907,6 +910,9 @@ async def execute_task(_ctx: dict | None, task_id: str, expected_attempt: int) -
             return await _run_assembly_task(task_id, run_id, expected_attempt)
         raise ValueError(f"unknown production task kind {kind!r}")
     except Exception:
+        # The retry/degrade paths swallow the exception — without this line a
+        # build of nine placeholders leaves no trace of WHY (it happened).
+        logger.exception("task %s attempt %s failed", task_id, expected_attempt)
         result = await _fail_task(task_id, expected_attempt)
         if result["status"] == "failed":
             raise

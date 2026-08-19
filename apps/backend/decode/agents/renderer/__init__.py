@@ -36,7 +36,7 @@ from .. import tracing
 from ..agent_config import AgentConfig
 from ..agent_runtime import AgentRuntime
 from ..contracts import ProviderUsage
-from .prompt import REPAIR_PROMPT, SKILLS, build_instructions
+from .prompt import CHOREOGRAPHY_SYSTEM, REPAIR_PROMPT, SKILLS, build_instructions
 from .validation import RUNTIME_VERSION, repair_message, validate_scenes
 
 
@@ -84,6 +84,9 @@ class ModelVisualizer:
 
     def __init__(self, settings: Settings):
         config = AgentConfig.from_skillset(SKILLS)
+        self.choreography = settings.choreography == "auto"
+        if self.choreography:
+            config = config.model_copy(update={"system": CHOREOGRAPHY_SYSTEM})
         self.runtime = AgentRuntime(
             settings,
             config.model_copy(
@@ -91,7 +94,6 @@ class ModelVisualizer:
             ),
         )
         self.model = settings.openai_model
-        self.choreography = settings.choreography == "auto"
         self.last_usage: ProviderUsage | None = None
 
     async def generate(

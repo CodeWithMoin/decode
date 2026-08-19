@@ -73,7 +73,7 @@ function GeneratedSceneSource({
   return (
     <SceneRenderBoundary key={source}>
       <LayoutInspection sceneId={scene.id}>
-        <Component {...controlProps(scene, overrides)} />
+        <Component {...controlProps(scene, overrides)} script={scene.script} words={scene.words} />
       </LayoutInspection>
     </SceneRenderBoundary>
   );
