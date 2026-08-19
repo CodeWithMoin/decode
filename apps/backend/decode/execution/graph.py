@@ -275,6 +275,7 @@ async def _run_scene_task(task_id: str, run_id: str) -> dict:
         focused_plan = context.plan.model_copy(update={"beats": [beat]})
         focused_script = context.script.model_copy(update={"beats": [narration]})
         intent = context.intent
+        repair = task.input.get("repair")
 
     # Never hold a database transaction open across a provider call. Cancellation
     # can update the task while generation is in flight; the completion check then
@@ -282,7 +283,21 @@ async def _run_scene_task(task_id: str, run_id: str) -> dict:
     designer = visualizer(get_settings())
     started = perf_counter()
     async with asyncio.timeout(SCENE_GENERATION_TIMEOUT_SECONDS):
-        visuals = await designer.generate(intent, focused_plan, focused_script)
+        if repair:
+            # This attempt exists because the last one ALMOST passed: repair
+            # that source against the recorded violations rather than rolling
+            # fresh — only the failure reason should change.
+            prior = SceneVisuals.model_validate(repair["visuals"]).scenes
+            direction = (
+                "Fix exactly these deterministic validation violations and change "
+                "nothing else about the scene:\n"
+                + "\n".join(f"- {item['code']}: {item['message']}" for item in repair["violations"])
+            )
+            visuals = await designer.regenerate_one(
+                intent, focused_plan, focused_script, prior, beat_id, direction
+            )
+        else:
+            visuals = await designer.generate(intent, focused_plan, focused_script)
     generation_ms = int((perf_counter() - started) * 1000)
     if len(visuals.scenes) != 1 or visuals.scenes[0].beat_id != beat_id:
         raise ValueError(f"scene task {beat_id!r} must return exactly its requested scene")
@@ -374,6 +389,14 @@ async def _complete_scene_task(
                 scene_visuals.scenes, context.plan.model_copy(update={"beats": [beat]})
             )
             if violations:
+                # Keep the near-miss: the retry repairs THIS source against THESE
+                # violations instead of regenerating from scratch — the failure
+                # reason is the only thing that should change.
+                task.input = {
+                    **task.input,
+                    "repair": {"visuals": output["visuals"], "violations": violations},
+                }
+                await session.commit()
                 codes = ", ".join(item["code"] for item in violations)
                 raise ValueError(f"scene {beat_id!r} failed validation before auto-accept: {codes}")
         task.output = output
