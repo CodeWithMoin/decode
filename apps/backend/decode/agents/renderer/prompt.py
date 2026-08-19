@@ -71,8 +71,10 @@ def build_instructions(*, visual_direction: dict, beats: list[dict]) -> str:
     the line (optional `arrow`, `dashed`) and owns the between-label:
     `<Connector direction="row" arrow label={{<Label .../>}}>{{a}}{{b}}</Connector>`. Never float
     free text or a hand-drawn line between two elements.
-  Absolute pixel positioning is allowed only INSIDE an `<svg>` diagram you draw. Do not use the
-  legacy helpers `DesignCanvas`, `defineLayout`, `LayoutBox`, or `LayoutText`.
+  Absolute pixel positioning is allowed only INSIDE an `<svg>` diagram you draw. Every `<svg>`
+  declares a viewBox and keeps all coordinates inside it (outside = clipped invisibly); colors are
+  palette hex values, never names. Do not use the legacy helpers `DesignCanvas`, `defineLayout`,
+  `LayoutBox`, or `LayoutText`.
 - Drive every changing value from `useCurrentFrame()`. Use `useVideoConfig()` for fps and
   durationInFrames. Use `interpolate()` or `spring()` with clamped ranges.
 - Never use CSS transitions, CSS animations, keyframes, timers, network calls, or unseeded

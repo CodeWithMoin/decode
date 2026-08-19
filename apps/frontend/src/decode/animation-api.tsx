@@ -1221,11 +1221,13 @@ export function inspectScene(
   }
   const tolerance = Math.max(2, frame.width / 200);
 
-  const visible = (el: HTMLElement) => {
+  const visible = (el: Element) => {
     const opacity = Number(getComputedStyle(el).opacity);
     return !(opacity < 0.05);
   };
-  const boxes = Array.from(root.querySelectorAll<HTMLElement>("[data-decode-box]")).filter(
+  // SVG roots join the watch: the diagram is free-positioned inside, so the
+  // svg's own placement is the off-frame risk the primitives can't police.
+  const boxes = Array.from(root.querySelectorAll<HTMLElement>("[data-decode-box], svg")).filter(
     (el) => {
       const r = el.getBoundingClientRect();
       return r.width > 1 && r.height > 1 && visible(el);

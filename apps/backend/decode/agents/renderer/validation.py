@@ -322,6 +322,22 @@ _TYPE_FLOOR = 20
 # everything else — a slightly lower floor allows dense diagram callouts.
 _SVG_FONT = re.compile(r"\bfont-?[sS]ize\s*[:=]\s*[\"']?(\d+)")
 _SVG_TYPE_FLOOR = 16
+# Strict SVG gates: the SVG interior is the one place the model positions
+# freely, so it is where scenes go bad — clipped labels, off-brand fills,
+# postage-stamp diagrams. All lexical, same ceiling as the rest of this file.
+_SVG_OPEN_TAG = re.compile(r"<svg\b[^>]*>", re.IGNORECASE)
+_SVG_VIEWBOX = re.compile(r"\bviewBox\s*=\s*[\"']\s*([\d.,\s-]+)[\"']")
+_SVG_ELEMENT = re.compile(r"<(rect|circle|ellipse|line|text)\b([^>]*)>", re.IGNORECASE)
+_SVG_NUM_ATTR = re.compile(
+    r"\b(x|y|cx|cy|x1|y1|x2|y2|r|rx|ry|width|height)\s*=\s*[\"'{]?\s*(-?\d+(?:\.\d+)?)"
+)
+# Saturated CSS color names sidestep every hex/rgb/hsl palette check.
+_NAMED_COLOR = re.compile(
+    r"\b(?:fill|stroke|color|backgroundColor|background)\s*[:=]\s*[\"']"
+    r"(red|blue|green|orange|yellow|purple|pink|cyan|magenta|lime|teal|gold|violet|indigo|crimson|coral|salmon|turquoise|orchid|khaki)[\"']",
+    re.IGNORECASE,
+)
+_SVG_MIN_EXTENT = 400  # design px; below this a diagram is unreadable at 1080p
 
 
 def _color_to_hue_sat(literal: str) -> tuple[float, float] | None:
@@ -372,9 +388,128 @@ def _hue_sat(hex_color: str) -> tuple[float, float]:
     return hue, sat
 
 
+def _element_extent(tag: str, attrs: dict[str, float]) -> tuple[float, float, float, float] | None:
+    """Rough (left, top, right, bottom) for one SVG element's literal geometry."""
+    if tag in ("rect", "text"):
+        if "x" not in attrs or "y" not in attrs:
+            return None
+        left, top = attrs["x"], attrs["y"]
+        return left, top, left + attrs.get("width", 0), top + attrs.get("height", 0)
+    if tag == "circle":
+        if "cx" not in attrs or "cy" not in attrs:
+            return None
+        r = attrs.get("r", 0)
+        return attrs["cx"] - r, attrs["cy"] - r, attrs["cx"] + r, attrs["cy"] + r
+    if tag == "ellipse":
+        if "cx" not in attrs or "cy" not in attrs:
+            return None
+        rx, ry = attrs.get("rx", 0), attrs.get("ry", 0)
+        return attrs["cx"] - rx, attrs["cy"] - ry, attrs["cx"] + rx, attrs["cy"] + ry
+    if tag == "line":
+        needed = ("x1", "y1", "x2", "y2")
+        if any(key not in attrs for key in needed):
+            return None
+        return (
+            min(attrs["x1"], attrs["x2"]),
+            min(attrs["y1"], attrs["y2"]),
+            max(attrs["x1"], attrs["x2"]),
+            max(attrs["y1"], attrs["y2"]),
+        )
+    return None
+
+
+def _validate_svg(scene: SceneModule) -> list[dict[str, str]]:
+    """Strict gates on SVG interiors — the free-positioning zone.
+
+    SVG clips to its viewBox by default, so a literal coordinate outside it is
+    invisible content: a label the narration names but nobody ever sees.
+    """
+    source = scene.component_source or ""
+    where = scene.beat_id
+    found: list[dict[str, str]] = []
+    for block in _SVG_BLOCK.findall(source):
+        open_tag = _SVG_OPEN_TAG.search(block)
+        header = open_tag.group(0) if open_tag else ""
+        box = _SVG_VIEWBOX.search(header)
+        if not box:
+            found.append(
+                _violation(
+                    "svg_missing_viewbox",
+                    f"{where}: an <svg> has no viewBox. Declare one so its coordinate "
+                    "space is explicit and bounded.",
+                )
+            )
+            continue
+        try:
+            min_x, min_y, view_w, view_h = (
+                float(v) for v in box.group(1).replace(",", " ").split()
+            )
+        except ValueError:
+            found.append(
+                _violation(
+                    "svg_missing_viewbox",
+                    f"{where}: an <svg> viewBox is malformed; use 'minX minY width height'.",
+                )
+            )
+            continue
+        if view_w < _SVG_MIN_EXTENT or view_h < _SVG_MIN_EXTENT / 2:
+            found.append(
+                _violation(
+                    "svg_too_small",
+                    f"{where}: an <svg> viewBox is {view_w:g}x{view_h:g} — too small to read "
+                    f"on the frame. A dominant diagram is 1200x650+; size shapes to use it.",
+                )
+            )
+        clipped: list[str] = []
+        for tag_match in _SVG_ELEMENT.finditer(block):
+            tag = tag_match.group(1).lower()
+            attrs = {
+                name: float(value)
+                for name, value in _SVG_NUM_ATTR.findall(tag_match.group(2))
+            }
+            extent = _element_extent(tag, attrs)
+            if extent is None:
+                continue
+            left, top, right, bottom = extent
+            pad = 2
+            if (
+                right < min_x - pad
+                or bottom < min_y - pad
+                or left > min_x + view_w + pad
+                or top > min_y + view_h + pad
+                # text anchors near the edge still draw glyphs past it; shapes
+                # partially outside are also clipped content.
+                or left < min_x - pad
+                or top < min_y - pad
+                or right > min_x + view_w + pad
+                or bottom > min_y + view_h + pad
+            ):
+                clipped.append(tag)
+        if clipped:
+            found.append(
+                _violation(
+                    "svg_out_of_bounds",
+                    f"{where}: SVG elements positioned outside the viewBox get clipped "
+                    f"invisibly: {', '.join(sorted(set(clipped)))}. Keep every literal "
+                    "coordinate inside the declared viewBox.",
+                )
+            )
+    named = sorted({m.group(1).lower() for m in _NAMED_COLOR.finditer(source)})
+    if named:
+        found.append(
+            _violation(
+                "named_color",
+                f"{where}: named CSS colors bypass the palette: {', '.join(named)}. "
+                "Use the project palette's hex values.",
+            )
+        )
+    return found
+
+
 def _validate_stage_and_palette(scene: SceneModule, palette: dict | None) -> list[dict[str, str]]:
     source = scene.component_source or ""
     found: list[dict[str, str]] = []
+    found.extend(_validate_svg(scene))
     if not _PRIMITIVES.search(source):
         found.append(
             _violation(
