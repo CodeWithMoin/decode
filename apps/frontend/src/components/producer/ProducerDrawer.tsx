@@ -872,9 +872,12 @@ function ThinkingBlock({ text, streaming, dark }: { text: string; streaming?: bo
   return (
     <div className={cx("grid gap-1.5 border-l-2 pl-3", dark ? "border-[var(--nle-line)]" : "border-line-input")}>
       {streaming ? (
-        <span className={cx("flex items-center gap-1.5 font-mono text-[9px] tracking-[0.1em] uppercase", dark ? "text-[var(--nle-faint)]" : "text-t9")}>
-          <span aria-hidden className="inline-block h-1 w-1 animate-pulse rounded-full bg-current" />
-          Thinking
+        <span className={cx("flex items-center gap-2 font-mono text-[9px] tracking-[0.1em] uppercase", dark ? "text-[var(--nle-faint)]" : "text-t9")}>
+          <span
+            aria-hidden
+            className="inline-block h-2.5 w-2.5 animate-spin rounded-full border-[1.5px] border-current border-t-transparent motion-reduce:animate-pulse"
+          />
+          Thinking…
         </span>
       ) : (
         <button
