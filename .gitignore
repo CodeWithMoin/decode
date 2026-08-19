@@ -41,3 +41,5 @@ apps/backend/.data/
 # prompt-verification outputs
 apps/backend/scripts/verify_out/
 apps/frontend/.verify/*.png
+
+.venv
