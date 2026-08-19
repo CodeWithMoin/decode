@@ -589,7 +589,12 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
   const directScene = useCallback(
     async (beatId: string, direction: string) => {
       const store = useStudio.getState();
-      if (store.regen) return;
+      if (store.regen) {
+        // Never a silent no-op: an Apply that lands mid-rebuild must say so,
+        // or the creator reads "nothing happened" and clicks again forever.
+        store.say("I’m still applying the previous direction — give it a moment, then apply again.");
+        return;
+      }
       const sceneIndex = store.sc.findIndex((scene) => scene.id === beatId);
       const scene = store.sc[sceneIndex];
       if (!scene?.componentSource) {

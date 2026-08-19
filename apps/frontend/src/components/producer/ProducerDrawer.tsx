@@ -453,6 +453,7 @@ export function ProducerDrawer() {
                     }
                     case "direct_scene":
                       if (directScene) void directScene(a.beat_id, a.direction);
+                      else state.say("I can only direct scenes from the Edit workspace — open the project there and apply again. Nothing changed.");
                       return; // directScene posts its own progress + receipt
                     case "split_scene":
                       state.splitScene(indexOf(a.beat_id));
