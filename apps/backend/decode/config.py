@@ -83,6 +83,10 @@ class Settings(BaseSettings):
     # estimated_cost_usd. Unpriced calls (NULL cost — an unknown model) don't
     # count toward it, so the job/chat budgets above remain the backstop.
     daily_project_cost_limit_usd: float = 5.0
+    # The vision gate: after a scene generates, render three stills and have a
+    # multimodal model judge what a viewer would see; a fail earns one repair
+    # round. "auto" = on when a key is present; "off" skips it entirely.
+    vision_gate: str = "auto"
 
     @model_validator(mode="after")
     def require_private_production_boundary(self):

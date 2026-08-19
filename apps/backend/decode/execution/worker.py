@@ -351,5 +351,8 @@ class WorkerSettings:
     functions = [execute_run, execute_task]
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
     max_jobs = 10
-    job_timeout = 300
+    # Wide enough for generation + the vision gate's still render and one
+    # repair round. Must stay below graph.STALE_TASK_LEASE_SECONDS (600) so a
+    # live task can never be reclaimed while its worker still runs it.
+    job_timeout = 480
     on_startup = _startup

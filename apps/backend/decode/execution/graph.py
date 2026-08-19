@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..agents.registry import visualizer
 from ..agents.renderer.validation import validate_scenes
+from ..agents.renderer.vision import vision_verdict
 from ..config import get_settings
 from ..db import SessionLocal, utcnow
 from ..domain import emit, publish_version
@@ -304,6 +305,32 @@ async def _run_scene_task(task_id: str, run_id: str) -> dict:
     generation_ms = int((perf_counter() - started) * 1000)
     if len(visuals.scenes) != 1 or visuals.scenes[0].beat_id != beat_id:
         raise ValueError(f"scene task {beat_id!r} must return exactly its requested scene")
+
+    # The vision loop: render what a viewer would see and let a multimodal
+    # model judge it. One repair round on a fail; a second fail ships anyway —
+    # the static gates already passed, and the creator can re-direct the scene.
+    # "No opinion" (gate off, no key, tooling trouble) changes nothing.
+    verdict = await vision_verdict(
+        get_settings(),
+        visuals.scenes[0],
+        beat,
+        narration.narration,
+        float(beat.target_duration_seconds or 10),
+    )
+    if verdict is not None and not verdict.passes and verdict.fix_direction.strip():
+        async with asyncio.timeout(SCENE_GENERATION_TIMEOUT_SECONDS), model_call_gate():
+            repaired = await designer.regenerate_one(
+                intent,
+                focused_plan,
+                focused_script,
+                list(visuals.scenes),
+                beat_id,
+                "A reviewer looked at the rendered frames. Fix exactly this and "
+                f"change nothing else:\n{verdict.fix_direction}",
+            )
+        if len(repaired.scenes) == 1 and repaired.scenes[0].beat_id == beat_id:
+            visuals = repaired
+
     usage = getattr(designer, "last_usage", None)
     return {
         "visuals": visuals.model_dump(mode="json"),
