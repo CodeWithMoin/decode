@@ -216,7 +216,10 @@ class ChoreographyVerb(BaseModel):
     secondary_target_id: str | None = Field(default=None, min_length=1)
     at_word_index: int = Field(ge=0)
     duration_in_words: int | None = Field(default=None, gt=0)
-    params: dict = Field(default_factory=dict)
+    # Deliberately NO free-form `params` dict: OpenAI strict structured outputs
+    # reject open dicts (the same trap IntakeBriefDraft and TeachingPlanDraft
+    # document), and every scene call 400'd before generating. Add typed fields
+    # here when a verb genuinely needs a knob.
 
 
 class SceneModule(BaseModel):
