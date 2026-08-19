@@ -55,11 +55,11 @@ api: env ## Run the FastAPI development server
 
 dispatcher: env ## Run the transactional-outbox dispatcher
 	@test -x $(BACKEND_PYTHON) || (echo "Backend dependencies are missing. Run 'make setup'." && exit 1)
-	@cd $(BACKEND_DIR) && $(BACKEND_PYTHON) -m decode.execution.dispatcher
+	@cd $(BACKEND_DIR) && $(BACKEND_DIR)/.venv/bin/watchfiles "$(BACKEND_PYTHON) -m decode.execution.dispatcher" decode
 
 worker: env ## Run the ARQ worker
 	@test -x $(BACKEND_ARQ) || (echo "Backend dependencies are missing. Run 'make setup'." && exit 1)
-	@cd $(BACKEND_DIR) && $(BACKEND_ARQ) decode.execution.worker.WorkerSettings
+	@cd $(BACKEND_DIR) && $(BACKEND_ARQ) --watch decode decode.execution.worker.WorkerSettings
 
 frontend: env ## Run the Next.js development server
 	@test -d $(FRONTEND_DIR)/node_modules || (echo "Frontend dependencies are missing. Run 'make setup'." && exit 1)
@@ -85,7 +85,7 @@ dev-down: ## Stop anything left running from 'make dev'; leaves Postgres and Red
 	@# Patterns are absolute so a sibling checkout's dev server is never touched.
 	@pkill -f "$(BACKEND_DIR)/.venv/bin/python -m uvicorn decode.main:app" 2>/dev/null || true
 	@pkill -f "$(BACKEND_DIR)/.venv/bin/python -m decode.execution.dispatcher" 2>/dev/null || true
-	@pkill -f "$(BACKEND_DIR)/.venv/bin/arq decode.execution.worker" 2>/dev/null || true
+	@pkill -f "$(BACKEND_DIR)/.venv/bin/arq .*decode.execution.worker" 2>/dev/null || true
 	@pkill -f "$(FRONTEND_DIR)/node_modules/.bin/next dev" 2>/dev/null || true
 	@sleep 1
 	@# 3001 is deliberately absent: Langfuse owns it, runs in Docker, and is
