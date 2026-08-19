@@ -649,7 +649,7 @@ export function ProducerDrawer() {
                           {message.note}
                         </span>
                       ) : null}
-                      <div>{message.text}</div>
+                      <MessageBody text={message.text} dark={dark} />
                       {message.receipt ? (
                         <div className="flex items-center gap-1.5">
                           <Check size={10} weight="bold" aria-hidden className="text-accent-deep" />
@@ -852,6 +852,65 @@ export function ProducerDrawer() {
         </div>
       </div>
     </aside>
+  );
+}
+
+/**
+ * Structure a reply without a markdown pipeline.
+ *
+ * The orchestrator writes prose, but a build summary arrives with real
+ * structure in it — "1. The membership question — 30s 2. A compact memory…" —
+ * and rendered as one string it reads as a wall. This recovers exactly two
+ * shapes: numbered items (`1.` / `1)`) and bullets (`-` / `•`), whether they
+ * arrive on their own lines or run inline inside one paragraph. Everything
+ * else stays a paragraph. Not markdown, deliberately: headings, links and
+ * nesting have no place in the room's voice.
+ */
+function MessageBody({ text, dark }: { text: string; dark: boolean }) {
+  const blocks = useMemo(() => {
+    // Inline runs: only break on ` 2. ` when at least two ordinals follow one
+    // another, so "beat 3. The" or a lone "1." never becomes a list.
+    const normalized =
+      (text.match(/(?:^|\s)\d{1,2}[.)]\s/g) ?? []).length >= 2
+        ? text.replace(/\s(?=\d{1,2}[.)]\s)/g, "\n")
+        : text;
+    type Block = { kind: "p"; text: string } | { kind: "list"; items: { marker: string; text: string }[] };
+    const out: Block[] = [];
+    for (const raw of normalized.split("\n")) {
+      const line = raw.trim();
+      if (!line) continue;
+      const item = /^(?:(\d{1,2})[.)]|[-•])\s+(.*)$/.exec(line);
+      if (item) {
+        const entry = { marker: item[1] ? `${item[1]}.` : "•", text: item[2] };
+        const last = out.at(-1);
+        if (last?.kind === "list") last.items.push(entry);
+        else out.push({ kind: "list", items: [entry] });
+      } else {
+        out.push({ kind: "p", text: line });
+      }
+    }
+    return out;
+  }, [text]);
+
+  return (
+    <div className="grid gap-2">
+      {blocks.map((block, i) =>
+        block.kind === "p" ? (
+          <p key={i}>{block.text}</p>
+        ) : (
+          <ol key={i} className="grid gap-1.5">
+            {block.items.map((item, j) => (
+              <li key={j} className="grid grid-cols-[20px_minmax(0,1fr)] gap-1.5">
+                <span className={cx("pt-px text-right font-mono text-[10.5px]", dark ? "text-[var(--nle-faint)]" : "text-t8")}>
+                  {item.marker}
+                </span>
+                <span>{item.text}</span>
+              </li>
+            ))}
+          </ol>
+        ),
+      )}
+    </div>
   );
 }
 
