@@ -279,6 +279,11 @@ class AgentRuntime:
             {"role": "user", "content": [{"type": "input_text", "text": assignment}]}
         ]
         in_tokens = out_tokens = turns = 0
+        reported_cost: float | None = None
+        # OpenRouter reports the exact dollar cost when asked; OpenAI proper
+        # rejects unknown request fields, so the ask is gated on the base URL.
+        base_url = getattr(self.settings, "openai_base_url", None) or ""
+        extra_body = {"usage": {"include": True}} if "openrouter" in base_url else None
 
         for _ in range(self.config.max_turns):
             response = await self.client.responses.parse(
@@ -288,12 +293,16 @@ class AgentRuntime:
                 tools=tools,
                 text_format=text_format,
                 reasoning={"effort": self.config.model.effort},
+                extra_body=extra_body,
             )
             turns += 1
             usage = response.usage
             if usage:
                 in_tokens += usage.input_tokens
                 out_tokens += usage.output_tokens
+                turn_cost = getattr(usage, "cost", None)
+                if turn_cost is not None:
+                    reported_cost = (reported_cost or 0.0) + float(turn_cost)
             calls = [
                 item for item in response.output if getattr(item, "type", None) == "function_call"
             ]
@@ -321,7 +330,9 @@ class AgentRuntime:
                         raise RuntimeError(
                             f"{self.config.name} failed validation after repair: {problems}"
                         )
-                self.last_usage = ProviderUsage(self.model, in_tokens, out_tokens, turns)
+                self.last_usage = ProviderUsage(
+                    self.model, in_tokens, out_tokens, turns, cost_usd=reported_cost
+                )
                 return AgentResult(
                     response.output_parsed,
                     self.last_usage,

@@ -98,3 +98,15 @@ async def test_daily_cost_limit_refuses(client, monkeypatch):
     )
     assert second.status_code == 429
     assert second.json()["code"] == "daily_cost_limit_reached"
+
+
+def test_resolve_cost_prefers_provider_reported_figure():
+    from decimal import Decimal
+
+    from decode.pricing import resolve_cost
+
+    # Reported wins even for a model the rate table knows.
+    assert resolve_cost(0.123456, "gpt-5.6-luna", 1000, 1000) == Decimal("0.123456")
+    # Unreported falls back to the table; unknown model stays honestly None.
+    assert resolve_cost(None, "gpt-5.6-luna", 1_000_000, 0) == Decimal("0.20")
+    assert resolve_cost(None, "some/openrouter-model", 1000, 1000) is None

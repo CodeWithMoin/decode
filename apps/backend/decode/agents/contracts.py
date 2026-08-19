@@ -52,6 +52,10 @@ class ProviderUsage:
     input_tokens: int
     output_tokens: int
     turns: int
+    # The provider's own dollar figure for the call (OpenRouter reports one).
+    # None means "not reported", and pricing falls back to the local rate
+    # table; when present it wins — it's exact where the table is an estimate.
+    cost_usd: float | None = None
 
 
 class Department(Protocol):

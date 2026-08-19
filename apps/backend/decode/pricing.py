@@ -45,6 +45,23 @@ RATES: dict[str, tuple[str, str]] = {
 }
 
 
+def resolve_cost(
+    reported_usd: float | None,
+    model: str | None,
+    input_tokens: int | None,
+    output_tokens: int | None,
+) -> Decimal | None:
+    """The provider's own figure when it reported one, the rate table otherwise.
+
+    A reported cost is exact where the table is an upper-bound estimate, and it
+    prices models the table has never heard of — which is what makes routing
+    through OpenRouter maintenance-free.
+    """
+    if reported_usd is not None:
+        return Decimal(str(reported_usd))
+    return estimate_cost(model, input_tokens, output_tokens)
+
+
 def estimate_cost(
     model: str | None, input_tokens: int | None, output_tokens: int | None
 ) -> Decimal | None:

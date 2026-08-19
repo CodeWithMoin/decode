@@ -35,7 +35,7 @@ from ..models import (
     TaskStatus,
     UsageRecord,
 )
-from ..pricing import estimate_cost
+from ..pricing import resolve_cost
 from ..schemas import SceneModule, SceneVisuals
 from .context import VisualizerContext, context_assembler
 from .pipeline import continue_chain, stage_for, stage_provider
@@ -312,6 +312,7 @@ async def _run_scene_task(task_id: str, run_id: str) -> dict:
             "model": usage.model if usage else None,
             "input_tokens": usage.input_tokens if usage else None,
             "output_tokens": usage.output_tokens if usage else None,
+            "cost_usd": usage.cost_usd if usage else None,
             "duration_ms": generation_ms,
         },
     }
@@ -621,7 +622,8 @@ async def _run_assembly_task(task_id: str, run_id: str, expected_attempt: int) -
                     input_tokens=usage.get("input_tokens"),
                     output_tokens=usage.get("output_tokens"),
                     duration_ms=usage.get("duration_ms"),
-                    estimated_cost_usd=estimate_cost(
+                    estimated_cost_usd=resolve_cost(
+                        usage.get("cost_usd"),
                         usage.get("model"),
                         usage.get("input_tokens"),
                         usage.get("output_tokens"),

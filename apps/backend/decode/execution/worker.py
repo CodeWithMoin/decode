@@ -18,7 +18,7 @@ from ..models import (
     Run,
     UsageRecord,
 )
-from ..pricing import estimate_cost
+from ..pricing import resolve_cost
 from . import streaming
 from .context import context_assembler
 from .graph import execute_task, is_graph_job, start_scene_graph
@@ -143,10 +143,10 @@ async def execute_run(_ctx: dict | None, run_id: str) -> dict:
             # Token counts are optional on the port: a deterministic department
             # spends none, so absent means "not metered" rather than zero.
             usage = getattr(department, "last_usage", None)
-            spent_model, spent_in, spent_out = (
-                (usage.model, usage.input_tokens, usage.output_tokens)
+            spent_model, spent_in, spent_out, spent_cost = (
+                (usage.model, usage.input_tokens, usage.output_tokens, usage.cost_usd)
                 if usage
-                else (None, None, None)
+                else (None, None, None, None)
             )
             project = await session.scalar(
                 select(Project)
@@ -212,7 +212,7 @@ async def execute_run(_ctx: dict | None, run_id: str) -> dict:
                     # above: that column carries the department identifier,
                     # which pins the skills version but is not something a
                     # provider publishes a rate for.
-                    estimated_cost_usd=estimate_cost(spent_model, spent_in, spent_out),
+                    estimated_cost_usd=resolve_cost(spent_cost, spent_model, spent_in, spent_out),
                 )
             ]
 

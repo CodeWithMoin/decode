@@ -54,7 +54,7 @@ from ..models import (
     Run,
     UsageRecord,
 )
-from ..pricing import estimate_cost
+from ..pricing import resolve_cost
 from ..problems import AppProblem
 from ..schemas import ProductionBrief, TeachingPlan
 from .context import (
@@ -309,7 +309,7 @@ async def run_evaluation(
         output_tokens=spent.output_tokens if spent else None,
         duration_ms=elapsed_ms,
         estimated_cost_usd=(
-            estimate_cost(spent.model, spent.input_tokens, spent.output_tokens)
+            resolve_cost(spent.cost_usd, spent.model, spent.input_tokens, spent.output_tokens)
             if spent
             else Decimal("0")
         ),
