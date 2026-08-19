@@ -24,7 +24,12 @@ Result:
   Python requires containerised execution (security-guardrails item) before
   untrusted input.
 
-Open decision (product, not engineering): is the interactivity loss — instant
-preview, live Inspector controls, free retiming — worth the output quality?
-If yes, the integration path is a `DECODE_VISUALIZER=manim` provider behind
-the existing port, per-scene MP4 candidates previewed as `<video>` in Edit.
+**DECIDED (2026-08-19): stay on Remotion.** The interactive edit experience —
+instant preview, live Inspector controls, free narration retiming — is the
+product, and Manim's output quality doesn't outweigh losing the direction
+loop's immediacy. The path to closing the quality gap on our own substrate is
+`docs/CHOREOGRAPHY-API.md`: Manim's model (persistent scene graph, verb
+vocabulary, runtime-owned motion), our renderer. A full 2-minute Bloom filters
+film was also produced during the spike as end-to-end evidence
+(`apps/frontend/public/renders/bloom-filters-manim.mp4`); the code here stays
+for provenance, not as a live path.
