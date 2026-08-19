@@ -73,10 +73,11 @@ async function saySubstance(projectId: string, event: ProjectEvent): Promise<boo
       const beatId = String(event.data.beat_id ?? "");
       const title = useStudio.getState().sc.find((s) => s.id === beatId)?.title;
       // A per-scene tick, not speech: seven of these in a row are a progress
-      // readout, so they render as quiet status lines.
+      // readout, so they render as quiet status lines. No kicker — the line
+      // already says what it is.
       useStudio
         .getState()
-        .say(title ? `Drafted “${title}”` : "Drafted a scene", undefined, "Scene draft", true);
+        .say(title ? `Drafted “${title}”` : "Drafted a scene", undefined, undefined, true);
       return true;
     }
     if (event.type !== "artifact.ready_for_review") return false;
@@ -463,7 +464,7 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
           const message = eventMessage(event);
           // Failures stay full messages — they need reading, not glancing.
           const failed = event.type === "run.failed" || event.type === "production.task.failed";
-          if (message) useStudio.getState().say(message, undefined, "Production update", !failed);
+          if (message) useStudio.getState().say(message, undefined, undefined, !failed);
         });
       }
       if (refreshEvents.has(event.type)) void load().catch(() => undefined);

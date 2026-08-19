@@ -85,14 +85,14 @@
   "hotPaths": [
     {
       "path": "apps/frontend/src/components/producer/ProducerDrawer.tsx",
-      "accessCount": 13,
-      "lastAccessed": 1787075113764,
+      "accessCount": 17,
+      "lastAccessed": 1787130593402,
       "type": "file"
     },
     {
       "path": "apps/frontend/src/components/connected/ConnectedEdit.tsx",
-      "accessCount": 5,
-      "lastAccessed": 1787071366379,
+      "accessCount": 12,
+      "lastAccessed": 1787130764641,
       "type": "file"
     },
     {
@@ -115,8 +115,8 @@
     },
     {
       "path": "apps/frontend/src/lib/types.ts",
-      "accessCount": 2,
-      "lastAccessed": 1787069104469,
+      "accessCount": 3,
+      "lastAccessed": 1787130550740,
       "type": "file"
     },
     {
