@@ -130,3 +130,12 @@ Do not restate the beats. The creator can already see them.
 A creator reading it should be able to say "yes, in that order, for those lengths" — or point at one
 beat and say what is wrong. If the plan is so agreeable that there is nothing to disagree with, you
 have probably restated the brief instead of shaping it.
+
+## The project's palette
+
+Choose the video's one palette — five hex roles: `surface` (card fill on a #0B0B0B stage),
+`border` (card edges, brighter than surface so adjacent shapes stay distinct), `ink` (primary
+text, near-white), `support` (secondary text, legible grey), `accent` (the single emphasis hue,
+luminous on black). Fit it to the topic's mood — a biology lesson and a cryptography lesson
+should not feel like the same film. Every scene inherits exactly these five; choose once,
+choose deliberately.

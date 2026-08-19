@@ -197,6 +197,12 @@
       "type": "file"
     },
     {
+      "path": "tests/test_architect.py",
+      "accessCount": 2,
+      "lastAccessed": 1787163335357,
+      "type": "file"
+    },
+    {
       "path": "notebooks/script_and_visuals.ipynb",
       "accessCount": 1,
       "lastAccessed": 1786958348987,

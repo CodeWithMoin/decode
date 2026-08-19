@@ -7,7 +7,7 @@ from decode.agents.registry import architect as build_architect
 from decode.config import Settings
 from decode.execution.pipeline import STAGES, stage_for
 from decode.models import ArtifactType
-from decode.schemas import Beat, PlanSection, ProductionBrief, ProductionIntent
+from decode.schemas import Beat, PlanPalette, PlanSection, ProductionBrief, ProductionIntent
 
 INTENT = ProductionIntent(
     audience="Curious beginners",
@@ -31,6 +31,9 @@ BRIEF = ProductionBrief(
 )
 
 DRAFT = TeachingPlanDraft(
+    palette=PlanPalette(
+        surface="#232323", border="#484848", ink="#F0F6F1", support="#8A8A86", accent="#F2A47B"
+    ),
     structure_name="Question to answer",
     sections=[
         PlanSection(

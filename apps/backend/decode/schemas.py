@@ -100,6 +100,18 @@ class Beat(BaseModel):
     visual_opportunity: str | None = Field(default=None, max_length=600)
 
 
+class PlanPalette(BaseModel):
+    """The project's five color roles, chosen by the Director to fit the
+    topic's mood. One palette per project stays the invariant — the choice is
+    the model's, made once at plan time, never per scene."""
+
+    surface: str = Field(pattern=r"^#[0-9a-fA-F]{6}$")
+    border: str = Field(pattern=r"^#[0-9a-fA-F]{6}$")
+    ink: str = Field(pattern=r"^#[0-9a-fA-F]{6}$")
+    support: str = Field(pattern=r"^#[0-9a-fA-F]{6}$")
+    accent: str = Field(pattern=r"^#[0-9a-fA-F]{6}$")
+
+
 class TeachingPlan(BaseModel):
     """The Director's shape for the video: what is taught, in what order.
 
@@ -110,6 +122,9 @@ class TeachingPlan(BaseModel):
     are decisions, not a fixed three-act template or an arithmetic split.
     """
 
+    # Chosen by the Director at plan time; None on plans predating the field,
+    # where the deterministic pick remains the fallback.
+    palette: PlanPalette | None = None
     structure_name: str = Field(min_length=1, max_length=120)
     sections: list[PlanSection] = Field(min_length=1, max_length=8)
     through_line: str = Field(min_length=1, max_length=500)

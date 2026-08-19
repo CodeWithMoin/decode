@@ -91,7 +91,14 @@ class ModelVisualizer:
     ) -> SceneVisuals:
         narration = {item.beat_id: item.narration for item in script.beats}
         segments = {item.beat_id: item.segments for item in script.beats}
-        palette = intent.palette or pick_palette(plan.structure_name + plan.through_line)
+        # Creator's palette wins; then the Director's plan-time choice (the
+        # LLM's, once per project); the deterministic pick survives only for
+        # plans predating the field.
+        palette = (
+            intent.palette
+            or (plan.palette.model_dump() if plan.palette else None)
+            or pick_palette(plan.structure_name + plan.through_line)
+        )
         instructions = build_instructions(
             visual_direction={
                 "audience": intent.audience,
@@ -194,7 +201,14 @@ class ModelVisualizer:
 
         narration = {item.beat_id: item.narration for item in script.beats}
         segments = {item.beat_id: item.segments for item in script.beats}
-        palette = intent.palette or pick_palette(plan.structure_name + plan.through_line)
+        # Creator's palette wins; then the Director's plan-time choice (the
+        # LLM's, once per project); the deterministic pick survives only for
+        # plans predating the field.
+        palette = (
+            intent.palette
+            or (plan.palette.model_dump() if plan.palette else None)
+            or pick_palette(plan.structure_name + plan.through_line)
+        )
         instructions = build_instructions(
             visual_direction={
                 "audience": intent.audience,

@@ -19,7 +19,7 @@ import json
 from pydantic import BaseModel, Field
 
 from ...config import Settings
-from ...schemas import Beat, PlanSection, ProductionBrief, ProductionIntent, TeachingPlan
+from ...schemas import Beat, PlanPalette, PlanSection, ProductionBrief, ProductionIntent, TeachingPlan
 from .. import tracing
 from .._agent import ModelAgent
 from ..contracts import ProviderUsage
@@ -44,6 +44,9 @@ class TeachingPlanDraft(BaseModel):
     through_line: str = Field(min_length=1, max_length=500)
     rationale: str = Field(min_length=1, max_length=1200)
     beats: list[Beat] = Field(min_length=1)
+    # The project's one palette, chosen here so every scene inherits the same
+    # mood — the choice is creative, the once-per-project rule is not.
+    palette: PlanPalette
 
 
 class ModelArchitect(ModelAgent):
