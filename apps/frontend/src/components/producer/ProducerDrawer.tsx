@@ -711,7 +711,10 @@ export function ProducerDrawer() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -5, scale: 0.99 }}
             transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden rounded-[15px] border border-line-input bg-sunken"
+            // shrink-0: overflow-hidden zeroes this card's automatic minimum
+            // size, so a long thread crushed it to a sliver — hiding the very
+            // options/Apply the reply points at.
+            className="shrink-0 overflow-hidden rounded-[15px] border border-line-input bg-sunken"
           >
             <div className="border-b border-line-div px-4 py-3.5">
               <div className="font-mono text-[8.5px] tracking-[0.13em] text-t9 uppercase">
@@ -749,7 +752,7 @@ export function ProducerDrawer() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -5, scale: 0.99 }}
             transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden rounded-[16px] border border-[var(--accent-line)] bg-[var(--accent-tint)]"
+            className="shrink-0 overflow-hidden rounded-[16px] border border-[var(--accent-line)] bg-[var(--accent-tint)]"
           >
             <div className="border-b border-[var(--accent-line)] px-4 py-3.5">
               <div className="font-mono text-[8.5px] tracking-[0.14em] text-accent-deep uppercase">
