@@ -889,6 +889,29 @@ async def test_a_chaining_project_starts_the_next_stage_itself(client):
     studio = (await client.get(f"/api/v1/projects/{pid}/studio")).json()
     assert studio["current_stage"] == "edit"
 
+    # Every chained hop says why it chose the next step: brief→plan,
+    # plan→script, script→visuals, visuals→voice.
+    async with SessionLocal() as session:
+        decided = list(
+            (
+                await session.scalars(
+                    select(ProjectEvent)
+                    .where(
+                        ProjectEvent.project_id == pid,
+                        ProjectEvent.type == "production.chain.decided",
+                    )
+                    .order_by(ProjectEvent.id)
+                )
+            ).all()
+        )
+        assert [event.data["next"] for event in decided] == [
+            "generate_teaching_plan",
+            "generate_script",
+            "generate_scene_visuals",
+            "generate_voice",
+        ]
+        assert all(event.data["reason"] for event in decided)
+
     async with SessionLocal() as session:
         voice_artifact = await session.scalar(
             select(Artifact).where(
