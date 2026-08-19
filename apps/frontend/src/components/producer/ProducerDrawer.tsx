@@ -5,7 +5,7 @@ import { Check, PaperPlaneTilt, X } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
 import { num, observations } from "@/lib/derive";
 import { decodeApi } from "@/lib/decode-api";
-import type { Clarification } from "@/lib/types";
+import { parseBuildOptions, type Clarification } from "@/lib/types";
 import { useStudio } from "@/store/studio";
 import { AppMark, Ghost, Graphite, Spinner, cx } from "@/components/ui/primitives";
 
@@ -426,19 +426,10 @@ export function ProducerDrawer() {
                   switch (p.tool) {
                     case "start_build": {
                       if (!startBuild) return;
-                      const seconds = Number(a.target_duration_seconds);
-                      const depth = ["intuition_first", "balanced", "rigorous"].includes(a.depth)
-                        ? (a.depth as "intuition_first" | "balanced" | "rigorous")
-                        : "balanced";
+                      const brief = parseBuildOptions(a, t);
                       workingLine.current = "Setting up your video…";
                       setThinking(true);
-                      void startBuild(a.topic || t, {
-                        audience: a.audience || "General audience",
-                        depth,
-                        target_duration_seconds: ([60, 180, 300, 600].includes(seconds)
-                          ? seconds
-                          : 300) as 60 | 180 | 300 | 600,
-                      })
+                      void startBuild(brief.topic, brief.options)
                         .then(() => {
                           setThinking(false);
                           state.say(`${p.summary}.`, p.receipt, "Build started");
@@ -763,8 +754,11 @@ export function ProducerDrawer() {
               </div>
             </div>
             <div className="grid gap-2.5 px-4 py-3.5">
+              {/* Scope is tracked in full (the receipt stays honest), but the
+                  card shows only what changes — the enumerated "Keeps" list
+                  read as system bookkeeping, not something a creator needs
+                  recited before every change. */}
               <ProposalLine label="Changes" value={proposal.proposal.scope} />
-              <ProposalLine label="Keeps" value={proposal.proposal.untouched} />
             </div>
             <div className="flex items-center justify-end gap-2 border-t border-[var(--accent-line)] px-4 py-3">
               <button

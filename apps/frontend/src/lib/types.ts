@@ -699,6 +699,35 @@ export interface BuildOptions {
   target_duration_seconds: 60 | 180 | 300 | 600;
 }
 
+const BUILD_DEPTHS = ["intuition_first", "balanced", "rigorous"] as const;
+const BUILD_DURATIONS = [60, 180, 300, 600] as const;
+
+const isBuildDepth = (value: string): value is BuildOptions["depth"] =>
+  (BUILD_DEPTHS as readonly string[]).includes(value);
+const isBuildDuration = (value: number): value is BuildOptions["target_duration_seconds"] =>
+  (BUILD_DURATIONS as readonly number[]).includes(value);
+
+/**
+ * Narrow a proposal's stringly-typed args into BuildOptions. The orchestrator's
+ * output is model-authored, so every field is validated by a type predicate and
+ * falls back to the same defaults a bare topic build uses — never a cast.
+ */
+export function parseBuildOptions(
+  args: Record<string, string>,
+  fallbackTopic: string,
+): { topic: string; options: BuildOptions } {
+  const seconds = Number(args.target_duration_seconds);
+  const depth = args.depth ?? "";
+  return {
+    topic: args.topic?.trim() || fallbackTopic,
+    options: {
+      audience: args.audience?.trim() || "General audience",
+      depth: isBuildDepth(depth) ? depth : "balanced",
+      target_duration_seconds: isBuildDuration(seconds) ? seconds : 300,
+    },
+  };
+}
+
 export type RenderState = "idle" | "rendering" | "done";
 
 /** Downstream work that no longer matches the current scene source. */
