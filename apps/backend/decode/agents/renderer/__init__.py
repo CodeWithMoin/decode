@@ -24,6 +24,7 @@ from pydantic import BaseModel, Field
 
 from ...config import Settings
 from ...schemas import (
+    ChoreographyVerb,
     ProductionIntent,
     SceneControl,
     SceneModule,
@@ -35,7 +36,7 @@ from .. import tracing
 from ..agent_config import AgentConfig
 from ..agent_runtime import AgentRuntime
 from ..contracts import ProviderUsage
-from .prompt import REPAIR_PROMPT, SKILLS, build_instructions, pick_palette
+from .prompt import REPAIR_PROMPT, SKILLS, build_instructions
 from .validation import RUNTIME_VERSION, repair_message, validate_scenes
 
 
@@ -47,11 +48,16 @@ class SceneDraft(BaseModel):
     driven by `useCurrentFrame()`/`interpolate()` — the substrate the browser preview
     and the `/direct` loop both drive. Timing is Remotion's own frame clock inside the
     Sequence Decode lays the scene on, so there are no anchored `beats` to declare.
+
+    In choreography mode the same component is a relational cast, and `script`
+    carries the verb list it plays — declared here so the model's structured
+    output can carry it without leaving the schema.
     """
 
     beat_id: str = Field(min_length=1)
     controls: list[SceneControl] = Field(max_length=20)
     component_source: str = Field(min_length=1)
+    script: list[ChoreographyVerb] = Field(default_factory=list, max_length=200)
 
     def to_module(self) -> SceneModule:
         return SceneModule(
@@ -59,6 +65,7 @@ class SceneDraft(BaseModel):
             controls=self.controls,
             component_source=self.component_source,
             beats=[],
+            script=self.script,
         )
 
 
@@ -84,6 +91,7 @@ class ModelVisualizer:
             ),
         )
         self.model = settings.openai_model
+        self.choreography = settings.choreography == "auto"
         self.last_usage: ProviderUsage | None = None
 
     async def generate(
@@ -92,13 +100,9 @@ class ModelVisualizer:
         narration = {item.beat_id: item.narration for item in script.beats}
         segments = {item.beat_id: item.segments for item in script.beats}
         # Creator's palette wins; then the Director's plan-time choice (the
-        # LLM's, once per project); the deterministic pick survives only for
-        # plans predating the field.
-        palette = (
-            intent.palette
-            or (plan.palette.model_dump() if plan.palette else None)
-            or pick_palette(plan.structure_name + plan.through_line)
-        )
+        # LLM's, once per project). No deterministic fallback — the palette is
+        # decided, not drawn from a fixed list.
+        palette = intent.palette or (plan.palette.model_dump() if plan.palette else None)
         instructions = build_instructions(
             visual_direction={
                 "audience": intent.audience,
@@ -122,6 +126,7 @@ class ModelVisualizer:
                 }
                 for beat in plan.beats
             ],
+            choreography=self.choreography,
         )
 
         scenes, rationale, repair = await self._author(instructions, plan, intent.audience, palette)
@@ -202,13 +207,9 @@ class ModelVisualizer:
         narration = {item.beat_id: item.narration for item in script.beats}
         segments = {item.beat_id: item.segments for item in script.beats}
         # Creator's palette wins; then the Director's plan-time choice (the
-        # LLM's, once per project); the deterministic pick survives only for
-        # plans predating the field.
-        palette = (
-            intent.palette
-            or (plan.palette.model_dump() if plan.palette else None)
-            or pick_palette(plan.structure_name + plan.through_line)
-        )
+        # LLM's, once per project). No deterministic fallback — the palette is
+        # decided, not drawn from a fixed list.
+        palette = intent.palette or (plan.palette.model_dump() if plan.palette else None)
         instructions = build_instructions(
             visual_direction={
                 "audience": intent.audience,
@@ -231,6 +232,7 @@ class ModelVisualizer:
                     "duration_seconds": beat.target_duration_seconds,
                 }
             ],
+            choreography=self.choreography,
         )
         instructions += (
             "\n\n## Revise this one scene\n\n"

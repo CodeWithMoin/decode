@@ -200,6 +200,25 @@ class VisualBeat(BaseModel):
     duration_s: float = Field(default=0.6, gt=0, le=30)
 
 
+class ChoreographyVerb(BaseModel):
+    """One verb in a scene's script: an element-action anchored to a narration
+    word index, never a frame number.
+
+    Mirrors `ChoreographyVerb` in `@decode/motion-api` (tsgb.ts). The model emits
+    `script` as data, not code, so the shape the backend validates is the shape
+    the runtime plays — no animation math in between. snake_case follows the
+    backend contract; the frontend bridge camelCases on the way out.
+    """
+
+    id: str = Field(min_length=1)
+    type: Literal["appear", "indicate", "dim", "connect", "transform"]
+    target_id: str = Field(min_length=1)
+    secondary_target_id: str | None = Field(default=None, min_length=1)
+    at_word_index: int = Field(ge=0)
+    duration_in_words: int | None = Field(default=None, gt=0)
+    params: dict = Field(default_factory=dict)
+
+
 class SceneModule(BaseModel):
     """The animation for one beat.
 
@@ -218,6 +237,7 @@ class SceneModule(BaseModel):
     component_source: str | None = Field(default=None, min_length=1)
     composition_html: str | None = Field(default=None, min_length=1)
     beats: list[VisualBeat] = Field(default_factory=list, max_length=40)
+    script: list[ChoreographyVerb] = Field(default_factory=list, max_length=200)
 
     @model_validator(mode="after")
     def _has_a_renderable(self) -> "SceneModule":

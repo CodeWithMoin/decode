@@ -1,15 +1,16 @@
 import type { CSSProperties, HTMLAttributes, ReactNode, SVGProps } from "react";
+import { Children, Fragment } from "react";
 import {
   AddressBook,
   ArrowRight,
   Brain,
   ChartBar,
   Check,
-  Cloud,
+  Cloud as PhosphorCloud,
   Code,
   CreditCard,
   Cube,
-  Database,
+  Database as PhosphorDatabase,
   FileText,
   FlowArrow,
   GearSix,
@@ -374,6 +375,80 @@ export function Connector({
 }
 
 /**
+ * A standalone connector segment: a draw-on line (optionally arrowed) of a
+ * fixed length, for joining flex siblings into a chain — the pair-based
+ * `Connector` cannot, because it owns both of its endpoints as children.
+ * `progress` is the 0..1 draw-on supplied by the choreography runtime: the
+ * line reveals from its source end and the head fades in over the final
+ * stretch, so an arrowhead can never pop in or detach mid-draw.
+ */
+export function Arrow({
+  direction = "row",
+  length = 64,
+  color = "currentColor",
+  thickness = 2,
+  head = true,
+  progress = 1,
+  style,
+}: {
+  direction?: "row" | "column";
+  length?: number;
+  color?: string;
+  thickness?: number;
+  head?: boolean;
+  progress?: number;
+  style?: CSSProperties;
+}) {
+  const horizontal = direction === "row";
+  const reveal = Math.max(0, Math.min(1, progress));
+  const headProgress = Math.max(0, Math.min(1, (progress - 0.8) / 0.2));
+  return (
+    <div
+      data-decode-box="connector"
+      style={{
+        display: "flex",
+        flexDirection: direction,
+        alignItems: "center",
+        ...(horizontal ? { width: length } : { height: length }),
+        ...style,
+      }}
+    >
+      <div
+        style={{
+          flex: 1,
+          ...(horizontal
+            ? { height: thickness, minWidth: length }
+            : { width: thickness, minHeight: length }),
+          backgroundColor: color,
+          transform: horizontal ? `scaleX(${q(reveal)})` : `scaleY(${q(reveal)})`,
+          transformOrigin: horizontal ? "left" : "top",
+        }}
+      />
+      {head && headProgress > 0 && (
+        <div
+          style={{
+            width: 0,
+            height: 0,
+            opacity: q(headProgress),
+            ...(horizontal
+              ? {
+                  borderTop: "6px solid transparent",
+                  borderBottom: "6px solid transparent",
+                  borderLeft: `9px solid ${color}`,
+                }
+              : {
+                  borderLeft: "6px solid transparent",
+                  borderRight: "6px solid transparent",
+                  borderTop: `9px solid ${color}`,
+                }),
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
  * All standalone text. Measures itself with the renderer's own text metrics:
  * given `maxWidth`, the size steps down until the line fits, so text never
  * overflows its box or breaks mid-word. Size is floored to an integer — canvas
@@ -446,6 +521,547 @@ export function Label({
       }}
     >
       {text}
+    </div>
+  );
+}
+
+/**
+ * A bounded surface: fill, border, radius and padding — the "card" a diagram
+ * node renders inside. It sizes to its content, so it flows through Stack/Row
+ * instead of needing absolute coordinates.
+ */
+export function Card({
+  background = "#232323",
+  border = "#484848",
+  radius = 16,
+  padding = 16,
+  style,
+  children,
+}: {
+  background?: string;
+  border?: string;
+  radius?: number;
+  padding?: number;
+  style?: CSSProperties;
+  children?: ReactNode;
+}) {
+  return (
+    <div
+      data-decode-box="card"
+      style={{
+        background,
+        border: `2px solid ${border}`,
+        borderRadius: radius,
+        padding,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * Expanded visual vocabulary — still Layer-1: every component below sizes to
+ * its content and flows through Stack/Row/Grid, never absolute coordinates.
+ * Choreography reaches them by wrapping in <Subject id>, which applies the
+ * verb-driven opacity/scale/highlight/dim state from the runtime.
+ * ------------------------------------------------------------------------- */
+
+/** A titled grouping box for sub-zones ("Frontend" vs "Backend"). */
+export function Container({
+  title,
+  variant = "solid",
+  accent = "#F2A47B",
+  padding = 24,
+  gap = 16,
+  style,
+  children,
+}: {
+  title?: string;
+  variant?: "solid" | "dashed" | "accent";
+  accent?: string;
+  padding?: number;
+  gap?: number;
+  style?: CSSProperties;
+  children?: ReactNode;
+}) {
+  const borderColor = variant === "accent" ? accent : "#484848";
+  return (
+    <div
+      data-decode-box="group"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap,
+        padding,
+        border: `2px ${variant === "dashed" ? "dashed" : "solid"} ${borderColor}`,
+        borderRadius: 18,
+        ...style,
+      }}
+    >
+      {title && (
+        <div
+          style={{
+            fontFamily: "ui-monospace, monospace",
+            fontSize: 14,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            color: variant === "accent" ? accent : "#8A8A86",
+          }}
+        >
+          {title}
+        </div>
+      )}
+      {children}
+    </div>
+  );
+}
+
+/** Multi-column alignment without coordinates: CSS grid, equal tracks. */
+export function Grid({
+  columns,
+  gap = 24,
+  style,
+  children,
+}: {
+  columns: number;
+  gap?: number;
+  style?: CSSProperties;
+  children?: ReactNode;
+}) {
+  return (
+    <div
+      data-decode-box="group"
+      style={{
+        display: "grid",
+        gridTemplateColumns: `repeat(${Math.max(1, Math.floor(columns))}, minmax(0, 1fr))`,
+        gap,
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+const BADGE_COLORS = {
+  success: "#8FE6C0",
+  warning: "#F2CE72",
+  info: "#8A8A86",
+} as const;
+
+/** A small inline status chip: "200 OK", "Pending". */
+export function Badge({
+  variant = "info",
+  style,
+  children,
+}: {
+  variant?: keyof typeof BADGE_COLORS;
+  style?: CSSProperties;
+  children?: ReactNode;
+}) {
+  const color = BADGE_COLORS[variant];
+  return (
+    <span
+      data-decode-box="text"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "4px 12px",
+        borderRadius: 999,
+        border: `1.5px solid ${color}`,
+        color,
+        fontFamily: "ui-monospace, monospace",
+        fontSize: 16,
+        letterSpacing: "0.04em",
+        whiteSpace: "nowrap",
+        ...style,
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+/**
+ * A pulse travelling along a flow rail — ambient but frame-driven, so it
+ * renders identically in preview and export. Sits between two subjects the
+ * way Arrow does; `active` freezes to a quiet rail when false.
+ */
+export function DataStream({
+  active = true,
+  speed = 1,
+  direction = "row",
+  length = 96,
+  color = "#F2A47B",
+  thickness = 2,
+  style,
+}: {
+  active?: boolean;
+  speed?: number;
+  direction?: "row" | "column";
+  length?: number;
+  color?: string;
+  thickness?: number;
+  style?: CSSProperties;
+}) {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const horizontal = direction === "row";
+  const phase = active ? ((frame / fps) * Math.max(0.1, speed)) % 1 : 0;
+  const offset = q(phase * (length - 10));
+  return (
+    <div
+      data-decode-box="connector"
+      style={{
+        position: "relative",
+        ...(horizontal
+          ? { width: length, height: Math.max(10, thickness) }
+          : { height: length, width: Math.max(10, thickness) }),
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        ...style,
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          ...(horizontal
+            ? { left: 0, right: 0, height: thickness, top: "50%", marginTop: -thickness / 2 }
+            : { top: 0, bottom: 0, width: thickness, left: "50%", marginLeft: -thickness / 2 }),
+          backgroundColor: color,
+          opacity: active ? 0.35 : 0.2,
+        }}
+      />
+      {active && (
+        <div
+          style={{
+            position: "absolute",
+            width: 10,
+            height: 10,
+            borderRadius: 999,
+            backgroundColor: color,
+            ...(horizontal
+              ? { left: offset, top: "50%", marginTop: -5 }
+              : { top: offset, left: "50%", marginLeft: -5 }),
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Code with per-line highlight — fixed type, wraps long lines, never scrolls. */
+export function CodeBlock({
+  code,
+  highlightLines = [],
+  language,
+  fontSize = 20,
+  accent = "#F2A47B",
+  style,
+}: {
+  code: string;
+  highlightLines?: number[];
+  language?: string;
+  fontSize?: number;
+  accent?: string;
+  style?: CSSProperties;
+}) {
+  const lines = code.replace(/\n$/, "").split("\n");
+  const highlighted = new Set(highlightLines);
+  return (
+    <div
+      data-decode-box="card"
+      style={{
+        background: "#1C1C1C",
+        border: "2px solid #484848",
+        borderRadius: 14,
+        padding: "18px 0",
+        fontFamily: "ui-monospace, monospace",
+        fontSize,
+        lineHeight: 1.6,
+        color: "#F0F6F1",
+        ...style,
+      }}
+    >
+      {language && (
+        <div
+          style={{
+            padding: "0 22px 10px",
+            fontSize: Math.max(12, fontSize * 0.6),
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: "#8A8A86",
+          }}
+        >
+          {language}
+        </div>
+      )}
+      {lines.map((line, index) => (
+        <div
+          key={index}
+          style={{
+            padding: "0 22px",
+            whiteSpace: "pre-wrap",
+            overflowWrap: "anywhere",
+            backgroundColor: highlighted.has(index + 1) ? "rgba(242, 164, 123, 0.14)" : undefined,
+            color: highlighted.has(index + 1) ? accent : undefined,
+          }}
+        >
+          {line || " "}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** A stat callout: small label, big tabular number. */
+export function MetricCard({
+  label,
+  value,
+  unit,
+  style,
+}: {
+  label: string;
+  value: string | number;
+  unit?: string;
+  style?: CSSProperties;
+}) {
+  return (
+    <div
+      data-decode-box="card"
+      style={{
+        background: "#232323",
+        border: "2px solid #484848",
+        borderRadius: 16,
+        padding: "20px 28px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+        alignItems: "center",
+        ...style,
+      }}
+    >
+      <div
+        style={{
+          fontFamily: "ui-monospace, monospace",
+          fontSize: 15,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+          color: "#8A8A86",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: 44,
+          fontWeight: 600,
+          color: "#F0F6F1",
+          fontVariantNumeric: "tabular-nums",
+          lineHeight: 1.1,
+        }}
+      >
+        {value}
+        {unit && <span style={{ fontSize: 22, color: "#8A8A86", marginLeft: 6 }}>{unit}</span>}
+      </div>
+    </div>
+  );
+}
+
+/** Shared shell for the domain glyphs below: the SVG stretches to the content
+    box, so padding around the label is automatic. */
+function GlyphBox({
+  label,
+  glyph,
+  minWidth = 150,
+  paddingY = 30,
+  style,
+}: {
+  label: string;
+  glyph: ReactNode;
+  minWidth?: number;
+  paddingY?: number;
+  style?: CSSProperties;
+}) {
+  return (
+    <div
+      data-decode-box="card"
+      style={{
+        position: "relative",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minWidth,
+        padding: `${paddingY}px 34px`,
+        ...style,
+      }}
+    >
+      <svg
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+        aria-hidden
+      >
+        {glyph}
+      </svg>
+      <span
+        style={{
+          position: "relative",
+          color: "#F0F6F1",
+          fontSize: 24,
+          fontWeight: 600,
+          whiteSpace: "nowrap",
+        }}
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
+/** A database cylinder that pads around its label automatically. */
+export function Database({ label, style }: { label: string; style?: CSSProperties }) {
+  return (
+    <GlyphBox
+      label={label}
+      paddingY={34}
+      style={style}
+      glyph={
+        <>
+          <path
+            d="M 2 14 L 2 86 A 48 12 0 0 0 98 86 L 98 14"
+            fill="#232323"
+            stroke="#484848"
+            strokeWidth={2}
+            vectorEffect="non-scaling-stroke"
+          />
+          <ellipse
+            cx={50}
+            cy={14}
+            rx={48}
+            ry={12}
+            fill="#232323"
+            stroke="#484848"
+            strokeWidth={2}
+            vectorEffect="non-scaling-stroke"
+          />
+        </>
+      }
+    />
+  );
+}
+
+/** A queue: a bounded box with waiting slots ahead of the label. */
+export function Queue({ label, style }: { label: string; style?: CSSProperties }) {
+  return (
+    <div
+      data-decode-box="card"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 16,
+        background: "#232323",
+        border: "2px solid #484848",
+        borderRadius: 14,
+        padding: "20px 28px",
+        ...style,
+      }}
+    >
+      <div style={{ display: "flex", gap: 5 }} aria-hidden>
+        {[0.35, 0.6, 1].map((slotOpacity) => (
+          <div
+            key={slotOpacity}
+            style={{
+              width: 7,
+              height: 26,
+              borderRadius: 2,
+              backgroundColor: "#8A8A86",
+              opacity: slotOpacity,
+            }}
+          />
+        ))}
+      </div>
+      <span style={{ color: "#F0F6F1", fontSize: 24, fontWeight: 600, whiteSpace: "nowrap" }}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
+/** A cloud boundary that pads around its label automatically. */
+export function Cloud({ label, style }: { label: string; style?: CSSProperties }) {
+  return (
+    <GlyphBox
+      label={label}
+      minWidth={190}
+      paddingY={38}
+      style={style}
+      glyph={
+        <path
+          d="M 24 82 A 14 16 0 0 1 14 54 A 16 18 0 0 1 30 30 A 20 22 0 0 1 66 22 A 16 18 0 0 1 88 44 A 13 15 0 0 1 82 82 Z"
+          fill="#232323"
+          stroke="#484848"
+          strokeWidth={2}
+          vectorEffect="non-scaling-stroke"
+        />
+      }
+    />
+  );
+}
+
+/** A sequence with connector rails between the steps — order made visible. */
+export function Timeline({
+  direction = "horizontal",
+  gap = 12,
+  railLength = 42,
+  color = "#484848",
+  style,
+  children,
+}: {
+  direction?: "horizontal" | "vertical";
+  gap?: number;
+  railLength?: number;
+  color?: string;
+  style?: CSSProperties;
+  children?: ReactNode;
+}) {
+  const items = Children.toArray(children);
+  const horizontal = direction === "horizontal";
+  return (
+    <div
+      data-decode-box="group"
+      style={{
+        display: "flex",
+        flexDirection: horizontal ? "row" : "column",
+        alignItems: "center",
+        gap,
+        ...style,
+      }}
+    >
+      {items.map((item, index) => (
+        <Fragment key={index}>
+          {index > 0 && (
+            <div
+              aria-hidden
+              style={{
+                backgroundColor: color,
+                ...(horizontal
+                  ? { width: railLength, height: 2 }
+                  : { height: railLength, width: 2 }),
+              }}
+            />
+          )}
+          {item}
+        </Fragment>
+      ))}
     </div>
   );
 }
@@ -1101,11 +1717,11 @@ const ICONS = {
   brain: Brain,
   "chart-bar": ChartBar,
   check: Check,
-  cloud: Cloud,
+  cloud: PhosphorCloud,
   code: Code,
   "credit-card": CreditCard,
   cube: Cube,
-  database: Database,
+  database: PhosphorDatabase,
   "file-text": FileText,
   "flow-arrow": FlowArrow,
   "gear-six": GearSix,

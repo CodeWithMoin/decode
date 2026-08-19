@@ -7,7 +7,6 @@ frame-driven techniques. Safety and output correctness remain deterministic code
 not prose repeated to the model.
 """
 
-import hashlib
 import json
 from pathlib import Path
 
@@ -19,43 +18,12 @@ REPAIR_PROMPT = """Repair only the deterministic violations listed below. Preser
 visual idea and composition. Return the complete corrected scene draft."""
 
 
-# One palette per video. Each scene is generated in its own call and cannot see
-# its siblings, so style consistency has to arrive as data: the palette is picked
-# deterministically from the plan (same project -> same palette, no extra model
-# call) and injected into every beat's brief. Creator brand colors, when present,
-# override the accent (the prompt already says so).
-# Semantic slots (positive/negative/warn) exist because teaching frames need
-# meaning-colors — a "definite no" is red whatever the accent is. Scenes may use
-# them only when the meaning calls for it; the accent stays the one emphasis hue.
-PALETTES = [
-    {"surface": "#151A21", "border": "#3A4656", "ink": "#F2F5F8", "support": "#8B98A9", "accent": "#55E6FF", "positive": "#5EE6A0", "negative": "#FF5C70", "warn": "#FFC857"},
-    {"surface": "#1A1714", "border": "#4A4034", "ink": "#F7F3EC", "support": "#A39682", "accent": "#F4B860", "positive": "#7FE0A5", "negative": "#FF6B62", "warn": "#FFD28C"},
-    {"surface": "#141A16", "border": "#37493C", "ink": "#F0F6F1", "support": "#8FA394", "accent": "#5EE6A0", "positive": "#8FE6C0", "negative": "#FF7A70", "warn": "#F2CE72"},
-    {"surface": "#1A141C", "border": "#473A4E", "ink": "#F5F0F7", "support": "#A08FA9", "accent": "#C08FFF", "positive": "#79E0B0", "negative": "#FF6E85", "warn": "#F5C86E"},
-    {"surface": "#1A1518", "border": "#4E3A44", "ink": "#F7F0F3", "support": "#A98F9C", "accent": "#FF8FA8", "positive": "#74E0AC", "negative": "#FF5C70", "warn": "#F7CD75"},
-]
-
-
-def pick_palette(seed: str) -> dict:
-    digest = hashlib.md5(seed.encode()).digest()
-    return PALETTES[digest[0] % len(PALETTES)]
-
-
-def build_instructions(*, visual_direction: dict, beats: list[dict]) -> str:
-    brief = {
-        **visual_direction,
-        "canvas": {"width": 1920, "height": 1080},
-        "stage": "#0B0B0B (painted by the host, behind every scene)",
-    }
-    return f"""Create one complete Remotion TSX scene for every beat below.
-
-## Production direction
-{json.dumps(brief, ensure_ascii=True, indent=2)}
-
-## Beats
-{json.dumps(beats, ensure_ascii=True, indent=2)}
-
-## Remotion authoring guidance
+# The two guidance sections share one header (Production direction + Beats) and
+# one closing ("Write the complete components now."). The default is the
+# frame-math guidance; choreography mode swaps it for the cast+script guidance so
+# the model is not told to do frame math and then told not to. The swap also keeps
+# choreography mode under the prompt budget instead of appending to it.
+REMOTION_GUIDANCE = """## Remotion authoring guidance
 - Design for a fixed 1920x1080 video frame with a generous safe margin.
 - Use normal React elements and SVG. Build the frame around one dominant visual idea.
 - Import runtime values only from `@decode/animation-api`. It re-exports standard Remotion APIs such
@@ -129,6 +97,55 @@ def build_instructions(*, visual_direction: dict, beats: list[dict]) -> str:
 - Default-export `function Scene(props)`. Return exactly one scene for each requested beat and keep
   the same beat IDs and order.
 - Declare two to six useful creator controls separately in the structured `controls` field. Do not
-  write a `CONTROLS` export inside the TSX.
+  write a `CONTROLS` export inside the TSX."""
 
-Write the complete components now."""
+
+CHOREOGRAPHY_GUIDANCE = """## Choreography authoring guidance
+- Author a RELATIONAL CAST plus a JSON VERB SCRIPT — never frame math. Do not use
+  `useCurrentFrame`, `interpolate`, or `spring`; never write a frame number or an absolute
+  coordinate.
+- `component_source` — default-export `function Scene({ script, words })` that wraps the cast in
+  `<Choreography script={script} words={words}>` (from `@decode/motion-api`) and composes it from
+  `@decode/animation-api` primitives: `Stack`/`Row`/`Grid` for groups with a real `gap`,
+  `Anchor`/`Label` for captions, `Card` for a bounded surface, `Connector`/`Arrow` for
+  relationships — plus, when the beat calls for them: `Container` (titled sub-zone),
+  `Badge` (status chip), `DataStream` (flow pulse), `CodeBlock` (code with highlightLines),
+  `MetricCard` (label + big number), `Database`/`Queue`/`Cloud` (domain glyph nodes),
+  `Timeline` (ordered steps with rails). All auto-size — pass content, never geometry. Wrap every
+  animateable element in `<Subject id="...">` (from `@decode/motion-api`); a connector's draw-on
+  reads `progress={useConnection("fromId", "toId")}`.
+- `script` — the verbs, each `{id, type, targetId, secondaryTargetId?, atWordIndex,
+  durationInWords?}`: `appear` introduces (unappeared elements stay hidden), `indicate` pulses
+  attention, `dim` recedes to 0.35, `connect` draws `targetId`→`secondaryTargetId`, `transform`
+  (`targetId` becomes `secondaryTargetId`). There is no `disappear`: elements leave only by
+  `transform`, so the final frame holds the whole picture. `atWordIndex` is the 0-based index into
+  the beat's narration words below; `durationInWords` is how many words the motion spans.
+- Every `targetId`/`secondaryTargetId` must match a `<Subject id>` in the cast.
+- Build the frame around one idea: draw the relationship or mechanism, one accent for the single
+  thing that matters, strong type contrast, real negative space. No slide furniture — short labels
+  inside the picture, never headings above it.
+- Follow the `palette` in the production direction for every color. Never paint a full-frame
+  background — the host paints the stage; your root stays transparent.
+- Default-export `function Scene({ script, words })`. Declare two to six creator controls in the
+  structured `controls` field; do not write a `CONTROLS` export."""
+
+
+def build_instructions(
+    *, visual_direction: dict, beats: list[dict], choreography: bool = False
+) -> str:
+    brief = {
+        **visual_direction,
+        "canvas": {"width": 1920, "height": 1080},
+        "stage": "#0B0B0B (painted by the host, behind every scene)",
+    }
+    prefix = f"""Create one complete Remotion TSX scene for every beat below.
+
+## Production direction
+{json.dumps(brief, ensure_ascii=True, indent=2)}
+
+## Beats
+{json.dumps(beats, ensure_ascii=True, indent=2)}
+
+"""
+    guidance = CHOREOGRAPHY_GUIDANCE if choreography else REMOTION_GUIDANCE
+    return prefix + guidance + "\n\nWrite the complete components now."

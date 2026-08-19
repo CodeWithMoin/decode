@@ -28,6 +28,9 @@
       ],
       "@decode/animation-api": [
         "./src/decode/animation-api.tsx"
+      ],
+      "@decode/motion-api": [
+        "./src/decode/motion-api/index.ts"
       ]
     }
   },

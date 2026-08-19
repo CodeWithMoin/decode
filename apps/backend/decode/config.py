@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     architect: str = "fake"
     author: str = "fake"
     visualizer: str = "fake"
+    # The visualizer's output substrate: "off" emits raw Remotion f(frame)
+    # modules (the shipped path, byte-identical); "auto" emits a relational cast
+    # plus a verb script played by @decode/motion-api. Default off; opt in per
+    # deployment. See docs/CHOREOGRAPHY-API.md §Migration plan.
+    choreography: str = "off"
     voice: str = "fake"
     # Use the model when credentials are present, otherwise keep local/test
     # environments deterministic without an extra switch.

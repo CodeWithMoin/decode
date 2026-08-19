@@ -43,6 +43,7 @@ const SHIMS: Record<string, () => Promise<Record<string, unknown>>> = {
   // runtime import; neither is permission for source to import React or Remotion
   // directly, which the backend gate rejects.
   "@decode/animation-api": () => import("@decode/animation-api"),
+  "@decode/motion-api": () => import("@decode/motion-api"),
   "react/jsx-runtime": () => import("react/jsx-runtime"),
   "react": () => import("react"),
 };

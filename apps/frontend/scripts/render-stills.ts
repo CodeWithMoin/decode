@@ -28,8 +28,10 @@ const POINTS = [0.15, 0.55, 0.9];
 async function main() {
   const scenesPath = process.argv[2];
   const outDir = process.argv[3];
+  // Any registered composition renders; the vision gate uses the default.
+  const compositionId = process.argv[4] ?? "DecodeComposition";
   if (!scenesPath || !outDir) {
-    console.error("Usage: npx tsx scripts/render-stills.ts <scenes.json> <outDir>");
+    console.error("Usage: npx tsx scripts/render-stills.ts <scenes.json> <outDir> [compositionId]");
     process.exit(1);
   }
   const props = JSON.parse(readFileSync(scenesPath, "utf-8"));
@@ -59,7 +61,7 @@ async function main() {
 
   const composition = await selectComposition({
     serveUrl: bundled,
-    id: "DecodeComposition",
+    id: compositionId,
     inputProps: props,
   });
 

@@ -39,6 +39,11 @@ _LINT_PLACEHOLDER_DURATION = 10.0
 # and render infrastructure stay unavailable.
 RUNTIME_MODULE = "@decode/animation-api"
 
+# Widened for choreography: a scene may import the Layer-1 API and the Layer-2
+# verb runtime, and nothing else. `remotion`, `react`, `gsap` and every other
+# bare specifier stay outside the doorway.
+ALLOWED_MODULES = {RUNTIME_MODULE, "@decode/motion-api"}
+
 # Exported so the harness can stamp it on the artifact — a scene written against
 # v1 stays readable when v2 lands.
 RUNTIME_VERSION = "decode-animation-api-v2"
@@ -189,7 +194,7 @@ def _validate_react(scene: SceneModule) -> list[dict[str, str]]:
     where = scene.beat_id
 
     imported = set(_IMPORT.findall(source)) | set(_SIDE_EFFECT_IMPORT.findall(source))
-    outside = sorted(name for name in imported if name != RUNTIME_MODULE)
+    outside = sorted(name for name in imported if name not in ALLOWED_MODULES)
     if outside:
         found.append(
             _violation(
@@ -280,6 +285,47 @@ def _validate_react(scene: SceneModule) -> list[dict[str, str]]:
             )
         )
 
+    found.extend(_validate_script(scene))
+
+    return found
+
+
+def _validate_script(scene: SceneModule) -> list[dict[str, str]]:
+    """Structural checks on a choreography script, mirroring the runtime's
+    contract: every verb names an element the cast declares, and `connect` /
+    `transform` verbs name a far end. Regex over `<Subject id="...">` is the same
+    deliberate ceiling as the rest of this file — the model emits literal ids."""
+    verbs = scene.script
+    if not verbs:
+        return []
+    where = scene.beat_id
+    found: list[dict[str, str]] = []
+    subject_ids = set(_SUBJECT_ID.findall(scene.component_source or ""))
+    if not subject_ids:
+        found.append(
+            _violation(
+                "script_without_subjects",
+                f"{where}: a script names no <Subject id> in the cast. Wrap each "
+                "animateable element in <Subject id> so the verbs have a target.",
+            )
+        )
+    for verb in verbs:
+        if verb.type in ("connect", "transform") and not verb.secondary_target_id:
+            found.append(
+                _violation(
+                    "verb_missing_far_end",
+                    f"{where}: {verb.type} verb {verb.id} names no secondary target.",
+                )
+            )
+        for role, target in (("target", verb.target_id), ("far end", verb.secondary_target_id)):
+            if target and subject_ids and target not in subject_ids:
+                found.append(
+                    _violation(
+                        "verb_unknown_target",
+                        f"{where}: verb {verb.id} {role} '{target}' is not a "
+                        "<Subject id> in the cast.",
+                    )
+                )
     return found
 
 
@@ -313,7 +359,13 @@ _HEX = re.compile(r"#[0-9a-fA-F]{6}\b")
 _COLOR_LITERAL = re.compile(
     r"#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b|\b(?:rgba?|hsla?)\(\s*([^)]*)\)"
 )
-_PRIMITIVES = re.compile(r"<(?:Stack|Row|Anchor|Label|Connector)\b")
+_PRIMITIVES = re.compile(
+    r"<(?:Stack|Row|Anchor|Label|Connector|Card|Arrow|Subject|Choreography"
+    r"|Container|Grid|Badge|DataStream|CodeBlock|MetricCard|Database|Queue|Cloud|Timeline)\b"
+)
+# The cast ids a choreography script may name: every animateable element is
+# wrapped in <Subject id="...">, so the script can be checked against them.
+_SUBJECT_ID = re.compile(r"<Subject\b[^>]*\bid\s*=\s*[\"']([^\"']+)[\"']")
 _FONT_SIZE = re.compile(r"\bfontSize\s*:\s*(\d+)")
 _LABEL_SIZE = re.compile(r"<Label\b[^>]{0,400}?\bsize\s*=\s*\{?\s*(\d+)", re.DOTALL)
 _SVG_BLOCK = re.compile(r"<svg\b.*?</svg>", re.DOTALL | re.IGNORECASE)
