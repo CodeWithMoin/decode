@@ -167,9 +167,21 @@
       "type": "file"
     },
     {
+      "path": "decode/orchestrator.py",
+      "accessCount": 4,
+      "lastAccessed": 1787150577241,
+      "type": "file"
+    },
+    {
       "path": "tests/test_rate_limits.py",
       "accessCount": 3,
       "lastAccessed": 1787148535431,
+      "type": "file"
+    },
+    {
+      "path": "decode/orchestrator_router.py",
+      "accessCount": 3,
+      "lastAccessed": 1787150625706,
       "type": "file"
     },
     {
@@ -218,6 +230,18 @@
       "path": "tests/test_degraded_scene.py",
       "accessCount": 1,
       "lastAccessed": 1787137412343,
+      "type": "file"
+    },
+    {
+      "path": "decode/agents/orchestrator/SKILL.md",
+      "accessCount": 1,
+      "lastAccessed": 1787150666131,
+      "type": "file"
+    },
+    {
+      "path": "tests/test_orchestrator.py",
+      "accessCount": 1,
+      "lastAccessed": 1787150819559,
       "type": "file"
     }
   ],

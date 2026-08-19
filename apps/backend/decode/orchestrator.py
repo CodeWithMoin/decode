@@ -249,6 +249,19 @@ TOOLS: dict[str, ToolSpec] = {
         args=["beat_id", "start"],
         target="planned",
     ),
+    # --- First build (whole production) ---
+    "start_build": ToolSpec(
+        name="start_build",
+        description=(
+            "Create the whole video from the creator's question or topic. Only for a "
+            "project with no video yet. topic is their question in their words; "
+            "audience is who it's for in plain words; depth is one of "
+            "intuition_first | balanced | rigorous; target_duration_seconds is one "
+            "of 60 | 180 | 300 | 600."
+        ),
+        args=["topic", "audience", "depth", "target_duration_seconds"],
+        target="endpoint:POST /production-brief/generations",
+    ),
     # --- Publish (Editor) ---
     "render_export": ToolSpec(
         name="render_export",
@@ -304,7 +317,11 @@ class OrchestratorTurn(BaseModel):
 
 class Orchestrator(Protocol):
     async def turn(
-        self, message: str, scenes: list[SceneRef], observer: Observer | None = None
+        self,
+        message: str,
+        scenes: list[SceneRef],
+        observer: Observer | None = None,
+        history: list[dict[str, str]] | None = None,
     ) -> OrchestratorTurn: ...
 
 
@@ -372,10 +389,15 @@ class FakeOrchestrator:
         )
 
     async def turn(
-        self, message: str, scenes: list[SceneRef], observer: Observer | None = None
+        self,
+        message: str,
+        scenes: list[SceneRef],
+        observer: Observer | None = None,
+        history: list[dict[str, str]] | None = None,
     ) -> OrchestratorTurn:
         # The fake reasons from the scene list alone; it never needs to look
-        # anything up, so the observer is accepted (one contract) and ignored.
+        # anything up, so the observer and history are accepted (one contract)
+        # and ignored.
         text = message.strip()
         by_index = {scene.index: scene for scene in scenes}
         match = _SCENE_RE.search(text)
@@ -590,10 +612,25 @@ class ModelOrchestrator:
         return await observer.observe(name, {k: str(v) for k, v in args.items()})
 
     async def turn(
-        self, message: str, scenes: list[SceneRef], observer: Observer | None = None
+        self,
+        message: str,
+        scenes: list[SceneRef],
+        observer: Observer | None = None,
+        history: list[dict[str, str]] | None = None,
     ) -> OrchestratorTurn:
         tools = self._observe_tools()
+        # The recent conversation, as real turns — without it every message is
+        # a stranger and the model cannot carry an ask across two replies
+        # ("who's it for?" → "beginners") or notice it already asked.
         input_items: list = [
+            {
+                "role": "assistant" if item.get("who") == "decode" else "user",
+                "content": [{"type": "input_text", "text": item.get("text", "")[:2000]}],
+            }
+            for item in (history or [])[-12:]
+            if item.get("text")
+        ]
+        input_items.append(
             {
                 "role": "user",
                 "content": [
@@ -617,7 +654,7 @@ class ModelOrchestrator:
                     }
                 ],
             }
-        ]
+        )
 
         # Look-then-propose: the model may call observe tools to inspect the
         # project, we run each and feed the result back, and it loops until it

@@ -688,6 +688,17 @@ export interface OrchestratorTurn {
   observed?: string[];
 }
 
+/**
+ * The choices the room asks for before a first build — they map one-to-one
+ * onto the backend ProductionIntent enums, so the chat's chips and the stored
+ * intent can never disagree about what the options are.
+ */
+export interface BuildOptions {
+  audience: string;
+  depth: "intuition_first" | "balanced" | "rigorous";
+  target_duration_seconds: 60 | 180 | 300 | 600;
+}
+
 export type RenderState = "idle" | "rendering" | "done";
 
 /** Downstream work that no longer matches the current scene source. */

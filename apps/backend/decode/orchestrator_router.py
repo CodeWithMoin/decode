@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from typing import Literal
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
@@ -33,8 +34,16 @@ from .schemas import Script, TeachingPlan
 router = APIRouter(prefix="/projects/{project_id}", tags=["orchestrator"])
 
 
+class HistoryItem(BaseModel):
+    who: Literal["creator", "decode"]
+    text: str = Field(max_length=2000)
+
+
 class OrchestratorMessage(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
+    # The recent conversation, oldest first, so a turn can carry an ask across
+    # replies. Capped hard: history is context, not a payload channel.
+    history: list[HistoryItem] = Field(default_factory=list, max_length=24)
 
 
 async def _approved_or_latest_payload(
@@ -187,7 +196,10 @@ async def orchestrator_turn(
             )
             await session.commit()
             turn = await build_orchestrator(get_settings()).turn(
-                command.message, scenes, observer
+                command.message,
+                scenes,
+                observer,
+                history=[item.model_dump() for item in command.history],
             )
             payload = turn.model_dump() | {"observed": observer.calls}
             for name in observer.calls:

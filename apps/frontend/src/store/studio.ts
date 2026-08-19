@@ -82,7 +82,7 @@ interface StudioState {
      messages are revisions to the orchestrator. Both are injected by connected
      Edit, which owns the project snapshot. */
   connectedUnbuilt: boolean;
-  startBuild: ((topic: string) => Promise<void>) | null;
+  startBuild: ((topic: string, options?: import("@/lib/types").BuildOptions) => Promise<void>) | null;
 
   /* export */
   exportRes: string;

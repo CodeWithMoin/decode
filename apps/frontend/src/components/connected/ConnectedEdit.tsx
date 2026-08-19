@@ -16,6 +16,7 @@ import {
 } from "@/lib/decode-api";
 import { creatorError } from "@/lib/creator-errors";
 import type {
+  BuildOptions,
   SceneVisualsPayload,
   Scene,
   SceneCandidate,
@@ -619,7 +620,7 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
   // generate the brief. The backend auto-continues the whole video from there
   // (Project.auto_continue), so nothing else has to be triggered by the client.
   const startBuild = useCallback(
-    async (topic: string) => {
+    async (topic: string, options?: BuildOptions) => {
       const t = topic.trim();
       if (!t) return;
       const file = new File([t], "topic.txt", { type: "text/plain;charset=utf-8" });
@@ -628,10 +629,10 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
         projectId,
         {
           creative_brief: t,
-          audience: "General audience",
-          target_duration_seconds: 300,
+          audience: options?.audience ?? "General audience",
+          target_duration_seconds: options?.target_duration_seconds ?? 300,
           runtime_mode: "fixed",
-          depth: "balanced",
+          depth: options?.depth ?? "balanced",
           narration_style: "professional",
           brand: { colors: [], fonts: null, guidelines: null },
         },

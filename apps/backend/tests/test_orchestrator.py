@@ -216,6 +216,7 @@ OBSERVE_TOOLS = {
 }
 
 WRITE_TOOLS = {
+    "start_build",
     "reorder_beats",
     "cut_beat",
     "add_beat",

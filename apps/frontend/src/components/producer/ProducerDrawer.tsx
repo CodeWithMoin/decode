@@ -386,35 +386,23 @@ export function ProducerDrawer() {
       // tool and posts the receipt the orchestrator scoped; nothing moves until
       // then (propose → apply → receipt). An ambiguous turn asks instead.
       if (connectedProjectId) {
-        // v1: the first message on an unbuilt project IS the topic — kick the
-        // whole build. The backend auto-continues; ConnectedEdit narrates each
-        // stage as it lands, and flips the project to "built" so later messages
-        // are revisions to the orchestrator.
-        if (connectedUnbuilt && startBuild) {
-          workingLine.current = "Setting up your video…";
-          setLiveStep(null);
-          setThinking(true);
-          startBuild(t)
-            .then(() => {
-              setThinking(false);
-              say(
-                "On it — I’m building the whole video from that. I’ll show each step as it happens.",
-                undefined,
-                "Build started",
-              );
-            })
-            .catch(() => {
-              setThinking(false);
-              say("I couldn’t start building that just now — nothing was created. Try again in a moment.");
-            });
-          return;
-        }
-
-        workingLine.current = "Reading that against the current cut…";
+        // Every message — including the very first on an unbuilt project —
+        // goes to the orchestrator. It decides whether to chat, ask one
+        // clarifying question (with options), or propose start_build /
+        // another tool; a greeting never builds a video. The recent thread
+        // rides along so an answer can land on the question it followed.
+        workingLine.current = connectedUnbuilt
+          ? "Thinking about your video…"
+          : "Reading that against the current cut…";
         setLiveStep(null);
         setThinking(true);
+        const history = useStudio
+          .getState()
+          .thread.filter((m) => !m.id.startsWith("stream:") && m.text.trim())
+          .slice(-12)
+          .map((m) => ({ who: m.who === "u" ? ("creator" as const) : ("decode" as const), text: m.text }));
         decodeApi
-          .orchestratorTurn(connectedProjectId, t, (step) => setLiveStep(stepLabel(step.name)))
+          .orchestratorTurn(connectedProjectId, t, (step) => setLiveStep(stepLabel(step.name)), history)
           .then((turn) => {
             setThinking(false);
             setLiveStep(null);
@@ -436,6 +424,33 @@ export function ProducerDrawer() {
                   // Every applied change posts a receipt naming what changed.
                   const done = () => state.say(`${p.summary}.`, p.receipt);
                   switch (p.tool) {
+                    case "start_build": {
+                      if (!startBuild) return;
+                      const seconds = Number(a.target_duration_seconds);
+                      const depth = ["intuition_first", "balanced", "rigorous"].includes(a.depth)
+                        ? (a.depth as "intuition_first" | "balanced" | "rigorous")
+                        : "balanced";
+                      workingLine.current = "Setting up your video…";
+                      setThinking(true);
+                      void startBuild(a.topic || t, {
+                        audience: a.audience || "General audience",
+                        depth,
+                        target_duration_seconds: ([60, 180, 300, 600].includes(seconds)
+                          ? seconds
+                          : 300) as 60 | 180 | 300 | 600,
+                      })
+                        .then(() => {
+                          setThinking(false);
+                          state.say(`${p.summary}.`, p.receipt, "Build started");
+                        })
+                        .catch(() => {
+                          setThinking(false);
+                          state.say(
+                            "I couldn’t start building that just now — nothing was created. Try again in a moment.",
+                          );
+                        });
+                      return;
+                    }
                     case "direct_scene":
                       if (directScene) void directScene(a.beat_id, a.direction);
                       return; // directScene posts its own progress + receipt

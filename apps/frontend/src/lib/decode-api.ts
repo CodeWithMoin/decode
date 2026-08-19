@@ -298,7 +298,8 @@ export const decodeApi = {
     projectId: string,
     message: string,
     onStep?: (step: OrchestratorStep) => void,
-  ): Promise<OrchestratorTurn> => streamOrchestratorTurn(projectId, message, onStep),
+    history?: Array<{ who: "creator" | "decode"; text: string }>,
+  ): Promise<OrchestratorTurn> => streamOrchestratorTurn(projectId, message, onStep, history),
 
   getJob: (projectId: string, jobId: string) =>
     request<JobDetail>(`/api/v1/projects/${projectId}/jobs/${jobId}`),
@@ -440,13 +441,14 @@ async function streamOrchestratorTurn(
   projectId: string,
   message: string,
   onStep?: (step: OrchestratorStep) => void,
+  history?: Array<{ who: "creator" | "decode"; text: string }>,
 ): Promise<OrchestratorTurn> {
   const response = await fetch(
     `${API_BASE}/api/v1/projects/${projectId}/orchestrator/turn`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, history: history ?? [] }),
       cache: "no-store",
     },
   );
