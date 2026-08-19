@@ -641,6 +641,24 @@ export function ProducerDrawer() {
                   {turn.messages.map((message) =>
                     message.id.startsWith("stream:") ? (
                       <ThinkingBlock key={message.id} text={message.text} streaming={message.streaming} dark={dark} />
+                    ) : message.status ? (
+                      // Build-progress ticks share the thinking lane's look —
+                      // left rule, mono label, muted line — because they are
+                      // process, not speech.
+                      <div
+                        key={message.id}
+                        className={cx("grid gap-1 border-l-2 pl-3", dark ? "border-[var(--nle-line)]" : "border-line-input")}
+                      >
+                        {message.note ? (
+                          <span className={cx("flex items-center gap-1.5 font-mono text-[9px] tracking-[0.1em] uppercase", dark ? "text-[var(--nle-faint)]" : "text-t9")}>
+                            <span aria-hidden className="inline-block h-1 w-1 rounded-full bg-current opacity-50" />
+                            {message.note}
+                          </span>
+                        ) : null}
+                        <span className={cx("text-[11.5px] leading-[1.55]", dark ? "text-[var(--nle-muted)]" : "text-t7")}>
+                          {message.text}
+                        </span>
+                      </div>
                     ) : (
                     <div key={message.id} className="grid gap-2">
                       {message.note ? (

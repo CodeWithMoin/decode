@@ -72,12 +72,11 @@ async function saySubstance(projectId: string, event: ProjectEvent): Promise<boo
     if (event.type === "production.scene.candidate.ready") {
       const beatId = String(event.data.beat_id ?? "");
       const title = useStudio.getState().sc.find((s) => s.id === beatId)?.title;
-      say(
-        title
-          ? `Scene “${title}” is drafted and in the cut for your review.`
-          : "A scene is drafted and in the cut for your review.",
-        "Scene draft",
-      );
+      // A per-scene tick, not speech: seven of these in a row are a progress
+      // readout, so they render as quiet status lines.
+      useStudio
+        .getState()
+        .say(title ? `Drafted “${title}”` : "Drafted a scene", undefined, "Scene draft", true);
       return true;
     }
     if (event.type !== "artifact.ready_for_review") return false;
@@ -139,17 +138,17 @@ function eventMessage(event: ProjectEvent): string | null {
   if (event.type === "run.progress") return null;
   if (event.type === "production.graph.started") {
     const count = Number(data.scene_count ?? 0);
-    return `I split ${count} scene${count === 1 ? "" : "s"} into isolated builds so one difficult visual won’t block the rest.`;
+    return `Building ${count} scene${count === 1 ? "" : "s"} in parallel`;
   }
   if (event.type === "production.scene.candidate.ready") {
     // Named in onEvent with the scene's title; this is only the fallback.
     return null;
   }
   if (event.type === "production.scene.candidate.accepted") {
-    return "I accepted the scene you reviewed and left every other candidate unchanged.";
+    return "Scene accepted — every other candidate unchanged";
   }
   if (event.type === "production.task.retrying") {
-    return "One scene failed its check, so I kept the accepted work and retried only that scene.";
+    return "One scene failed its check — retrying just that scene";
   }
   if (event.type === "artifact.ready_for_review") {
     // Brief, plan and script get substantive messages in onEvent — the chat
@@ -157,8 +156,8 @@ function eventMessage(event: ProjectEvent): string | null {
     // because their substance IS the cut the creator is looking at.
     const artifact = String(data.artifact_type ?? "");
     return {
-      scene_visuals: "I assembled the checked scenes into the cut — every scene stays independently editable.",
-      voice: "Narration recorded. Its measured clips are now the timing authority for the cut.",
+      scene_visuals: "Cut assembled — every scene stays independently editable",
+      voice: "Narration recorded — its measured clips now drive the timing",
     }[artifact] ?? null;
   }
   if (event.type === "run.failed" || event.type === "production.task.failed") {
@@ -462,7 +461,9 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
         void saySubstance(projectId, event).then((said) => {
           if (said) return;
           const message = eventMessage(event);
-          if (message) useStudio.getState().say(message, undefined, "Production update");
+          // Failures stay full messages — they need reading, not glancing.
+          const failed = event.type === "run.failed" || event.type === "production.task.failed";
+          if (message) useStudio.getState().say(message, undefined, "Production update", !failed);
         });
       }
       if (refreshEvents.has(event.type)) void load().catch(() => undefined);

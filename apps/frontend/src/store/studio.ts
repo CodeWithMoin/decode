@@ -151,7 +151,7 @@ interface StudioState {
 
   toggleThread: () => void;
   setThreadOpen: (v: boolean) => void;
-  say: (text: string, receipt?: string, note?: string) => void;
+  say: (text: string, receipt?: string, note?: string, status?: boolean) => void;
   /* Live agent streaming into the chat, keyed by a stream id (the run id). */
   beginStream: (streamId: string) => void;
   appendToken: (streamId: string, delta: string) => void;
@@ -840,9 +840,9 @@ export const useStudio = create<StudioState>((set, get) => ({
   toggleThread: () => set((s) => ({ threadOpen: !s.threadOpen })),
   setThreadOpen: (threadOpen) => set({ threadOpen }),
 
-  say: (text, receipt, note) =>
+  say: (text, receipt, note, status) =>
     set((s) => ({
-      thread: [...s.thread, { id: uid("m"), who: "p", text, receipt, note }],
+      thread: [...s.thread, { id: uid("m"), who: "p", text, receipt, note, status }],
     })),
 
   ask: (text) =>

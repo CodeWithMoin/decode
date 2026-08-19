@@ -613,6 +613,8 @@ export interface ThreadMessage {
   note?: string;
   /** True while this message's text is still streaming in (live agent output). */
   streaming?: boolean;
+  /** A build-progress tick, rendered as a quiet status line, not as speech. */
+  status?: boolean;
 }
 
 export interface ProcessingStep {
