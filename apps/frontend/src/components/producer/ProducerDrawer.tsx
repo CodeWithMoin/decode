@@ -7,7 +7,8 @@ import { num, observations } from "@/lib/derive";
 import { decodeApi } from "@/lib/decode-api";
 import { parseBuildOptions, type Clarification } from "@/lib/types";
 import { useStudio } from "@/store/studio";
-import { AppMark, Ghost, Graphite, Spinner, cx } from "@/components/ui/primitives";
+import { AppMark, Ghost, Graphite, cx } from "@/components/ui/primitives";
+import { ThinkingSparkle } from "@/components/ui/ThinkingSparkle";
 
 // What the room looked at, in the creator's words. Read-only observe tools
 // (orchestrator.py) map to a plain-language noun so "Looked at the plan" reads
@@ -799,7 +800,7 @@ export function ProducerDrawer() {
             transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
             className="flex items-center gap-2 self-start pt-0.5 pl-0.5"
           >
-            <Spinner size={13} />
+            <ThinkingSparkle size={16} />
             <span className="text-[11.5px] text-t8">{liveStep ?? workingLine.current}</span>
           </motion.div>
         ) : null}
@@ -963,10 +964,7 @@ function ThinkingBlock({ text, streaming, dark }: { text: string; streaming?: bo
     <div className={cx("grid gap-1.5 border-l-2 pl-3", dark ? "border-[var(--nle-line)]" : "border-line-input")}>
       {streaming ? (
         <span className={cx("flex items-center gap-2 font-mono text-[9px] tracking-[0.1em] uppercase", dark ? "text-[var(--nle-faint)]" : "text-t9")}>
-          <span
-            aria-hidden
-            className="inline-block h-2.5 w-2.5 animate-spin rounded-full border-[1.5px] border-current border-t-transparent motion-reduce:animate-pulse"
-          />
+          <ThinkingSparkle size={16} />
           Thinking…
         </span>
       ) : (

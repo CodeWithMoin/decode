@@ -18,6 +18,7 @@
     "@remotion/renderer": "^4.0.508",
     "@remotion/timeline-utils": "^4.0.508",
     "gsap": "^3.15.0",
+    "lottie-web": "^5.13.0",
     "lucide-react": "^1.28.0",
     "motion": "^13.1.0",
     "next": "^16.3.0",
