@@ -6,7 +6,8 @@ from decode.execution.context import (
     RegenerateVisualContext,
     context_assembler,
 )
-from decode.execution.pipeline import CHAIN, stage_for
+from decode.execution.conductor import FALLBACK_ORDER
+from decode.execution.pipeline import stage_for
 from decode.models import ArtifactType, ArtifactVersion, JobInput
 from decode.schemas import (
     Beat,
@@ -200,4 +201,4 @@ def test_regenerate_stage_produces_scene_visuals_and_never_chains():
     assert "scene_visuals" in stage.consumes
     # A per-scene redraw must not trigger the chain — no re-running voice for one
     # scene. Its absence from CHAIN is what makes continue_chain return None.
-    assert "regenerate_scene_visual" not in CHAIN
+    assert "regenerate_scene_visual" not in FALLBACK_ORDER

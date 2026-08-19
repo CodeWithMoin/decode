@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     # Use the model when credentials are present, otherwise keep local/test
     # environments deterministic without an extra switch.
     orchestrator: str = "auto"
+    # Who decides the next production step after one finishes: "auto" lets the
+    # model choose among ready steps (falling back to the classic order when
+    # unavailable); "chain" is always the classic order.
+    conductor: str = "auto"
     evaluator: str = "fake"
     openai_api_key: str | None = None
     openai_model: str = "gpt-5.6-luna"

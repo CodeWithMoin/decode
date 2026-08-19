@@ -56,6 +56,7 @@ from ..models import (
 )
 from ..pricing import resolve_cost
 from ..problems import AppProblem
+from .conductor import choose_next
 from ..schemas import ProductionBrief, TeachingPlan
 from .context import (
     ArchitectContext,
@@ -454,20 +455,10 @@ async def create_job(
     return job, run
 
 
-# Which stage follows which. Read as "the brief is done, the plan is next".
-#
-# A kind that is absent is where the production stops today, not one that was
-# forgotten. Adding the Author is one entry here plus its department folder.
-CHAIN: dict[str, str] = {
-    "generate_production_brief": "generate_teaching_plan",
-    "generate_teaching_plan": "generate_script",
-    "generate_script": "generate_scene_visuals",
-    # Voice needs only the script and intent, both already carried through the
-    # visuals job, so narration is reached without the creator choosing inputs.
-    # Audio is the timing authority (ADR-005); a chain that stopped at visuals
-    # left the scene with no runtime to derive.
-    "generate_scene_visuals": "generate_voice",
-}
+# The hardcoded next-stage CHAIN is gone (AGENT-GRAPH §1): readiness is
+# computed in continue_chain from what each stage consumes, and the conductor
+# (execution/conductor.py) chooses among ready steps — with the classic order
+# kept there as FALLBACK_ORDER so a model failure can never stall a build.
 
 # The actor a chained approval is recorded under. Deliberately not the server's
 # configured actor, which is the creator: an approval nobody clicked has to be
@@ -505,27 +496,66 @@ async def continue_chain(
     # server still respects an explicitly-set false so this stays testable.
     if project is None or not project.auto_continue:
         return None
-    next_kind = CHAIN.get(job.kind)
-    if next_kind is None:
-        return None
-    produces, next_stage = stage_for(job.kind).produces, stage_for(next_kind)
 
+    produces = stage_for(job.kind).produces
     carried: dict[str, list[str]] = {}
     for item in await session.scalars(select(JobInput).where(JobInput.job_id == job.id)):
         carried.setdefault(item.role, []).append(item.version_id)
 
-    inputs: list[tuple[str, str]] = []
-    for role in next_stage.consumes:
+    # Which steps are READY is computed, never decided (AGENT-GRAPH §10): a
+    # role resolves from the version just produced, the finished job's carried
+    # inputs, or the project's approved artifact of that type — so the order of
+    # stages is flexible without ever handing dependency-tracking to the model.
+    project_artifacts = {
+        str(item.artifact_type): item
+        for item in await session.scalars(
+            select(Artifact).where(Artifact.project_id == job.project_id)
+        )
+    }
+
+    def resolve(role: str) -> list[tuple[str, str]] | None:
         if role == produces:
-            inputs.append((version.id, role))
-        elif role in carried:
-            # Anything the finished job was given and the next one also needs —
-            # the production intent, today — travels forward unchanged.
-            inputs.extend((version_id, role) for version_id in carried[role])
-        else:
-            # A stage needing something this one never saw is a stage the
-            # creator has to start themselves, with inputs only they can choose.
-            return None
+            return [(version.id, role)]
+        if role in carried:
+            return [(version_id, role) for version_id in carried[role]]
+        existing = project_artifacts.get(role)
+        ref = existing and (existing.approved_version_id or existing.latest_version_id)
+        return [(ref, role)] if ref else None
+
+    candidates: dict[str, list[tuple[str, str]]] = {}
+    for kind, stage in STAGES.items():
+        if not kind.startswith("generate_") or stage.produces == produces:
+            continue
+        made = project_artifacts.get(stage.produces)
+        if made is not None and made.latest_version_id:
+            continue  # already produced; regeneration is the creator's call
+        resolved: list[tuple[str, str]] = []
+        for role in stage.consumes:
+            got = resolve(role)
+            if got is None:
+                resolved = []
+                break
+            resolved.extend(got)
+        if resolved:
+            candidates[kind] = resolved
+    if not candidates:
+        return None  # nothing left to produce — the production is complete
+
+    next_kind, reason = await choose_next(
+        get_settings(),
+        job.kind,
+        sorted(candidates),
+        {"have": sorted(project_artifacts)},
+    )
+    inputs = candidates[next_kind]
+    next_stage = stage_for(next_kind)
+    await emit(
+        session,
+        job.project_id,
+        "production.chain.decided",
+        job_id=job.id,
+        data={"next": next_kind, "reason": reason},
+    )
 
     # The next stage reads the *approved* version, so a chained run has to say
     # out loud that it approved on the creator's behalf. Recorded as a real

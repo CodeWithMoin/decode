@@ -161,6 +161,12 @@ function eventMessage(event: ProjectEvent): string | null {
   if (event.type === "production.scene.candidate.accepted") {
     return "Scene accepted — every other candidate unchanged";
   }
+  if (event.type === "production.chain.decided") {
+    // The conductor's own words on why this step is next — model-authored in
+    // creator language, or the deterministic "Next up: …" line.
+    const reason = String(data.reason ?? "").trim();
+    return reason || null;
+  }
   if (event.type === "production.task.retrying") {
     return "One scene failed its check — retrying just that scene";
   }
