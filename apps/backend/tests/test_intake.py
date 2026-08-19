@@ -150,12 +150,30 @@ def intake_with(monkeypatch, drafts, reflection: str | None):
 
 
 async def _bytes() -> bytes:
-    return b"source text"
+    # Long enough to be a document (topic mode starts under TOPIC_SOURCE_LIMIT
+    # characters): these tests exercise the full grounding + reflection path.
+    return b"source text " * 60
 
 
 SOURCE = SimpleNamespace(
-    object_key="k", filename="attention.pdf", media_type="text/plain", size_bytes=11, sha256="ab"
+    object_key="k", filename="attention.pdf", media_type="text/plain", size_bytes=720, sha256="ab"
 )
+
+TOPIC_SOURCE = SimpleNamespace(
+    object_key="k", filename="topic.txt", media_type="text/plain", size_bytes=11, sha256="ab"
+)
+
+
+async def test_topic_source_skips_grounding_and_reflection(monkeypatch):
+    # A typed topic is not a document: one call, no tool loop, no reflection —
+    # even when a reflection prompt exists.
+    department = intake_with(monkeypatch, [DRAFT], reflection="revise")
+    async def _tiny() -> bytes:
+        return b"Explain how DNS works"
+    department.store = SimpleNamespace(get=lambda key: _tiny())
+    brief = await department.generate(INTENT, [TOPIC_SOURCE])
+    assert department.client.responses.calls == 1
+    assert brief.source_findings["reflection"] == {"ran": False}
 
 
 async def test_no_reflection_file_publishes_the_first_draft(monkeypatch):

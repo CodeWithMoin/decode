@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import base64
 import json
+from pathlib import Path
 
 from pydantic import BaseModel, Field
 
@@ -27,6 +28,14 @@ from .tools import TOOLS, TOOLS_VERSION, FindingLog
 
 # A runaway loop against a metered API is a bill, not a hang.
 MAX_TURNS = 12
+
+# Under this many characters of text source, there is no document to analyse —
+# the "source" is a typed topic, and the full grounding machinery (the 174-line
+# document SKILL, record_finding, the unconditional reflection pass) is spend
+# without a subject. The compact topic prompt takes over; the full path stays
+# armed for real uploads.
+TOPIC_SOURCE_LIMIT = 500
+_TOPIC_SYSTEM = (Path(__file__).parent / "topic-system.md").read_text(encoding="utf-8")
 
 
 class IntakeBriefDraft(BaseModel):
@@ -91,7 +100,7 @@ class ModelIntake:
             ),
         }
 
-    async def _call(self, system: str, history: list):
+    async def _call(self, system: str, history: list, tools: list = TOOLS):
         """One model turn. When a stage is streaming, the reasoning summary is
         streamed live to the chat as prose; otherwise a normal structured call.
         Same response interface either way (usage / output / output_parsed)."""
@@ -107,7 +116,7 @@ class ModelIntake:
                 model=self.model,
                 instructions=system,
                 input=history,
-                tools=TOOLS,
+                tools=tools,
                 text_format=IntakeBriefDraft,
             )
             await streaming.end(url, ctx)
@@ -117,12 +126,13 @@ class ModelIntake:
             model=self.model,
             instructions=system,
             input=history,
-            tools=TOOLS,
+            tools=tools,
             text_format=IntakeBriefDraft,
         )
 
     async def _converse(
-        self, phase: str, system: str, history: list, findings: FindingLog
+        self, phase: str, system: str, history: list, findings: FindingLog,
+        tools: list = TOOLS,
     ) -> tuple[IntakeBriefDraft, int, int, int]:
         """Run the tool loop until the model answers with a brief.
 
@@ -137,7 +147,7 @@ class ModelIntake:
         # of calls. The model calls inside are traced by the OpenAI wrapper.
         with tracing.span(phase) as observed:
             for _ in range(MAX_TURNS):
-                response = await self._call(system, history)
+                response = await self._call(system, history, tools)
                 turns += 1
                 if response.usage:
                     input_tokens += response.usage.input_tokens
@@ -177,10 +187,18 @@ class ModelIntake:
         instructions = build_instructions(intent, len(sources))
 
         contents = [await self._content_for(source) for source in sources]
+        # A typed topic is not a document: no grounding tools, no reflection
+        # pass, and the compact prompt — the full machinery stays for uploads.
+        topic_mode = all(item.get("type") == "input_text" for item in contents) and (
+            sum(len(item.get("text", "")) for item in contents) < TOPIC_SOURCE_LIMIT
+        )
+        if topic_mode:
+            system = _TOPIC_SYSTEM
         contents.append({"type": "input_text", "text": instructions})
 
         history: list = [{"role": "user", "content": contents}]
         findings = FindingLog()
+        run_tools: list = [] if topic_mode else TOOLS
 
         # The root span carries the direction, because the first question about a
         # bad brief is always "what was it asked for" — and the skills version,
@@ -200,16 +218,17 @@ class ModelIntake:
                 "tools_version": TOOLS_VERSION,
                 "model": self.model,
                 "sources": [source.filename for source in sources],
+                "mode": "topic" if topic_mode else "source",
             },
         ) as run:
             draft, input_tokens, output_tokens, turns = await self._converse(
-                "draft", system, history, findings
+                "draft", system, history, findings, run_tools
             )
 
             # Reflection is opt-in. With no reflection.md the department publishes
             # its first draft. record_finding stays declared for this turn too, so
             # a claim the revision introduces still has to be grounded first.
-            critique = SKILLS.reflection()
+            critique = None if topic_mode else SKILLS.reflection()
             reflection: dict = {"ran": False}
             if critique:
                 findings_before = len(findings.entries)
@@ -217,7 +236,7 @@ class ModelIntake:
                     {"role": "user", "content": [{"type": "input_text", "text": critique}]}
                 )
                 second, extra_in, extra_out, extra_turns = await self._converse(
-                    "reflection", system, history, findings
+                    "reflection", system, history, findings, run_tools
                 )
                 # Which fields moved, not just whether any did. An unchanged brief
                 # is the reflection prompt's own stated preference when the draft
