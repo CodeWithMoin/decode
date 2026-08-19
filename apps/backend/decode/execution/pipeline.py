@@ -428,6 +428,21 @@ async def create_job(
             "midnight — or raise DECODE_DAILY_PROJECT_JOB_BUDGET if this is expected.",
             retryable=True,
         )
+    cost_today = await session.scalar(
+        select(func.coalesce(func.sum(UsageRecord.estimated_cost_usd), 0))
+        .select_from(UsageRecord)
+        .join(Job, Job.id == UsageRecord.job_id)
+        .where(Job.project_id == project_id, UsageRecord.created_at >= day_start)
+    )
+    if float(cost_today or 0) >= settings.daily_project_cost_limit_usd:
+        raise AppProblem(
+            429,
+            "daily_cost_limit_reached",
+            "This project has reached today’s spending limit "
+            f"(${settings.daily_project_cost_limit_usd:.2f}). It resets at midnight — "
+            "or raise DECODE_DAILY_PROJECT_COST_LIMIT_USD if this is expected.",
+            retryable=True,
+        )
 
     job = Job(project_id=project_id, kind=kind)
     session.add(job)

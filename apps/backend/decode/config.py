@@ -75,6 +75,10 @@ class Settings(BaseSettings):
     daily_project_job_budget: int = 60
     daily_project_chat_budget: int = 200
     max_concurrent_model_calls: int = 4
+    # Hard dollar ceiling per project per day, summed from usage_records'
+    # estimated_cost_usd. Unpriced calls (NULL cost — an unknown model) don't
+    # count toward it, so the job/chat budgets above remain the backstop.
+    daily_project_cost_limit_usd: float = 5.0
 
     @model_validator(mode="after")
     def require_private_production_boundary(self):
