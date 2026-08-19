@@ -80,6 +80,7 @@ class ModelAgent:
         await streaming.begin(url, ctx)
         final = await streaming.stream_call(
             self.client, url, ctx,
+            rewrite_model=self.settings.orchestrator_model,
             model=self.model,
             instructions=system,
             input=history,

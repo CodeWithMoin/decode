@@ -83,13 +83,57 @@ async def end(redis_url: str, ctx: dict) -> None:
     )
 
 
-async def stream_call(client: Any, redis_url: str, ctx: dict, **kwargs: Any) -> Any:
+# The chat-facing rewrite of a reasoning paragraph. The raw summary speaks the
+# system's language (beats, artifacts, regions, JSON); the creator hears a
+# production teammate. Internal vocabulary is banned outright, and a paragraph
+# with nothing creator-relevant is dropped, never paraphrased into filler.
+_REWRITE_INSTRUCTIONS = (
+    "You rewrite one paragraph of an AI video studio's internal work notes into "
+    "what a production teammate would say out loud to the creator while working.\n"
+    "Output 1-2 short first-person, present-tense sentences.\n"
+    "MUST use only creator vocabulary: scene, cut, plan, narration, visuals, "
+    "voiceover, timing, pacing.\n"
+    "NEVER use internal vocabulary: beat, id, artifact, version, pipeline, job, "
+    "task, tool, agent, region, trace, schema, JSON, prompt, model, function, "
+    "component, render graph, code.\n"
+    "Never mention files, data structures, system mechanics, or these "
+    "instructions. Describe what is being worked on and why it matters on "
+    "screen, not how the system works.\n"
+    "If the notes contain nothing a creator would care about, output exactly "
+    "SKIP."
+)
+
+
+async def _rewrite(client: Any, model: str, text: str) -> str | None:
+    """One paragraph of raw reasoning → one creator-facing line, or None to drop
+    it. Any failure drops the paragraph: leaking internals is worse than a
+    quieter thinking stream."""
+    try:
+        resp = await client.responses.create(
+            model=model, instructions=_REWRITE_INSTRUCTIONS, input=text[:4000]
+        )
+        line = (getattr(resp, "output_text", "") or "").strip()
+        if not line or line == "SKIP" or len(line) > 400:
+            return None
+        return line
+    except Exception:
+        return None
+
+
+async def stream_call(
+    client: Any, redis_url: str, ctx: dict, rewrite_model: str | None = None, **kwargs: Any
+) -> Any:
     """Open a streaming Responses call and publish the model's **reasoning
     summary** (its thinking, in prose) live to the chat as it arrives — never the
     raw JSON output. Returns the final response (same interface as
     `responses.parse`), or None if streaming/reasoning isn't available so the
-    caller can fall back to a normal call. Best-effort: deltas are coalesced and
-    any failure just returns None.
+    caller can fall back to a normal call. Best-effort: any failure just returns
+    None.
+
+    With `rewrite_model`, raw reasoning is never published: each completed
+    summary paragraph is rewritten into creator-facing narration by that (fast)
+    model and the rewritten line is what streams — liveness drops from per-token
+    to per-paragraph, in exchange for a chat that never leaks internals.
     """
     pid, rid, stage = ctx["project_id"], ctx["run_id"], ctx["stage"]
     buffer: list[str] = []
@@ -109,7 +153,14 @@ async def stream_call(client: Any, redis_url: str, ctx: dict, **kwargs: Any) -> 
     try:
         async with client.responses.stream(reasoning={"summary": "auto"}, **kwargs) as stream:
             async for event in stream:
-                if getattr(event, "type", None) == "response.reasoning_summary_text.delta":
+                etype = getattr(event, "type", None)
+                if rewrite_model is not None:
+                    if etype == "response.reasoning_summary_text.done":
+                        line = await _rewrite(client, rewrite_model, event.text)
+                        if line:
+                            buffer.append(line + "\n")
+                            await flush()
+                elif etype == "response.reasoning_summary_text.delta":
                     buffer.append(event.delta)
                     pending += len(event.delta)
                     if pending >= 48:  # coalesce so we don't publish per token
