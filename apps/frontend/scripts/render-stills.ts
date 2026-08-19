@@ -48,6 +48,7 @@ async function main() {
           const aliases = {
             "@": path.join(root, "src"),
             "@decode/animation-api": path.join(root, "src", "decode", "animation-api.tsx"),
+        "@decode/motion-api": path.join(root, "src", "decode", "motion-api", "index.ts"),
           };
           return {
             ...config,
