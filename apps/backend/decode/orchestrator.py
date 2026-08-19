@@ -622,10 +622,17 @@ class ModelOrchestrator:
         # The recent conversation, as real turns — without it every message is
         # a stranger and the model cannot carry an ask across two replies
         # ("who's it for?" → "beginners") or notice it already asked.
+        # Responses API input typing: assistant turns carry output_text,
+        # user turns carry input_text — mixing them is a 400.
         input_items: list = [
             {
                 "role": "assistant" if item.get("who") == "decode" else "user",
-                "content": [{"type": "input_text", "text": item.get("text", "")[:2000]}],
+                "content": [
+                    {
+                        "type": "output_text" if item.get("who") == "decode" else "input_text",
+                        "text": item.get("text", "")[:2000],
+                    }
+                ],
             }
             for item in (history or [])[-12:]
             if item.get("text")
