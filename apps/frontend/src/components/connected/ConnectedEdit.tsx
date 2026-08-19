@@ -40,7 +40,16 @@ const threadKey = (projectId: string) => `decode:thread:${projectId}`;
 function loadThread(projectId: string): ThreadMessage[] {
   try {
     const parsed: unknown = JSON.parse(localStorage.getItem(threadKey(projectId)) ?? "[]");
-    return Array.isArray(parsed) ? (parsed as ThreadMessage[]) : [];
+    if (!Array.isArray(parsed)) return [];
+    // Restored messages get their own id space. Fresh messages use the
+    // in-memory counter, which restarts every load — keeping the saved
+    // "m_12" would collide with the next session's twelfth message, and
+    // duplicate keys make AnimatePresence drop or mangle children (the
+    // collapsed proposal card was this bug).
+    return (parsed as ThreadMessage[]).map((message, index) => ({
+      ...message,
+      id: `restored_${index}`,
+    }));
   } catch {
     return [];
   }
