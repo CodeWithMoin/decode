@@ -67,6 +67,10 @@ def build_instructions(*, visual_direction: dict, beats: list[dict]) -> str:
     label={{<Label .../>}}>{{subject}}</Anchor>`. Never absolutely position a label next to a thing.
   - `Label` — EVERY standalone piece of text: `text`, `size`, and a `maxWidth`; it measures itself
     and steps its size down to fit, so text cannot overflow or break mid-word.
+  - `Connector` — the relationship BETWEEN two elements: put both as its two children and it draws
+    the line (optional `arrow`, `dashed`) and owns the between-label:
+    `<Connector direction="row" arrow label={{<Label .../>}}>{{a}}{{b}}</Connector>`. Never float
+    free text or a hand-drawn line between two elements.
   Absolute pixel positioning is allowed only INSIDE an `<svg>` diagram you draw. Do not use the
   legacy helpers `DesignCanvas`, `defineLayout`, `LayoutBox`, or `LayoutText`.
 - Drive every changing value from `useCurrentFrame()`. Use `useVideoConfig()` for fps and

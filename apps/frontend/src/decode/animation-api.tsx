@@ -253,6 +253,117 @@ export function Anchor({
 }
 
 /**
+ * The relationship BETWEEN two elements: a line (optionally arrowed) that fills
+ * the space separating exactly two children, with an optional label owned by
+ * the connector itself. The label renders inside the connecting segment — the
+ * one place a between-caption can never cross either subject. The segment
+ * flexes to absorb whatever space the layout gives the pair, so the connector
+ * is also the correct way to say "these two things relate across this gap".
+ */
+export function Connector({
+  direction = "row",
+  label,
+  gap = 12,
+  minLength = 64,
+  color = "currentColor",
+  thickness = 2,
+  dashed,
+  arrow,
+  align = "center",
+  style,
+  children,
+}: {
+  direction?: "row" | "column";
+  label?: ReactNode;
+  gap?: number;
+  minLength?: number;
+  color?: string;
+  thickness?: number;
+  dashed?: boolean;
+  arrow?: boolean;
+  align?: CSSProperties["alignItems"];
+  style?: CSSProperties;
+  children?: ReactNode;
+}) {
+  const horizontal = direction === "row";
+  const items = Array.isArray(children) ? children : [children];
+  const line = (
+    <div
+      style={{
+        flex: 1,
+        ...(horizontal
+          ? { height: thickness, minWidth: minLength }
+          : { width: thickness, minHeight: minLength }),
+        ...(dashed
+          ? {
+              backgroundImage: horizontal
+                ? `repeating-linear-gradient(90deg, ${color} 0 8px, transparent 8px 16px)`
+                : `repeating-linear-gradient(180deg, ${color} 0 8px, transparent 8px 16px)`,
+            }
+          : { backgroundColor: color }),
+      }}
+    />
+  );
+  const head = arrow ? (
+    <div
+      style={{
+        width: 0,
+        height: 0,
+        ...(horizontal
+          ? {
+              borderTop: "6px solid transparent",
+              borderBottom: "6px solid transparent",
+              borderLeft: `9px solid ${color}`,
+            }
+          : {
+              borderLeft: "6px solid transparent",
+              borderRight: "6px solid transparent",
+              borderTop: `9px solid ${color}`,
+            }),
+      }}
+    />
+  ) : null;
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: direction,
+        alignItems: align,
+        gap,
+        ...style,
+      }}
+    >
+      {items[0]}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: horizontal ? "column" : "row",
+          alignItems: "center",
+          gap: 8,
+          ...(horizontal ? { minWidth: minLength } : { minHeight: minLength }),
+        }}
+      >
+        {label}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: direction,
+            alignItems: "center",
+            alignSelf: "stretch",
+            flex: 1,
+          }}
+        >
+          {line}
+          {head}
+        </div>
+      </div>
+      {items[1]}
+    </div>
+  );
+}
+
+/**
  * All standalone text. Measures itself with the renderer's own text metrics:
  * given `maxWidth`, the size steps down until the line fits, so text never
  * overflows its box or breaks mid-word. Size is floored to an integer — canvas

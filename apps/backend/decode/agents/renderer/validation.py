@@ -271,6 +271,7 @@ _OPAQUE_ROOT = re.compile(
     r"<AbsoluteFill[^>]{0,400}?\b(?:backgroundColor|background)\s*:", re.DOTALL
 )
 _HEX = re.compile(r"#[0-9a-fA-F]{6}\b")
+_PRIMITIVES = re.compile(r"<(?:Stack|Row|Anchor|Label|Connector)\b")
 
 
 def _hue_sat(hex_color: str) -> tuple[float, float]:
@@ -293,6 +294,16 @@ def _hue_sat(hex_color: str) -> tuple[float, float]:
 def _validate_stage_and_palette(scene: SceneModule, palette: dict | None) -> list[dict[str, str]]:
     source = scene.component_source or ""
     found: list[dict[str, str]] = []
+    if not _PRIMITIVES.search(source):
+        found.append(
+            _violation(
+                "no_primitives",
+                f"{scene.beat_id}: compose placement with the relational layout primitives "
+                "(Stack/Row/Anchor/Label/Connector from @decode/animation-api) instead of "
+                "freehand coordinates — sibling groups in Stack/Row, captions in Anchor, "
+                "between-labels in Connector, standalone text in Label.",
+            )
+        )
     first_fill = source.find("<AbsoluteFill")
     if first_fill != -1 and _OPAQUE_ROOT.search(source, first_fill, first_fill + 500):
         found.append(

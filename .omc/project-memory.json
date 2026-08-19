@@ -126,6 +126,18 @@
       "type": "file"
     },
     {
+      "path": "apps/frontend/src/decode/animation-api.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1787127374273,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/decode/agents/renderer/validation.py",
+      "accessCount": 2,
+      "lastAccessed": 1787127482006,
+      "type": "file"
+    },
+    {
       "path": "apps/backend/decode/orchestrator.py",
       "accessCount": 1,
       "lastAccessed": 1787063205491,
@@ -192,9 +204,27 @@
       "type": "file"
     },
     {
-      "path": "apps/frontend/src/decode/animation-api.tsx",
+      "path": "apps/frontend/.verify/beat-01_f297.png",
       "accessCount": 1,
-      "lastAccessed": 1787078394946,
+      "lastAccessed": 1787078727828,
+      "type": "file"
+    },
+    {
+      "path": "apps/frontend/.verify/beat-02_f363.png",
+      "accessCount": 1,
+      "lastAccessed": 1787078728544,
+      "type": "file"
+    },
+    {
+      "path": "apps/frontend/.verify/beat-03_f540.png",
+      "accessCount": 1,
+      "lastAccessed": 1787078729226,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/decode/agents/renderer/prompt.py",
+      "accessCount": 1,
+      "lastAccessed": 1787127383448,
       "type": "file"
     }
   ],

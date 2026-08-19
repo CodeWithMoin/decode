@@ -62,10 +62,10 @@ html = f"""<title>Bloom Filter Contact Sheet</title>
 </style>
 <div class="lede">
   <h1>Bloom Filter Contact Sheet</h1>
-  <p>Nine frames from three scenes generated under the enforced gate: transparent roots over the
-     one host stage, and every color from the same eight-hex project palette — cyan for the active
-     thing, green for a set bit, red for a definite no, amber for a probable yes.</p>
-  <span class="verdict">PASS · one palette · no furniture · no overlaps (one edge nit in beat-02)</span>
+  <p>Nine frames generated under the Layer-1 placement contract: geometry stated as relationships
+     (Stack/Row/Anchor/Label), so sibling collisions, caption drift and mid-word text breaks are
+     structurally impossible — plus the enforced palette and transparent roots from the earlier gate.</p>
+  <span class="verdict">LAYER 1 · relational placement · one residual: connector labels (beat-01)</span>
 </div>
 {rows}"""
 
