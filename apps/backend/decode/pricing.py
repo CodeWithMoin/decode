@@ -39,6 +39,9 @@ RATES: dict[str, tuple[str, str]] = {
     "gpt-5.6-luna": ("0.20", "1.20"),
     "gpt-5.6-terra": ("2.00", "12.00"),
     "gpt-5.6-sol": ("5.00", "30.00"),
+    # The orchestrator's chat model, so room turns count toward the daily
+    # dollar limit instead of recording as unpriced.
+    "gpt-5.4-mini": ("0.75", "4.50"),
 }
 
 
