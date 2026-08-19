@@ -57,9 +57,9 @@ export function WaitlistLanding() {
           </span>
         </h1>
         <p className="mt-7 max-w-[52ch] text-[clamp(15px,1.4vw,17px)] leading-[1.7] text-t5">
-          Type a question — “How does backpropagation work?” — and Decode builds an
-          animated video explanation: a planned lesson, narrated and drawn to teach,
-          not a wall of text to skim.
+          Type a question like “How does backpropagation work?” and Decode makes you
+          an animated video that walks through it properly, with narration and
+          visuals built to teach. Not a wall of text to skim.
         </p>
         <WaitlistForm id="hero" className="mt-9" />
 
@@ -110,7 +110,7 @@ export function WaitlistLanding() {
             </p>
           </div>
           <figcaption className="mt-3 text-center font-mono text-[10px] tracking-[0.12em] text-t8 uppercase">
-            Narration is the clock — every visual lands on the words that name it
+            Narration is the clock. Every visual lands on the words that name it.
           </figcaption>
         </figure>
       </section>
@@ -126,17 +126,17 @@ export function WaitlistLanding() {
             {
               step: "01",
               name: "Ask",
-              body: "Type a question — “How does backpropagation work?” Or bring a paper, a doc, a chapter. That one message is the whole brief.",
+              body: "Type your question. Or drop in a paper, a doc, the chapter you’re stuck on. One message is all Decode needs.",
             },
             {
               step: "02",
               name: "Watch it build",
-              body: "Decode plans the lesson, writes the narration, and animates the scenes — narrating each step as it works. No spinner, no black box.",
+              body: "Decode plans the lesson, writes the narration, then animates each scene. It tells you what it’s doing while it works, so you’re never staring at a spinner.",
             },
             {
               step: "03",
               name: "Watch it teach",
-              body: "A few minutes later: an animated film with a through-line, timed to its own narration — not a summary that gestures at the idea.",
+              body: "A few minutes later you have a film that actually explains the thing, start to finish, timed to its own narration.",
             },
           ].map((item) => (
             <div key={item.step}>
@@ -164,15 +164,15 @@ export function WaitlistLanding() {
           {[
             {
               name: "Planned like a lesson",
-              body: "Decode decides what you need to see first, what builds on it, and where the idea clicks — a through-line from the first scene to the last, not paragraphs read aloud.",
+              body: "Decode works out what you need to see first and what builds on it, the way a good teacher would. The video has a through-line, not paragraphs read aloud over slides.",
             },
             {
               name: "Drawn to show the mechanism",
-              body: "Every scene animates the idea itself — the parts, the flow, the step where it clicks — not stock footage with a voice on top.",
+              body: "The scenes animate the idea itself: the parts, how they connect, the step where it finally makes sense. No stock footage with a voice on top.",
             },
             {
               name: "Timed by the narration",
-              body: "The voice is the clock. Every visual lands on the words that name it, so the film never drifts out of sync with its own teaching.",
+              body: "The voice is the clock. Every visual lands on the words that name it, so the film never drifts out of sync with what it’s saying.",
             },
           ].map((item) => (
             <div key={item.name}>
