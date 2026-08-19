@@ -39,6 +39,7 @@ from ..pricing import estimate_cost
 from ..schemas import SceneModule, SceneVisuals
 from .context import VisualizerContext, context_assembler
 from .pipeline import continue_chain, stage_for, stage_provider
+from .throttle import model_call_gate
 
 SCENE_TASK = "design_scene"
 ASSEMBLY_TASK = "assemble_scene_visuals"
@@ -282,7 +283,9 @@ async def _run_scene_task(task_id: str, run_id: str) -> dict:
     # discards the late result.
     designer = visualizer(get_settings())
     started = perf_counter()
-    async with asyncio.timeout(SCENE_GENERATION_TIMEOUT_SECONDS):
+    # Timeout applies to the wait for a slot too — a task queued behind a full
+    # gate must not outlive arq's job_timeout holding a RUNNING row.
+    async with asyncio.timeout(SCENE_GENERATION_TIMEOUT_SECONDS), model_call_gate():
         if repair:
             # This attempt exists because the last one ALMOST passed: repair
             # that source against the recorded violations rather than rolling

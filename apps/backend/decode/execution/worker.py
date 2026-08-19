@@ -23,6 +23,7 @@ from . import streaming
 from .context import context_assembler
 from .graph import execute_task, is_graph_job, start_scene_graph
 from .pipeline import continue_chain, run_department, run_evaluation, stage_for, stage_provider
+from .throttle import model_call_gate
 
 
 async def execute_run(_ctx: dict | None, run_id: str) -> dict:
@@ -134,7 +135,8 @@ async def execute_run(_ctx: dict | None, run_id: str) -> dict:
             # output live to the chat (best-effort; see execution/streaming.py).
             _stream_token = streaming.enter(job.project_id, run.id, stage.progress_step)
             try:
-                department, artifact_payload = await run_department(settings, context)
+                async with model_call_gate():
+                    department, artifact_payload = await run_department(settings, context)
             finally:
                 streaming.leave(_stream_token)
             generation_ms = int((perf_counter() - started) * 1000)

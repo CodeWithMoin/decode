@@ -18,13 +18,14 @@ import json
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import get_settings
-from .db import get_session
+from .db import get_session, utcnow
 from .domain import emit
-from .models import Artifact, ArtifactType, ArtifactVersion
+from .models import Artifact, ArtifactType, ArtifactVersion, ProjectEvent
+from .problems import AppProblem
 from .orchestrator import SceneRef, build_orchestrator
 from .projects.router import project_or_404
 from .schemas import Script, TeachingPlan
@@ -150,6 +151,26 @@ async def orchestrator_turn(
     mutates here; a proposal runs only on Apply, through its own tool endpoint.
     """
     await project_or_404(session, project_id)
+    # Chat is one model call per turn; the durable chat.turn.started events are
+    # already the per-project record of spend, so they are also the meter.
+    day_start = utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    turns_today = await session.scalar(
+        select(func.count())
+        .select_from(ProjectEvent)
+        .where(
+            ProjectEvent.project_id == project_id,
+            ProjectEvent.type == "chat.turn.started",
+            ProjectEvent.occurred_at >= day_start,
+        )
+    )
+    if (turns_today or 0) >= get_settings().daily_project_chat_budget:
+        raise AppProblem(
+            429,
+            "daily_chat_budget_exhausted",
+            "The room has hit today’s conversation budget for this project. It resets "
+            "at midnight — or raise DECODE_DAILY_PROJECT_CHAT_BUDGET if this is expected.",
+            retryable=True,
+        )
     scenes = await _current_scenes(session, project_id)
     steps: asyncio.Queue = asyncio.Queue()
     observer = _ProjectObserver(session, project_id, steps)

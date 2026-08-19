@@ -213,6 +213,12 @@
       "accessCount": 1,
       "lastAccessed": 1787137412343,
       "type": "file"
+    },
+    {
+      "path": "tests/test_rate_limits.py",
+      "accessCount": 1,
+      "lastAccessed": 1787145180501,
+      "type": "file"
     }
   ],
   "userDirectives": []

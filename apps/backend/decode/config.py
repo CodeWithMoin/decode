@@ -68,6 +68,13 @@ class Settings(BaseSettings):
     render_node_bin: str = "npx"
     render_timeout_seconds: int = 300
     render_fps: int = 24  # HyperFrames export frame rate (matches DECODE_FPS)
+    # Cost circuit-breakers. Jobs are the unit of spend (one job ≈ one
+    # model-backed stage; a build is ~5, each with parallel scene calls), chat
+    # turns are one model call each, and the concurrency cap bounds how many
+    # provider calls the worker holds open at once across all projects.
+    daily_project_job_budget: int = 60
+    daily_project_chat_budget: int = 200
+    max_concurrent_model_calls: int = 4
 
     @model_validator(mode="after")
     def require_private_production_boundary(self):

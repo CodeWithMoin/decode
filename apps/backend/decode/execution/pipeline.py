@@ -36,7 +36,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..agents.contracts import Department
 from ..agents.registry import architect, author, evaluator, intake, visualizer, voice
 from ..agents.skills import Manifest
-from ..config import Settings
+from ..config import Settings, get_settings
 from ..db import utcnow
 from ..domain import canonical_hash, emit
 from ..models import (
@@ -55,6 +55,7 @@ from ..models import (
     UsageRecord,
 )
 from ..pricing import estimate_cost
+from ..problems import AppProblem
 from ..schemas import ProductionBrief, TeachingPlan
 from .context import (
     ArchitectContext,
@@ -379,17 +380,54 @@ async def create_job(
     inputs: list[tuple[str, str]],
     manifest: dict,
     message: str,
+    succeeding_job_id: str | None = None,
 ) -> tuple[Job, Run]:
     """Record a request for one stage's output, and start its first attempt.
 
     `inputs` is `(version_id, role)` pairs. They are recorded on the job as well
     as in the run manifest because they answer different questions later: what
     the job was asked to read, versus what the run was given.
+
+    `succeeding_job_id` marks the auto-chain path: the finishing stage is still
+    RUNNING in this same transaction when it starts the next one, so it is
+    exempt from the one-active-build check without weakening it for creators.
     """
     stage = stage_for(kind)
     roles = {role for _, role in inputs}
     if roles != set(stage.consumes):
         raise ValueError(f"{kind} consumes {sorted(stage.consumes)}, but was given {sorted(roles)}")
+
+    active = await session.scalar(
+        select(Job).where(
+            Job.project_id == project_id,
+            Job.status.in_([ExecutionStatus.QUEUED, ExecutionStatus.RUNNING]),
+            Job.id != (succeeding_job_id or ""),
+        )
+    )
+    if active is not None:
+        raise AppProblem(
+            409,
+            "build_in_progress",
+            "One production step is already running for this project. Direct the change "
+            "again once it finishes, or cancel it first.",
+            active_job_id=active.id,
+        )
+
+    settings = get_settings()
+    day_start = utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    spent_today = await session.scalar(
+        select(func.count())
+        .select_from(Job)
+        .where(Job.project_id == project_id, Job.created_at >= day_start)
+    )
+    if (spent_today or 0) >= settings.daily_project_job_budget:
+        raise AppProblem(
+            429,
+            "daily_budget_exhausted",
+            "This project has used its production budget for today. It resets at "
+            "midnight — or raise DECODE_DAILY_PROJECT_JOB_BUDGET if this is expected.",
+            retryable=True,
+        )
 
     job = Job(project_id=project_id, kind=kind)
     session.add(job)
@@ -504,5 +542,6 @@ async def continue_chain(
             "inputs": [{"version_id": v, "role": r} for v, r in inputs],
         },
         message=f"{next_stage.label} queued automatically",
+        succeeding_job_id=job.id,
     )
     return next_job
