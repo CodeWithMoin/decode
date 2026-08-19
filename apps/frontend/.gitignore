@@ -41,4 +41,4 @@ yarn-error.log*
 next-env.d.ts
 
 # oh my claude
-.omc
+.omc.data/
