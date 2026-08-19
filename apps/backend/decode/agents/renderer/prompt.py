@@ -90,6 +90,12 @@ def build_instructions(*, visual_direction: dict, beats: list[dict]) -> str:
   multi-line left-aligned at line-height 1.35, wrapped near 32 characters.
 - Type floors: support text 20px, labels 24px, focal words/numbers 64px+; the focal element is
   >= 2.5x its support text. Leave real negative space — roughly a third of the frame stays empty.
+- Scale floor: the composition must FILL the stage, not huddle in a corner of it. At every frame,
+  the occupied extent of the scene's content spans at least 60% of the frame's width and 50% of its
+  height. An `<svg>` diagram that is the dominant visual is at least 1200x650 design px with its
+  shapes sized to use that area; small-multiple layouts spread across the frame rather than
+  clustering. Negative space frames the composition around its edges — it is never a large empty
+  region beside a miniature drawing.
 - Elements must never overlap — at any frame, including while one element enters as another exits.
   Give every element its own region of the frame and keep entering elements out of a region until
   its previous occupant has fully left. A moving element keeps >= 24px clearance from everything
