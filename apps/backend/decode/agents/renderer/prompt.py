@@ -79,9 +79,21 @@ def build_instructions(*, visual_direction: dict, beats: list[dict]) -> str:
   randomness.
 - Use inline styles. Keep important content comfortably inside the frame and avoid collisions,
   clipping, tiny text, empty labelled boxes, and decorative dashboard clutter.
+- Layout numbers (design pixels on the 1920x1080 canvas; full spec: docs/SCENE-DESIGN-RULES.md):
+  keep all text and focal objects inside a 96px safe margin; sibling surfaces >= 48px apart;
+  distinct groups >= 96px apart; arrows start and end 8px off a surface's edge, never under it;
+  a label sits 12-16px from the shape it names.
+- Cards of the same role are a family: size every card to fit the family's LONGEST string — same
+  width and height, so siblings align. Padding inside a card: horizontal max(24px, 1.25x font
+  size), vertical max(16px, 0.75x font size); text never touches a border — if the longest string
+  would force it, shrink the whole family's font, not one card. One-line labels centered,
+  multi-line left-aligned at line-height 1.35, wrapped near 32 characters.
+- Type floors: support text 20px, labels 24px, focal words/numbers 64px+; the focal element is
+  >= 2.5x its support text. Leave real negative space — roughly a third of the frame stays empty.
 - Elements must never overlap — at any frame, including while one element enters as another exits.
   Give every element its own region of the frame and keep entering elements out of a region until
-  its previous occupant has fully left.
+  its previous occupant has fully left. A moving element keeps >= 24px clearance from everything
+  else along its entire path; connectors may pass near surfaces but never cross text.
 - No slide furniture: no title-and-subheading block parked in a corner, no page or step counters
   ("1/3", "step 2 of 5", progress dots), no footer strips, no bullet lists. The narration names the
   beat — on-screen words are short labels inside the picture, never headings above it. A large word

@@ -91,8 +91,8 @@
     },
     {
       "path": "apps/frontend/src/components/connected/ConnectedEdit.tsx",
-      "accessCount": 10,
-      "lastAccessed": 1787078114969,
+      "accessCount": 5,
+      "lastAccessed": 1787071366379,
       "type": "file"
     },
     {
@@ -123,18 +123,6 @@
       "path": "apps/backend/decode/agents/_agent.py",
       "accessCount": 2,
       "lastAccessed": 1787071538955,
-      "type": "file"
-    },
-    {
-      "path": "apps/frontend/src/decode/animation-api.tsx",
-      "accessCount": 2,
-      "lastAccessed": 1787127374273,
-      "type": "file"
-    },
-    {
-      "path": "apps/backend/decode/agents/renderer/validation.py",
-      "accessCount": 2,
-      "lastAccessed": 1787127482006,
       "type": "file"
     },
     {
@@ -186,45 +174,9 @@
       "type": "file"
     },
     {
-      "path": "edit-workspace.png",
-      "accessCount": 1,
-      "lastAccessed": 1787076799004,
-      "type": "file"
-    },
-    {
-      "path": "final-edit.png",
-      "accessCount": 1,
-      "lastAccessed": 1787077728870,
-      "type": "file"
-    },
-    {
-      "path": "play-s1.png",
-      "accessCount": 1,
-      "lastAccessed": 1787077775170,
-      "type": "file"
-    },
-    {
-      "path": "apps/frontend/.verify/beat-01_f297.png",
-      "accessCount": 1,
-      "lastAccessed": 1787078727828,
-      "type": "file"
-    },
-    {
-      "path": "apps/frontend/.verify/beat-02_f363.png",
-      "accessCount": 1,
-      "lastAccessed": 1787078728544,
-      "type": "file"
-    },
-    {
-      "path": "apps/frontend/.verify/beat-03_f540.png",
-      "accessCount": 1,
-      "lastAccessed": 1787078729226,
-      "type": "file"
-    },
-    {
       "path": "apps/backend/decode/agents/renderer/prompt.py",
       "accessCount": 1,
-      "lastAccessed": 1787127383448,
+      "lastAccessed": 1787127822098,
       "type": "file"
     }
   ],
