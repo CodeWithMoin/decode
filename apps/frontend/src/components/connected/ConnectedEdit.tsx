@@ -82,6 +82,18 @@ async function saySubstance(projectId: string, event: ProjectEvent): Promise<boo
       return true;
     }
     if (event.type !== "artifact.ready_for_review") return false;
+    if (artifact === "scene_visuals") {
+      // The Motion Designer already explained its own cut — post its words,
+      // not a canned line. The terse fallback still covers a fetch failure.
+      const studio = await decodeApi.getStudio(projectId);
+      const ref = studio.artifacts.find((a) => a.artifact_type === "scene_visuals");
+      if (!ref) return false;
+      const versions = await decodeApi.getSceneVisuals(projectId, ref.artifact_id);
+      const rationale = versions.items[0]?.payload?.rationale?.trim();
+      if (!rationale) return false;
+      say(rationale, "The cut");
+      return true;
+    }
     if (artifact === "production_brief") {
       const brief = (await decodeApi.getBrief(projectId)).latest_version.payload;
       const parts = [
