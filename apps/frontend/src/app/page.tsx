@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { WaitlistLanding } from "@/components/landing/WaitlistLanding";
 
 export const metadata: Metadata = {
-  title: "Decode — understand anything. Not summarised, taught.",
+  title: "Decode — ask a question, get a video that teaches",
   description:
-    "Type a topic or bring a paper, and Decode builds the whole animated lesson — the plan, the narration, the scenes. You direct it, scene by scene, in plain language.",
+    "Type a question and Decode builds an animated video explanation — a planned lesson, narrated and drawn to teach, not a wall of text to skim.",
 };
 
 export default function Page() {

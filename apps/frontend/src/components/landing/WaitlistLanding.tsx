@@ -37,26 +37,29 @@ export function WaitlistLanding() {
           style={{ fontSize: "clamp(46px, 8.2vw, 104px)" }}
         >
           <span className="landing-word" style={{ animationDelay: "0ms" }}>
-            Understand
+            Ask
           </span>{" "}
           <span className="landing-word" style={{ animationDelay: "55ms" }}>
-            anything.
+            a
+          </span>{" "}
+          <span className="landing-word" style={{ animationDelay: "110ms" }}>
+            question.
           </span>
           <br />
-          <span className="landing-word text-t9" style={{ animationDelay: "110ms" }}>
-            Not summarised —
+          <span className="landing-word text-t9" style={{ animationDelay: "165ms" }}>
+            Get a video that
           </span>{" "}
           <span
             className="landing-word font-hand text-accent"
-            style={{ animationDelay: "165ms", fontSize: "0.94em" }}
+            style={{ animationDelay: "220ms", fontSize: "0.94em" }}
           >
-            taught.
+            teaches.
           </span>
         </h1>
         <p className="mt-7 max-w-[52ch] text-[clamp(15px,1.4vw,17px)] leading-[1.7] text-t5">
-          Type a topic — or bring a paper — and Decode builds the whole animated lesson:
-          the plan, the narration, the scenes. Then you direct it, scene by scene, in
-          plain language.
+          Type a question — “How does backpropagation work?” — and Decode builds an
+          animated video explanation: a planned lesson, narrated and drawn to teach,
+          not a wall of text to skim.
         </p>
         <WaitlistForm id="hero" className="mt-9" />
 
@@ -115,7 +118,7 @@ export function WaitlistLanding() {
       {/* ------------------------------------------------ three decisions */}
       <section className="mx-auto w-full max-w-[1120px] px-6 pt-[clamp(72px,12vh,128px)]">
         <h2 className="font-serif tracking-[-0.015em]" style={{ fontSize: "clamp(34px,5vw,56px)" }}>
-          One message,
+          One question,
           <span className="text-t9"> and Decode does the rest.</span>
         </h2>
         <div className="mt-10 grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-x-12 gap-y-8 border-t border-line pt-8">
@@ -123,17 +126,17 @@ export function WaitlistLanding() {
             {
               step: "01",
               name: "Ask",
-              body: "Type a topic — “Explain backpropagation.” Or drop a paper, a doc, a chapter. Your first message is the brief.",
+              body: "Type a question — “How does backpropagation work?” Or bring a paper, a doc, a chapter. That one message is the whole brief.",
             },
             {
               step: "02",
-              name: "Direct",
-              body: "Decode drafts the whole cut — plan, narration, animated scenes. You say what’s wrong, in plain language, and it proposes the change before anything moves.",
+              name: "Watch it build",
+              body: "Decode plans the lesson, writes the narration, and animates the scenes — narrating each step as it works. No spinner, no black box.",
             },
             {
               step: "03",
-              name: "Export",
-              body: "Nothing renders until you say so. Leave with a film that teaches, not a summary that gestures.",
+              name: "Watch it teach",
+              body: "A few minutes later: an animated film with a through-line, timed to its own narration — not a summary that gestures at the idea.",
             },
           ].map((item) => (
             <div key={item.step}>
@@ -151,66 +154,25 @@ export function WaitlistLanding() {
         </div>
       </section>
 
-      {/* ------------------------------------------------ scoped regeneration */}
-      <section className="mx-auto w-full max-w-[1120px] px-6 pt-[clamp(72px,12vh,128px)]">
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] items-center gap-12">
-          <div>
-            <h2
-              className="font-serif tracking-[-0.015em]"
-              style={{ fontSize: "clamp(34px,5vw,56px)" }}
-            >
-              Change one scene,
-              <span className="text-t9"> and only that scene changes.</span>
-            </h2>
-            <p className="mt-6 max-w-[46ch] text-[15px] leading-[1.7] text-t5">
-              Direct a scene — “make the midpoint step slower, and show the discarded
-              half fading” — and Decode rebuilds exactly that scene. The narration,
-              the plan, and every other scene stay untouched. Your approvals never
-              reset.
-            </p>
-          </div>
-          <div className="rounded-[20px] border border-line bg-sunken p-5">
-            <div className="rounded-[12px] bg-white px-4 py-3 text-[13px] leading-[1.6] text-ink-2 shadow-[0_1px_2px_rgb(20_20_20/0.05)]">
-              Make scene 5 slower — hold on the midpoint before the half fades.
-            </div>
-            <div className="mt-4 grid grid-cols-8 gap-1.5" aria-hidden>
-              {Array.from({ length: 8 }, (_, index) => (
-                <div
-                  key={index}
-                  className={
-                    index === 4
-                      ? "h-10 rounded-[6px] border border-accent bg-accent-card"
-                      : "h-10 rounded-[6px] border border-line bg-sunken-3"
-                  }
-                />
-              ))}
-            </div>
-            <p className="mt-3 font-mono text-[10px] tracking-[0.1em] text-t7 uppercase">
-              Scene 5 rebuilt · 7 scenes untouched
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* ------------------------------------------------ creative software */}
+      {/* ------------------------------------------------ a lesson, not a summary */}
       <section className="mx-auto w-full max-w-[1120px] px-6 pt-[clamp(72px,12vh,128px)]">
         <h2 className="font-serif tracking-[-0.015em]" style={{ fontSize: "clamp(34px,5vw,56px)" }}>
-          Built like creative software.
-          <span className="text-t9"> Not like a chatbot.</span>
+          A film that teaches.
+          <span className="text-t9"> Not a chatbot that talks.</span>
         </h2>
         <div className="mt-10 grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-x-12 gap-y-8 border-t border-line pt-8">
           {[
             {
-              name: "Proposals, not surprises",
-              body: "A request never silently changes your project. Decode names what changes and what stays, and acts only when you apply it.",
+              name: "Planned like a lesson",
+              body: "Decode decides what you need to see first, what builds on it, and where the idea clicks — a through-line from the first scene to the last, not paragraphs read aloud.",
             },
             {
-              name: "Receipts for every change",
-              body: "Every applied change posts what was done and why — first person, past tense. You can always read how the film got this way.",
+              name: "Drawn to show the mechanism",
+              body: "Every scene animates the idea itself — the parts, the flow, the step where it clicks — not stock footage with a voice on top.",
             },
             {
               name: "Timed by the narration",
-              body: "The voice is the clock. Every visual event lands on the words that name it, so the film never drifts out of sync with its own teaching.",
+              body: "The voice is the clock. Every visual lands on the words that name it, so the film never drifts out of sync with its own teaching.",
             },
           ].map((item) => (
             <div key={item.name}>
@@ -227,12 +189,12 @@ export function WaitlistLanding() {
       <section className="mx-auto w-full max-w-[1120px] px-6 pb-[clamp(72px,12vh,120px)] pt-[clamp(80px,14vh,144px)]">
         <div className="border-t border-line pt-[clamp(48px,8vh,80px)] text-center">
           <h2 className="font-serif tracking-[-0.015em]" style={{ fontSize: "clamp(34px,5vw,56px)" }}>
-            Bring a topic.
+            Bring a question.
             <span className="text-t9"> Leave with a film.</span>
           </h2>
           <WaitlistForm id="footer" className="mx-auto mt-8 justify-center" />
           <p className="mt-14 font-mono text-[10px] tracking-[0.14em] text-t8 uppercase">
-            Decode — an AI production studio you direct
+            Decode — ask a question, get a video explanation
           </p>
         </div>
       </section>
@@ -280,8 +242,12 @@ function WaitlistForm({ id, className }: { id: string; className?: string }) {
   }
 
   return (
-    <form onSubmit={(event) => void submit(event)} className={className} noValidate>
-      <div className="flex w-full max-w-[440px] flex-wrap items-center gap-2.5">
+    <form onSubmit={(event) => void submit(event)} className={className}>
+      <div
+        className={`flex w-full max-w-[440px] flex-wrap items-center gap-2.5 ${
+          className?.includes("justify-center") ? "mx-auto" : ""
+        }`}
+      >
         <label htmlFor={`waitlist-${id}`} className="sr-only">
           Email address
         </label>
@@ -300,7 +266,7 @@ function WaitlistForm({ id, className }: { id: string; className?: string }) {
         />
         <button
           type="submit"
-          disabled={state === "sending" || !email.trim()}
+          disabled={state === "sending"}
           className="h-[46px] rounded-[12px] px-5 text-[14px] font-semibold text-white transition-opacity disabled:opacity-50"
           style={{
             background: "linear-gradient(180deg, var(--color-accent-top), var(--color-accent))",
