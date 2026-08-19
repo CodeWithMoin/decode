@@ -41,7 +41,8 @@ export function Choreography({
   children,
 }: {
   script: ChoreographyVerb[];
-  words: WordTimestamp[];
+  /** Optional until the voice stage lands; the runtime degrades to t=0. */
+  words?: WordTimestamp[];
   accent?: string;
   children?: ReactNode;
 }) {

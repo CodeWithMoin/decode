@@ -63,6 +63,9 @@ function saveThread(projectId: string, thread: ThreadMessage[]) {
     .filter((m) => m.text.trim())
     .map(({ streaming: _streaming, ...m }) => m)
     .slice(-200);
+  // Never let a transient store reset (navigation swaps, prototype screens
+  // sharing the store) wipe a project's saved history with an empty write.
+  if (settled.length === 0) return;
   try {
     localStorage.setItem(threadKey(projectId), JSON.stringify(settled));
   } catch {
@@ -306,6 +309,9 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
   const visualVersionId = useRef<string | null>(null);
   const lastEventId = useRef<string | undefined>(undefined);
   const seenEvents = useRef(new Set<string>());
+  // True when this browser holds no saved thread for the project: the event
+  // stream's history replay then rebuilds the conversation.
+  const hydrateFromEvents = useRef(false);
 
   const keyFor = (fingerprint: string) => {
     const existing = commandKeys.current.get(fingerprint);
@@ -511,6 +517,25 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
       if (event.id && seenEvents.current.has(event.id)) return;
       if (event.id) seenEvents.current.add(event.id);
       const occurredAt = Date.parse(event.occurred_at);
+      // History replay → conversation: only when this browser had no saved
+      // thread, so a device change or cleared storage never loses the chat.
+      if (
+        hydrateFromEvents.current &&
+        Number.isFinite(occurredAt) &&
+        occurredAt < liveSince &&
+        (event.type === "chat.turn.started" || event.type === "chat.replied")
+      ) {
+        const who = event.type === "chat.turn.started" ? ("u" as const) : ("p" as const);
+        const text = String(
+          (who === "u" ? event.data.message : event.data.reply) ?? "",
+        ).trim();
+        if (text) {
+          useStudio.setState((state) => ({
+            thread: [...state.thread, { id: `hist_${event.id}`, who, text }],
+          }));
+        }
+        return;
+      }
       if (Number.isFinite(occurredAt) && occurredAt >= liveSince) {
         void saySubstance(projectId, event).then((said) => {
           if (said) return;
@@ -711,7 +736,16 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
       connectedProjectId: projectId,
       directScene,
       startBuild,
-      ...(state.connectedProjectId === projectId ? {} : { thread: loadThread(projectId), sc: [] }),
+      ...(state.connectedProjectId === projectId
+        ? {}
+        : (() => {
+            const restored = loadThread(projectId);
+            // Nothing local (another browser, another device, cleared storage):
+            // the event stream's history replay rebuilds the conversation from
+            // the durable chat.turn.started / chat.replied records.
+            hydrateFromEvents.current = restored.length === 0;
+            return { thread: restored, sc: [] };
+          })()),
     }));
     return () =>
       useStudio.setState({
@@ -727,6 +761,9 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
   useEffect(
     () =>
       useStudio.subscribe((state, prev) => {
+        // Only this project's live thread may write to this project's key —
+        // a store change mid-navigation must not save under the wrong project.
+        if (state.connectedProjectId !== projectId) return;
         if (state.thread !== prev.thread) saveThread(projectId, state.thread);
       }),
     [projectId],

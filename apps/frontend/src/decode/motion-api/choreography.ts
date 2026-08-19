@@ -49,9 +49,12 @@ function verbWindow(
 /** Pure evaluation — exported so tests and tools can judge any instant. */
 export function choreographyStateAt(
   verbs: ChoreographyVerb[],
-  words: WordTimestamp[],
+  words: WordTimestamp[] | undefined,
   timeInSeconds: number,
 ): ChoreographyState {
+  // Before the voice stage lands a scene has a script but no word timings —
+  // the runtime must degrade to "everything at t=0", never crash the player.
+  const clock = words ?? [];
   const state: ChoreographyState = {};
   // The cast is layout-agnostic: the ids come from the verbs themselves (a
   // target or a connect/transform far end), so this runtime drives relational
@@ -78,7 +81,7 @@ export function choreographyStateAt(
   for (const verb of verbs) {
     const target = state[verb.targetId];
     if (!target) continue;
-    const { start, end } = verbWindow(verb, words);
+    const { start, end } = verbWindow(verb, clock);
     if (timeInSeconds < start) continue;
     const progress = settle(Math.min((timeInSeconds - start) / Math.max(end - start, 0.05), 1));
 
@@ -134,7 +137,7 @@ export function choreographyStateAt(
 /** Frame-clocked view of the pure evaluator. */
 export function useChoreography(
   verbs: ChoreographyVerb[],
-  wordTimestamps: WordTimestamp[],
+  wordTimestamps: WordTimestamp[] | undefined,
 ): ChoreographyState {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
