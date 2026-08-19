@@ -338,6 +338,9 @@ _NAMED_COLOR = re.compile(
     re.IGNORECASE,
 )
 _SVG_MIN_EXTENT = 400  # design px; below this a diagram is unreadable at 1080p
+_ABSOLUTE_POSITION = re.compile(r"\bposition\s*:\s*[\"']absolute[\"']")
+_TRANSLATE = re.compile(r"\btranslate([XY])\s*\(\s*\$?\{?\s*(-?\d+(?:\.\d+)?)(?:px)?\s*\)?", re.IGNORECASE)
+_SCALE = re.compile(r"\bscale\s*\(\s*(\d+(?:\.\d+)?)\s*\)")
 
 
 def _color_to_hue_sat(literal: str) -> tuple[float, float] | None:
@@ -530,6 +533,38 @@ def _validate_stage_and_palette(scene: SceneModule, palette: dict | None) -> lis
             )
         )
     prose = _SVG_BLOCK.sub("", source)
+    # Freehand absolute layout outside <svg> is the exact failure the
+    # primitives exist to prevent; one decorative <Label> must not license it.
+    # AbsoluteFill is the sanctioned frame anchor, so it doesn't count.
+    freehand = len(_ABSOLUTE_POSITION.findall(prose))
+    if freehand > 2:
+        found.append(
+            _violation(
+                "freehand_absolute",
+                f"{scene.beat_id}: {freehand} absolutely-positioned elements outside <svg>. "
+                "Place elements relationally with Stack/Row/Anchor/Connector; absolute "
+                "coordinates belong only inside an <svg> diagram.",
+            )
+        )
+    # A literal transform larger than the frame is an authored off-screen
+    # excursion the 800ms runtime sampler can miss entirely.
+    excursions = sorted(
+        {
+            f"translate{axis}({value})"
+            for axis, value in _TRANSLATE.findall(prose)
+            if abs(float(value)) > (1920 if axis.upper() == "X" else 1080)
+        }
+        | {f"scale({value})" for value in _SCALE.findall(prose) if float(value) > 2}
+    )
+    if excursions:
+        found.append(
+            _violation(
+                "transform_off_frame",
+                f"{scene.beat_id}: transform literals leave the frame: "
+                f"{', '.join(excursions)}. Animate within the frame — enter from just "
+                "outside an element's region, not from beyond the bezel.",
+            )
+        )
     small = sorted(
         {
             int(value)

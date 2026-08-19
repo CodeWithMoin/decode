@@ -208,6 +208,9 @@ export function Row({ gap, align = "center", justify, style, children }: GroupPr
         gap,
         alignItems: align,
         justifyContent: justify,
+        // A Row wider than its container must not silently grow past the
+        // frame; capping it makes the overflow visible (and inspectable).
+        maxWidth: "100%",
         ...style,
       }}
     >
@@ -346,6 +349,9 @@ export function Connector({
           alignItems: "center",
           gap: 8,
           ...(horizontal ? { minWidth: minLength } : { minHeight: minLength }),
+          // A long between-label must widen the line, not shove both
+          // subjects toward the frame edges.
+          ...(horizontal ? { maxWidth: minLength * 4 } : { maxHeight: minLength * 4 }),
         }}
       >
         {label}
@@ -395,7 +401,13 @@ export function Label({
   opacity?: number;
   style?: CSSProperties;
 }) {
+  // 20px is the readability floor (SCENE-DESIGN-RULES §4) — shrinking below it
+  // silently defeated the validation gate, which only sees the literal size
+  // prop. Text that cannot fit one line at the floor wraps to two lines
+  // instead of vanishing into fine print.
+  const FLOOR = 20;
   let fontSize = size;
+  let wrapped = false;
   if (maxWidth) {
     const fitted = fitText({
       text,
@@ -403,7 +415,20 @@ export function Label({
       fontFamily: family,
       fontWeight: String(weight),
     });
-    fontSize = Math.max(10, Math.min(size, Math.floor(fitted.fontSize)));
+    if (fitted.fontSize < FLOOR && text.includes(" ")) {
+      wrapped = true;
+      const twoLines = fitTextOnNLines({
+        text,
+        maxLines: 2,
+        maxBoxWidth: maxWidth,
+        fontFamily: family,
+        fontWeight: String(weight),
+        maxFontSize: size,
+      });
+      fontSize = Math.max(FLOOR, Math.min(size, Math.floor(twoLines.fontSize)));
+    } else {
+      fontSize = Math.max(FLOOR, Math.min(size, Math.floor(fitted.fontSize)));
+    }
   }
   return (
     <div
@@ -415,7 +440,8 @@ export function Label({
         fontFamily: family,
         letterSpacing,
         opacity,
-        whiteSpace: maxWidth ? "nowrap" : undefined,
+        whiteSpace: maxWidth && !wrapped ? "nowrap" : undefined,
+        ...(wrapped ? { maxWidth, lineHeight: 1.35, textAlign: "center" as const } : {}),
         ...style,
       }}
     >
@@ -1197,7 +1223,7 @@ export function inspectLayout(root: ParentNode): LayoutFinding[] {
 }
 
 export type SceneFinding = {
-  code: "off_frame" | "collision" | "low_coverage";
+  code: "off_frame" | "collision" | "low_coverage" | "text_overflow" | "outside_safe_margin";
   message: string;
 };
 
@@ -1234,6 +1260,8 @@ export function inspectScene(
     },
   );
 
+  // The 96px design-pixel safe margin, scaled to the rendered frame.
+  const margin = frame.width * (96 / 1920);
   let unionLeft = Infinity;
   let unionTop = Infinity;
   let unionRight = -Infinity;
@@ -1254,6 +1282,22 @@ export function inspectScene(
         code: "off_frame",
         message: `"${describeBox(el)}" extends outside the frame.`,
       });
+    } else if (
+      r.left < frame.left + margin - tolerance ||
+      r.top < frame.top + margin - tolerance ||
+      r.right > frame.right - margin + tolerance ||
+      r.bottom > frame.bottom - margin + tolerance
+    ) {
+      findings.push({
+        code: "outside_safe_margin",
+        message: `"${describeBox(el)}" sits inside the 96px safe margin.`,
+      });
+    }
+    if (el.dataset?.decodeBox === "text" && el.scrollWidth > el.clientWidth + 1) {
+      findings.push({
+        code: "text_overflow",
+        message: `"${describeBox(el)}" overflows its box.`,
+      });
     }
   }
 
@@ -1270,12 +1314,20 @@ export function inspectScene(
       if (first.contains(second) || second.contains(first)) continue;
       const r1 = first.getBoundingClientRect();
       const r2 = second.getBoundingClientRect();
+      // Independent groups owe each other 48 design px of separation
+      // (SCENE-DESIGN-RULES §2) — near-touching reads as a collision too.
+      const minGap = frame.width * (48 / 1920);
       const overlapX = Math.min(r1.right, r2.right) - Math.max(r1.left, r2.left);
       const overlapY = Math.min(r1.bottom, r2.bottom) - Math.max(r1.top, r2.top);
-      if (overlapX > tolerance && overlapY > tolerance) {
+      if (overlapX > -minGap && overlapY > -minGap && overlapX > tolerance && overlapY > tolerance) {
         findings.push({
           code: "collision",
           message: `"${describeBox(first)}" overlaps "${describeBox(second)}".`,
+        });
+      } else if (overlapX > -minGap && overlapY > -minGap) {
+        findings.push({
+          code: "collision",
+          message: `"${describeBox(first)}" and "${describeBox(second)}" are closer than the 48px minimum gap.`,
         });
       }
     }
