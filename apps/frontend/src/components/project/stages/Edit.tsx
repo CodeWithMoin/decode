@@ -4,6 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Inspector } from "@/components/project/Inspector";
 import { Timeline } from "@/components/project/timeline/Timeline";
 import { DecodePlayer } from "@/components/player/DecodePlayer";
+import { DECODE_HEIGHT, DECODE_WIDTH } from "@/components/player/DecodeComposition";
+
+const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a);
+const previewRatio = `${DECODE_WIDTH / gcd(DECODE_WIDTH, DECODE_HEIGHT)}:${DECODE_HEIGHT / gcd(DECODE_WIDTH, DECODE_HEIGHT)}`;
 import { PlayerRefProvider } from "@/components/player/player-ref";
 import { fmt, num } from "@/lib/derive";
 import { useStudio } from "@/store/studio";
@@ -170,14 +174,17 @@ export function Edit({
           </div>
           <div className="edit-preview-field flex min-h-[240px] min-w-0 flex-1 flex-col px-4 pt-4 pb-3 sm:px-6 lg:min-h-0">
             <div className="nle-preview-wrap flex min-h-0 min-w-0 flex-1 items-center justify-center">
-              <div className="nle-preview-frame relative z-10 max-h-full max-w-full overflow-hidden rounded-[12px] border border-[var(--nle-line-strong)] bg-canvas shadow-canvas">
+              <div
+                className="nle-preview-frame relative z-10 max-h-full max-w-full overflow-hidden rounded-[12px] border border-[var(--nle-line-strong)] bg-canvas shadow-canvas"
+                style={{ aspectRatio: `${DECODE_WIDTH} / ${DECODE_HEIGHT}` }}
+              >
                 <DecodePlayer selfControlled={!showTimeline} />
               </div>
             </div>
             <div className="flex h-7 flex-none items-end justify-center gap-2 font-mono text-[8.5px] tracking-[0.06em] text-[var(--nle-faint)] uppercase">
-              <span>1920 × 1080</span>
+              <span>{DECODE_WIDTH} × {DECODE_HEIGHT}</span>
               <span aria-hidden>·</span>
-              <span>16:9 preview</span>
+              <span>{previewRatio} preview</span>
             </div>
           </div>
         </div>

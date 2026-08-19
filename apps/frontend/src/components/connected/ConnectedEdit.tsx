@@ -151,6 +151,9 @@ function eventMessage(event: ProjectEvent): string | null {
   if (event.type === "production.task.retrying") {
     return "One scene failed its check — retrying just that scene";
   }
+  if (event.type === "production.scene.degraded") {
+    return "One scene couldn’t pass its checks even after a retry — a placeholder holds its slot so the rest of the video finishes. Direct that scene here to rebuild it.";
+  }
   if (event.type === "artifact.ready_for_review") {
     // Brief, plan and script get substantive messages in onEvent — the chat
     // shows the work itself, not a completion ping. These two stay terse

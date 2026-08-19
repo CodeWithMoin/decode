@@ -8,6 +8,7 @@ the same whole `scene_visuals` artifact existing clients already consume.
 from __future__ import annotations
 
 import asyncio
+import json
 from datetime import timedelta
 from time import perf_counter
 
@@ -35,7 +36,7 @@ from ..models import (
     UsageRecord,
 )
 from ..pricing import estimate_cost
-from ..schemas import SceneVisuals
+from ..schemas import SceneModule, SceneVisuals
 from .context import VisualizerContext, context_assembler
 from .pipeline import continue_chain, stage_for, stage_provider
 
@@ -670,6 +671,44 @@ async def _run_assembly_task(task_id: str, run_id: str, expected_attempt: int) -
         return {"status": "succeeded", "version_id": version.id}
 
 
+def _degraded_scene_output(beat_id: str, title: str) -> dict:
+    """A minimal valid scene standing in for one that exhausted its retries.
+
+    It passes the same static validation as generated scenes (relational
+    primitives, transparent root, type floors, no controls) so assembly and
+    the chained voice stage proceed; the creator re-directs just this scene
+    instead of losing the whole build.
+    """
+    source = (
+        "import { AbsoluteFill, Stack, Label } from '@decode/animation-api';\n\n"
+        "export default function Scene() {\n"
+        "  return (\n"
+        "    <AbsoluteFill style={{ display: 'flex', alignItems: 'center',"
+        " justifyContent: 'center' }}>\n"
+        "      <Stack gap={28} align=\"center\">\n"
+        f"        <Label text={json.dumps(title)} size={{72}} maxWidth={{1500}} color=\"#F5F5F5\" />\n"
+        "        <Label text=\"This scene needs another pass — direct it in the chat to"
+        " rebuild it.\" size={24} maxWidth={1300} color=\"#B8B8B8\" />\n"
+        "      </Stack>\n"
+        "    </AbsoluteFill>\n"
+        "  );\n"
+        "}\n"
+    )
+    visuals = SceneVisuals(
+        scenes=[SceneModule(beat_id=beat_id, controls=[], component_source=source)],
+        rationale=(
+            "Placeholder for a scene that exhausted its retries; it holds the slot "
+            "so assembly and voice proceed, and is meant to be re-directed."
+        ),
+    )
+    return {
+        "visuals": visuals.model_dump(mode="json"),
+        "department": "decode/degraded-scene",
+        "degraded": True,
+        "usage": {"model": None, "input_tokens": None, "output_tokens": None, "duration_ms": 0},
+    }
+
+
 async def _fail_task(task_id: str, expected_attempt: int) -> dict:
     async with SessionLocal() as session:
         task = await session.scalar(
@@ -720,6 +759,37 @@ async def _fail_task(task_id: str, expected_attempt: int) -> dict:
             )
             await session.commit()
             return {"status": "retrying", "attempt": task.attempt}
+
+        if task.kind == SCENE_TASK:
+            # Retries exhausted for one scene: continue with a placeholder
+            # instead of discarding every sibling's finished work. The scene
+            # is marked degraded so the chat can say exactly which beat needs
+            # re-direction; assembly and the chained voice stage proceed.
+            context, _ = await _visualizer_context(session, job, run)
+            beat_id = str(task.input.get("beat_id", ""))
+            beat = next((item for item in context.plan.beats if item.id == beat_id), None)
+            task.output = _degraded_scene_output(beat_id, beat.title if beat else "This scene")
+            task.status = TaskStatus.SUCCEEDED
+            task.finished_at = utcnow()
+            task.accepted_at = utcnow()
+            await emit(
+                session,
+                job.project_id,
+                "production.scene.degraded",
+                job_id=job.id,
+                run_id=run.id,
+                data={
+                    "task_id": task.id,
+                    "beat_id": beat_id,
+                    "message": (
+                        f"Scene {beat_id} couldn't pass its checks after retries — "
+                        "a placeholder holds its slot so the rest of the video finishes."
+                    ),
+                },
+            )
+            await _schedule_assembly(session, run, job)
+            await session.commit()
+            return {"status": "degraded", "task_id": task.id}
 
         task.status = TaskStatus.FAILED
         task.finished_at = utcnow()

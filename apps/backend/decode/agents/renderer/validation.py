@@ -318,6 +318,10 @@ _FONT_SIZE = re.compile(r"\bfontSize\s*:\s*(\d+)")
 _LABEL_SIZE = re.compile(r"<Label\b[^>]{0,400}?\bsize\s*=\s*\{?\s*(\d+)", re.DOTALL)
 _SVG_BLOCK = re.compile(r"<svg\b.*?</svg>", re.DOTALL | re.IGNORECASE)
 _TYPE_FLOOR = 20
+# SVG diagrams position freely, but their text is read at the same distance as
+# everything else — a slightly lower floor allows dense diagram callouts.
+_SVG_FONT = re.compile(r"\bfont-?[sS]ize\s*[:=]\s*[\"']?(\d+)")
+_SVG_TYPE_FLOOR = 16
 
 
 def _color_to_hue_sat(literal: str) -> tuple[float, float] | None:
@@ -398,6 +402,23 @@ def _validate_stage_and_palette(scene: SceneModule, palette: dict | None) -> lis
             if int(value) < _TYPE_FLOOR
         }
     )
+    svg_small = sorted(
+        {
+            int(value)
+            for block in _SVG_BLOCK.findall(source)
+            for value in _SVG_FONT.findall(block)
+            if int(value) < _SVG_TYPE_FLOOR
+        }
+    )
+    if svg_small:
+        found.append(
+            _violation(
+                "svg_type_below_floor",
+                f"{scene.beat_id}: SVG text sized below the {_SVG_TYPE_FLOOR}px floor: "
+                f"{', '.join(str(v) for v in svg_small)}px. Diagram callouts are "
+                f"{_SVG_TYPE_FLOOR}px+ so they stay readable in the frame.",
+            )
+        )
     if small:
         found.append(
             _violation(

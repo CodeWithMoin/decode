@@ -182,6 +182,7 @@ type GroupProps = {
 export function Stack({ gap, align = "flex-start", justify, style, children }: GroupProps) {
   return (
     <div
+      data-decode-box="group"
       style={{
         display: "flex",
         flexDirection: "column",
@@ -200,6 +201,7 @@ export function Stack({ gap, align = "flex-start", justify, style, children }: G
 export function Row({ gap, align = "center", justify, style, children }: GroupProps) {
   return (
     <div
+      data-decode-box="group"
       style={{
         display: "flex",
         flexDirection: "row",
@@ -238,6 +240,7 @@ export function Anchor({
   const labelFirst = side === "top" || side === "left";
   return (
     <div
+      data-decode-box="group"
       style={{
         display: "flex",
         flexDirection: vertical ? "column" : "row",
@@ -325,6 +328,7 @@ export function Connector({
   ) : null;
   return (
     <div
+      data-decode-box="connector"
       style={{
         display: "flex",
         flexDirection: direction,
@@ -403,6 +407,7 @@ export function Label({
   }
   return (
     <div
+      data-decode-box="text"
       style={{
         fontSize,
         fontWeight: weight,
@@ -1189,6 +1194,99 @@ export function inspectLayout(root: ParentNode): LayoutFinding[] {
   }
 
   return findings;
+}
+
+export type SceneFinding = {
+  code: "off_frame" | "collision" | "low_coverage";
+  message: string;
+};
+
+/**
+ * Inspect a mounted generated scene (the primitives stamp `data-decode-box`).
+ * `root` is the scene's frame-filling container — its rect IS the frame.
+ *
+ * Groups police their own children by construction (flex + mandatory gap), so
+ * collisions are only tested between independent top-level boxes; connectors
+ * are allowed to span. Elements at ~0 opacity are mid-transition and skipped.
+ * Coverage is returned as a ratio pair so the caller can judge it across
+ * several samples — a staged reveal is legitimately sparse at frame 0.
+ */
+export function inspectScene(
+  root: HTMLElement,
+): { findings: SceneFinding[]; coverageX: number; coverageY: number } {
+  const frame = root.getBoundingClientRect();
+  const findings: SceneFinding[] = [];
+  if (frame.width < 2 || frame.height < 2) {
+    return { findings, coverageX: 1, coverageY: 1 };
+  }
+  const tolerance = Math.max(2, frame.width / 200);
+
+  const visible = (el: HTMLElement) => {
+    const opacity = Number(getComputedStyle(el).opacity);
+    return !(opacity < 0.05);
+  };
+  const boxes = Array.from(root.querySelectorAll<HTMLElement>("[data-decode-box]")).filter(
+    (el) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 1 && r.height > 1 && visible(el);
+    },
+  );
+
+  let unionLeft = Infinity;
+  let unionTop = Infinity;
+  let unionRight = -Infinity;
+  let unionBottom = -Infinity;
+  for (const el of boxes) {
+    const r = el.getBoundingClientRect();
+    unionLeft = Math.min(unionLeft, r.left);
+    unionTop = Math.min(unionTop, r.top);
+    unionRight = Math.max(unionRight, r.right);
+    unionBottom = Math.max(unionBottom, r.bottom);
+    if (
+      r.left < frame.left - tolerance ||
+      r.top < frame.top - tolerance ||
+      r.right > frame.right + tolerance ||
+      r.bottom > frame.bottom + tolerance
+    ) {
+      findings.push({
+        code: "off_frame",
+        message: `"${describeBox(el)}" extends outside the frame.`,
+      });
+    }
+  }
+
+  const topLevel = boxes.filter(
+    (el) =>
+      el.dataset.decodeBox !== "connector" &&
+      !(el.parentElement?.closest("[data-decode-box]") &&
+        root.contains(el.parentElement.closest("[data-decode-box]"))),
+  );
+  for (let a = 0; a < topLevel.length; a += 1) {
+    for (let b = a + 1; b < topLevel.length; b += 1) {
+      const first = topLevel[a];
+      const second = topLevel[b];
+      if (first.contains(second) || second.contains(first)) continue;
+      const r1 = first.getBoundingClientRect();
+      const r2 = second.getBoundingClientRect();
+      const overlapX = Math.min(r1.right, r2.right) - Math.max(r1.left, r2.left);
+      const overlapY = Math.min(r1.bottom, r2.bottom) - Math.max(r1.top, r2.top);
+      if (overlapX > tolerance && overlapY > tolerance) {
+        findings.push({
+          code: "collision",
+          message: `"${describeBox(first)}" overlaps "${describeBox(second)}".`,
+        });
+      }
+    }
+  }
+
+  const coverageX = boxes.length ? (unionRight - unionLeft) / frame.width : 0;
+  const coverageY = boxes.length ? (unionBottom - unionTop) / frame.height : 0;
+  return { findings, coverageX, coverageY };
+}
+
+function describeBox(el: HTMLElement): string {
+  const text = (el.textContent ?? "").trim().replace(/\s+/g, " ");
+  return text ? text.slice(0, 40) : (el.dataset.decodeBox ?? "element");
 }
 
 export const EASE_PRESETS = {

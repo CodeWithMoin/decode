@@ -150,14 +150,14 @@
   "hotPaths": [
     {
       "path": "decode/execution/graph.py",
-      "accessCount": 8,
-      "lastAccessed": 1787136025588,
+      "accessCount": 14,
+      "lastAccessed": 1787137324996,
       "type": "file"
     },
     {
       "path": "decode/agents/renderer/validation.py",
-      "accessCount": 7,
-      "lastAccessed": 1787136134373,
+      "accessCount": 9,
+      "lastAccessed": 1787137207332,
       "type": "file"
     },
     {
@@ -170,6 +170,12 @@
       "path": "decode/execution/worker.py",
       "accessCount": 2,
       "lastAccessed": 1787069639212,
+      "type": "file"
+    },
+    {
+      "path": "check_degraded.py",
+      "accessCount": 2,
+      "lastAccessed": 1787137356931,
       "type": "file"
     },
     {
@@ -200,6 +206,12 @@
       "path": "tests/test_visualizer.py",
       "accessCount": 1,
       "lastAccessed": 1787136235159,
+      "type": "file"
+    },
+    {
+      "path": "tests/test_degraded_scene.py",
+      "accessCount": 1,
+      "lastAccessed": 1787137412343,
       "type": "file"
     }
   ],

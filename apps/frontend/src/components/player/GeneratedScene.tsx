@@ -1,7 +1,7 @@
 "use client";
 
 import { Component, useEffect, useRef, useState, type ReactNode } from "react";
-import { AbsoluteFill, inspectLayout } from "@decode/animation-api";
+import { AbsoluteFill, inspectScene } from "@decode/animation-api";
 import { loadSceneModule, SceneModuleError, type SceneComponent } from "@/lib/scene-module";
 import { useStudio } from "@/store/studio";
 import type { Scene } from "@/lib/types";
@@ -59,9 +59,10 @@ function GeneratedSceneSource({
     return <SceneError message={error} />;
   }
 
-  // Not a spinner: an uncompiled scene is a held black frame, and the checklist
-  // outside the player is what reports progress.
-  if (!Component) return <AbsoluteFill style={{ backgroundColor: "#0B0B0B" }} />;
+  // A briefly-compiling scene is a held black frame; one that stays black is
+  // indistinguishable from a broken one, so after a moment it says what it is —
+  // the connected workspace renders no checklist that could explain it instead.
+  if (!Component) return <SceneCompiling />;
 
   return (
     <SceneRenderBoundary key={source}>
@@ -83,13 +84,31 @@ function LayoutInspection({ sceneId, children }: { sceneId: string; children: Re
 
   useEffect(() => {
     const reported = new Set<string>();
+    // Coverage is judged over several samples, not one: a staged reveal is
+    // legitimately sparse at frame 0, so only a scene that never fills the
+    // stage earns the warning.
+    let samples = 0;
+    let bestX = 0;
+    let bestY = 0;
     const inspect = () => {
       if (!root.current) return;
-      for (const finding of inspectLayout(root.current)) {
-        const key = `${finding.code}:${finding.elements.join("+")}`;
+      const { findings, coverageX, coverageY } = inspectScene(root.current);
+      for (const finding of findings) {
+        const key = `${finding.code}:${finding.message}`;
         if (reported.has(key)) continue;
         reported.add(key);
         console.warn(`[decode] scene ${sceneId} layout: ${finding.message}`, finding);
+      }
+      samples += 1;
+      bestX = Math.max(bestX, coverageX);
+      bestY = Math.max(bestY, coverageY);
+      if (samples === 8 && (bestX < 0.5 || bestY < 0.4) && !reported.has("low_coverage")) {
+        reported.add("low_coverage");
+        console.warn(
+          `[decode] scene ${sceneId} layout: content never spans the stage ` +
+            `(peak coverage ${Math.round(bestX * 100)}% x ${Math.round(bestY * 100)}%) — `
+            + "it reads as a miniature in an empty frame.",
+        );
       }
     };
     const timer = setInterval(inspect, 800);
@@ -120,6 +139,37 @@ class SceneRenderBoundary extends Component<
       ? <SceneError message={`This scene could not render. ${this.state.message}`} />
       : this.props.children;
   }
+}
+
+/**
+ * Black for the first beat (a fast compile never flashes UI), then a named
+ * state — "nothing is a bare loading state" applies to held black frames too.
+ */
+function SceneCompiling() {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setSlow(true), 2000);
+    return () => clearTimeout(timer);
+  }, []);
+  return (
+    <AbsoluteFill
+      style={{ backgroundColor: "#0B0B0B", display: "grid", placeItems: "center" }}
+    >
+      {slow && (
+        <div
+          style={{
+            color: "#7E7E7E",
+            fontFamily: "ui-monospace, monospace",
+            fontSize: 18,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+          }}
+        >
+          Preparing this scene…
+        </div>
+      )}
+    </AbsoluteFill>
+  );
 }
 
 function SceneError({ message }: { message: string }) {
