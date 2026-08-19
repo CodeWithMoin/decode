@@ -47,6 +47,10 @@ _IMPORT = re.compile(r"""\bfrom\s+['"]([^'"]+)['"]""")
 _SIDE_EFFECT_IMPORT = re.compile(r"""\bimport\s+['"]([^'"]+)['"]""")
 _DEFAULT_EXPORT = re.compile(r"\bexport\s+default\b")
 _PROPS = re.compile(r"\bprops\.([A-Za-z_$][\w$]*)")
+_DESTRUCTURED_PARAMS = re.compile(
+    r"\bexport\s+default\s+function\s+\w*\s*\(\s*\{([^)}]*)\}"
+    r"|\bfunction\s+Scene\s*\(\s*\{([^)}]*)\}"
+)
 _LITERAL_LAYOUT_FORMAT = re.compile(r"\bdefineLayout\s*\(\s*\{")
 _DECODE_LAYOUT_HELPER = re.compile(r"\b(?:DesignCanvas|defineLayout|LayoutBox|LayoutText)\b")
 
@@ -242,6 +246,17 @@ def _validate_react(scene: SceneModule) -> list[dict[str, str]]:
 
     declared = {control.name for control in scene.controls}
     used = set(_PROPS.findall(source))
+    # `function Scene({ speed, showLabels })` reads controls without ever
+    # writing `props.` — collect the destructured names too, or the check
+    # is blind to the idiomatic signature.
+    destructured = _DESTRUCTURED_PARAMS.search(source)
+    if destructured:
+        params = destructured.group(1) or destructured.group(2) or ""
+        used |= {
+            name.strip().split("=")[0].split(":")[0].strip()
+            for name in params.split(",")
+            if name.strip()
+        }
     undeclared = sorted(used - declared - {"progress"})
     if undeclared:
         found.append(
@@ -249,6 +264,19 @@ def _validate_react(scene: SceneModule) -> list[dict[str, str]]:
                 "undeclared_control",
                 f"{where} reads props.{', props.'.join(undeclared)} without declaring them as "
                 "controls.",
+            )
+        )
+    # A declared control whose name never appears in the source is a dead
+    # slider: the creator drags it and nothing happens.
+    unused = sorted(
+        name for name in declared if not re.search(rf"\b{re.escape(name)}\b", source)
+    )
+    if unused:
+        found.append(
+            _violation(
+                "unused_control",
+                f"{where} declares controls the component never reads: {', '.join(unused)}. "
+                "Wire each into the scene or drop it.",
             )
         )
 
@@ -266,12 +294,61 @@ def _violation(code: str, message: str) -> dict[str, str]:
     return {"code": code, "message": message}
 
 
-# The host paints the stage; an opaque root turns the film back into slides.
-_OPAQUE_ROOT = re.compile(
+# The host paints the stage; an opaque fill anywhere turns the film back into
+# slides. Any AbsoluteFill carrying a background — root or nested — and any
+# absolutely-positioned full-frame element (`inset: 0`) with a background are
+# the same violation wearing different markup.
+_OPAQUE_FILL = re.compile(
     r"<AbsoluteFill[^>]{0,400}?\b(?:backgroundColor|background)\s*:", re.DOTALL
 )
+_OPAQUE_INSET = re.compile(
+    r"\binset\s*:\s*['\"]?0\b[^}]{0,300}?\b(?:backgroundColor|background)\s*:"
+    r"|\b(?:backgroundColor|background)\s*:[^}]{0,300}?\binset\s*:\s*['\"]?0\b",
+    re.DOTALL,
+)
 _HEX = re.compile(r"#[0-9a-fA-F]{6}\b")
+# Every way a color literal enters a style: 6- and 3-digit hex, rgb()/rgba(),
+# hsl()/hsla(). The palette check must see all of them — rgba() is the natural
+# spelling of the opacity-varied emphasis the prompt itself recommends.
+_COLOR_LITERAL = re.compile(
+    r"#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b|\b(?:rgba?|hsla?)\(\s*([^)]*)\)"
+)
 _PRIMITIVES = re.compile(r"<(?:Stack|Row|Anchor|Label|Connector)\b")
+_FONT_SIZE = re.compile(r"\bfontSize\s*:\s*(\d+)")
+_LABEL_SIZE = re.compile(r"<Label\b[^>]{0,400}?\bsize\s*=\s*\{?\s*(\d+)", re.DOTALL)
+_SVG_BLOCK = re.compile(r"<svg\b.*?</svg>", re.DOTALL | re.IGNORECASE)
+_TYPE_FLOOR = 20
+
+
+def _color_to_hue_sat(literal: str) -> tuple[float, float] | None:
+    """Hue/saturation for any supported color literal; None if unparsable."""
+    text = literal.strip()
+    if text.startswith("#"):
+        if len(text) == 4:  # #RGB → #RRGGBB
+            text = "#" + "".join(ch * 2 for ch in text[1:])
+        if len(text) != 7:
+            return None
+        return _hue_sat(text)
+    match = re.match(r"(rgba?|hsla?)\(\s*([^)]*)\)", text)
+    if not match:
+        return None
+    kind, body = match.groups()
+    parts = [p.strip() for p in re.split(r"[,/]", body) if p.strip()]
+    if len(parts) < 3:
+        return None
+    try:
+        if kind.startswith("hsl"):
+            hue = float(re.sub(r"deg$", "", parts[0]))
+            sat = float(parts[1].rstrip("%")) / 100
+            return hue % 360, sat
+        channels = [
+            float(p.rstrip("%")) / 100 if p.endswith("%") else float(p) / 255
+            for p in parts[:3]
+        ]
+    except ValueError:
+        return None
+    r, g, b = (max(0.0, min(1.0, c)) for c in channels)
+    return _hue_sat(f"#{round(r * 255):02x}{round(g * 255):02x}{round(b * 255):02x}")
 
 
 def _hue_sat(hex_color: str) -> tuple[float, float]:
@@ -304,13 +381,30 @@ def _validate_stage_and_palette(scene: SceneModule, palette: dict | None) -> lis
                 "between-labels in Connector, standalone text in Label.",
             )
         )
-    first_fill = source.find("<AbsoluteFill")
-    if first_fill != -1 and _OPAQUE_ROOT.search(source, first_fill, first_fill + 500):
+    if _OPAQUE_FILL.search(source) or _OPAQUE_INSET.search(source):
         found.append(
             _violation(
                 "opaque_root",
-                f"{scene.beat_id}: the root element paints a background. The host paints the "
-                "stage; remove the root background so the scene is transparent over it.",
+                f"{scene.beat_id}: a full-frame element paints a background (an AbsoluteFill "
+                "with a background, or an inset-0 layer). The host paints the stage; remove "
+                "full-frame fills so the scene is transparent over it.",
+            )
+        )
+    prose = _SVG_BLOCK.sub("", source)
+    small = sorted(
+        {
+            int(value)
+            for value in _FONT_SIZE.findall(prose) + _LABEL_SIZE.findall(prose)
+            if int(value) < _TYPE_FLOOR
+        }
+    )
+    if small:
+        found.append(
+            _violation(
+                "type_below_floor",
+                f"{scene.beat_id}: text sized below the {_TYPE_FLOOR}px floor: "
+                f"{', '.join(str(v) for v in small)}px. Support text is 20px+, labels 24px+, "
+                "focal words 64px+.",
             )
         )
     if palette:
@@ -319,11 +413,13 @@ def _validate_stage_and_palette(scene: SceneModule, palette: dict | None) -> lis
         allowed = [_hue_sat(value)[0] for value in palette.values() if _HEX.fullmatch(value)]
         off = sorted(
             {
-                color
-                for color in _HEX.findall(source)
-                if _hue_sat(color)[1] > 0.35
+                literal
+                for literal in (m.group(0) for m in _COLOR_LITERAL.finditer(source))
+                for parsed in [_color_to_hue_sat(literal)]
+                if parsed is not None
+                and parsed[1] > 0.35
                 and not any(
-                    min(abs(_hue_sat(color)[0] - hue), 360 - abs(_hue_sat(color)[0] - hue)) <= 25
+                    min(abs(parsed[0] - hue), 360 - abs(parsed[0] - hue)) <= 25
                     for hue in allowed
                 )
             }
