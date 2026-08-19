@@ -803,3 +803,35 @@
   }
 
 }
+
+/* --- Waitlist landing (landing-only motion; the studio has no entrances). ---
+   Both animations run once on load and settle; under reduced motion the words
+   render already-settled, so nothing is ever invisible. In @layer components
+   so utilities can still override at a call site. */
+@layer components {
+  .landing-word {
+    display: inline-block;
+    animation: landing-word-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .landing-narration-word {
+    color: #4a4a47;
+    animation: landing-narration-lit 0.3s ease-out both;
+  }
+  @keyframes landing-word-in {
+    from { opacity: 0; filter: blur(6px); transform: translateY(10px); }
+    to { opacity: 1; filter: blur(0); transform: none; }
+  }
+  @keyframes landing-narration-lit {
+    from { color: #4a4a47; }
+    to { color: #f5f5f5; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .landing-word,
+    .landing-narration-word {
+      animation: none;
+    }
+    .landing-narration-word {
+      color: #f5f5f5;
+    }
+  }
+}
