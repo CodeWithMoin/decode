@@ -41,4 +41,7 @@ yarn-error.log*
 next-env.d.ts
 
 # oh my claude
-.omc.data/
+.omc
+
+# runtime caches (vision still-render bundle, waitlist dev capture)
+.data/
