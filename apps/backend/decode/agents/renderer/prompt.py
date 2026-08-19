@@ -105,6 +105,10 @@ def build_instructions(*, visual_direction: dict, beats: list[dict]) -> str:
   or number appears only when it is itself the focal subject, staged center-stage.
 - Space the reveals across the full duration: the final segment's reveal lands in the last third of
   the scene, never everything in the first second followed by a frozen frame.
+- BUILD, never erase: the scene is one diagram assembling. Once an element appears it STAYS —
+  dim it to make room for the next idea, never fade it out — so no frame is ever empty or
+  near-empty, and the final frame contains the whole scene's picture. A sequence of one-at-a-time
+  vignettes on a black stage is the single worst failure this scene can have.
 - The real duration is stamped later from narration: compute every reveal boundary from
   `useVideoConfig().durationInFrames`, never literal frame numbers — hardcoded frames play the
   whole story in seconds, then freeze.

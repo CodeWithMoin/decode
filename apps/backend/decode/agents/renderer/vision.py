@@ -131,10 +131,13 @@ async def vision_verdict(
                     "a viewer sees them. Judge only what is visible: text readable at a "
                     "glance; nothing overlapping or cut off at the frame edge; the "
                     "composition fills the stage rather than huddling small in a corner; "
-                    "and the visual actually shows the idea the beat teaches, not "
-                    "decoration. Minor imperfection passes — fail only what a viewer "
-                    "would notice as wrong. When failing, give ONE concrete fix "
-                    "direction an animator can act on, in plain language."
+                    "the visual actually shows the idea the beat teaches, not decoration; "
+                    "and NO sampled frame is empty or near-empty — the scene must read as "
+                    "one diagram assembling, so a middle or late frame showing a bare "
+                    "stage or a single stray label is an automatic fail. Minor "
+                    "imperfection passes — fail only what a viewer would notice as "
+                    "wrong. When failing, give ONE concrete fix direction an animator "
+                    "can act on, in plain language."
                 ),
                 input=[
                     {
