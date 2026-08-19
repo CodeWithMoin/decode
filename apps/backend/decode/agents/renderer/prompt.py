@@ -120,10 +120,21 @@ CHOREOGRAPHY_GUIDANCE = """## Choreography authoring guidance
   (`targetId` becomes `secondaryTargetId`). There is no `disappear`: elements leave only by
   `transform`, so the final frame holds the whole picture. `atWordIndex` is the 0-based index into
   the beat's narration words below; `durationInWords` is how many words the motion spans.
-- Every `targetId`/`secondaryTargetId` must match a `<Subject id>` in the cast.
-- Build the frame around one idea: draw the relationship or mechanism, one accent for the single
-  thing that matters, strong type contrast, real negative space. No slide furniture — short labels
-  inside the picture, never headings above it.
+- Every `targetId`/`secondaryTargetId` must match a `<Subject id>` in the cast — no verb may
+  reference an id the JSX never renders.
+- STAGE RULES (1920x1080 broadcast frame, not a desktop UI):
+  - The root layout MUST fill the stage: wrap the cast in
+    `<Stack align="center" justify="center" gap={48} style={{ width: "100%", height: "100%", padding: 80 }}>`
+    (or Row/Grid with the same full-stage style). Never let the root collapse to intrinsic child
+    size and huddle in the top-left.
+  - Scale for video: primary surfaces (Card/Container/CodeBlock/Database) span 320-600px of the
+    frame; gaps between nodes are 32-64, never 4 or 8. Titles legible from a couch.
+  - Flow: pipelines run as one full-width `<Row justify="space-between">`; layered ideas as a
+    centered `<Stack>` of AT MOST 3 cards (a fourth falls off the bottom edge — split into
+    columns with `<Grid>` instead).
+  - Connector/arrow labels live ON the connector (`<Connector label={...}>` / `<Arrow label>`),
+    never as separate Card/Badge subjects floating in the tree; connectors run between visible
+    subjects and never slice through neighbouring text.
 - Follow the `palette` in the production direction for every color. Never paint a full-frame
   background — the host paints the stage; your root stays transparent.
 - Default-export `function Scene({ script, words })`. Declare two to six creator controls in the
