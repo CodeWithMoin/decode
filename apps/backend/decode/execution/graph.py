@@ -7,6 +7,8 @@ the same whole `scene_visuals` artifact existing clients already consume.
 
 from __future__ import annotations
 
+import asyncio
+from datetime import timedelta
 from time import perf_counter
 
 from sqlalchemy import select
@@ -40,6 +42,15 @@ from .pipeline import continue_chain, stage_for, stage_provider
 SCENE_TASK = "design_scene"
 ASSEMBLY_TASK = "assemble_scene_visuals"
 GRAPH_JOB_KINDS = frozenset({"generate_scene_visuals"})
+
+# A RUNNING task older than this is considered abandoned by a dead worker and
+# may be re-claimed. 2x the arq job_timeout (worker.py) so a live attempt that
+# is merely slow can never be stolen while its worker still holds it.
+STALE_TASK_LEASE_SECONDS = 600
+# Wall-clock bound on one scene-generation model call, below arq's job_timeout
+# so exhaustion surfaces as an ordinary Exception that _fail_task can retry —
+# arq's own timeout is a BaseException that leaks the RUNNING row instead.
+SCENE_GENERATION_TIMEOUT_SECONDS = 240
 
 
 def is_graph_job(kind: str) -> bool:
@@ -97,6 +108,24 @@ async def start_scene_graph(run_id: str) -> dict:
             ).all()
         )
         if existing:
+            # Resume must actually resume: a QUEUED task whose arq job was lost
+            # (Redis flush, dropped publish) or a RUNNING task whose worker died
+            # would otherwise sit unclaimed forever while the project shows
+            # "processing". Re-outboxing is idempotent — the job id is
+            # task:{id}:attempt:{n} — so re-queuing live work is harmless.
+            requeued = 0
+            stale_before = utcnow() - timedelta(seconds=STALE_TASK_LEASE_SECONDS)
+            for task in existing:
+                if task.status == TaskStatus.RUNNING and (
+                    task.started_at is None or task.started_at < stale_before
+                ):
+                    task.status = TaskStatus.QUEUED
+                    task.started_at = None
+                if task.status == TaskStatus.QUEUED:
+                    session.add(_task_outbox(task))
+                    requeued += 1
+            if requeued:
+                await session.commit()
             return {"status": "graph_running", "task_ids": [task.id for task in existing]}
 
         context, _ = await _visualizer_context(session, job, run)
@@ -119,7 +148,9 @@ async def start_scene_graph(run_id: str) -> dict:
             stable_key="scene_visuals:assemble",
             status=TaskStatus.PENDING,
             priority=0,
-            max_attempts=1,
+            # Assembly failing once must not discard every generated scene:
+            # a transient DB/object-store blip deserves one more try.
+            max_attempts=2,
             input={},
         )
         session.add_all([*scene_tasks, assembly])
@@ -188,7 +219,16 @@ async def _claim_task(task_id: str, expected_attempt: int) -> tuple[str, str] | 
             return {"status": "already_succeeded"}
         if task.status == TaskStatus.CANCELLED or run.status == ExecutionStatus.CANCELLED:
             return {"status": "cancelled"}
-        if task.status != TaskStatus.QUEUED:
+        if task.status == TaskStatus.RUNNING:
+            # A worker that died mid-task (SIGKILL, or arq's job_timeout
+            # cancelling the coroutine as a BaseException) leaves the row
+            # RUNNING with nobody working on it. Redelivery may claim it back
+            # once the lease is stale; otherwise the build would wait forever.
+            stale_before = utcnow() - timedelta(seconds=STALE_TASK_LEASE_SECONDS)
+            if task.started_at is not None and task.started_at >= stale_before:
+                return {"status": task.status}
+            task.started_at = None
+        elif task.status != TaskStatus.QUEUED:
             return {"status": task.status}
         task.status = TaskStatus.RUNNING
         task.started_at = task.started_at or utcnow()
@@ -240,7 +280,8 @@ async def _run_scene_task(task_id: str, run_id: str) -> dict:
     # discards the late result.
     designer = visualizer(get_settings())
     started = perf_counter()
-    visuals = await designer.generate(intent, focused_plan, focused_script)
+    async with asyncio.timeout(SCENE_GENERATION_TIMEOUT_SECONDS):
+        visuals = await designer.generate(intent, focused_plan, focused_script)
     generation_ms = int((perf_counter() - started) * 1000)
     if len(visuals.scenes) != 1 or visuals.scenes[0].beat_id != beat_id:
         raise ValueError(f"scene task {beat_id!r} must return exactly its requested scene")
@@ -320,6 +361,20 @@ async def _complete_scene_task(
             return {"status": "cancelled"}
         if task.status != TaskStatus.RUNNING:
             return {"status": task.status}
+        # v1 auto-accepts below, so this is the last gate with a retry left:
+        # run the same focused validation the human accept path runs, instead
+        # of deferring to assembly where max_attempts can't heal a bad scene.
+        scene_visuals = SceneVisuals.model_validate(output["visuals"])
+        context, _ = await _visualizer_context(session, job, run)
+        beat_id = str(task.input["beat_id"])
+        beat = next((item for item in context.plan.beats if item.id == beat_id), None)
+        if beat is not None:
+            violations = validate_scenes(
+                scene_visuals.scenes, context.plan.model_copy(update={"beats": [beat]})
+            )
+            if violations:
+                codes = ", ".join(item["code"] for item in violations)
+                raise ValueError(f"scene {beat_id!r} failed validation before auto-accept: {codes}")
         task.output = output
         task.status = TaskStatus.SUCCEEDED
         task.finished_at = utcnow()

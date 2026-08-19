@@ -90,12 +90,9 @@ def build_instructions(*, visual_direction: dict, beats: list[dict]) -> str:
   multi-line left-aligned at line-height 1.35, wrapped near 32 characters.
 - Type floors: support text 20px, labels 24px, focal words/numbers 64px+; the focal element is
   >= 2.5x its support text. Leave real negative space — roughly a third of the frame stays empty.
-- Scale floor: the composition must FILL the stage, not huddle in a corner of it. At every frame,
-  the occupied extent of the scene's content spans at least 60% of the frame's width and 50% of its
-  height. An `<svg>` diagram that is the dominant visual is at least 1200x650 design px with its
-  shapes sized to use that area; small-multiple layouts spread across the frame rather than
-  clustering. Negative space frames the composition around its edges — it is never a large empty
-  region beside a miniature drawing.
+- Scale floor: content spans >= 60% of frame width and 50% of height at every frame; a dominant
+  `<svg>` diagram is >= 1200x650 with shapes sized to use it. Negative space frames the edges —
+  never a large empty region beside a miniature drawing.
 - Elements must never overlap — at any frame, including while one element enters as another exits.
   Give every element its own region of the frame and keep entering elements out of a region until
   its previous occupant has fully left. A moving element keeps >= 24px clearance from everything
@@ -106,6 +103,9 @@ def build_instructions(*, visual_direction: dict, beats: list[dict]) -> str:
   or number appears only when it is itself the focal subject, staged center-stage.
 - Space the reveals across the full duration: the final segment's reveal lands in the last third of
   the scene, never everything in the first second followed by a frozen frame.
+- The real duration is stamped later from narration: compute every reveal boundary from
+  `useVideoConfig().durationInFrames`, never literal frame numbers — hardcoded frames play the
+  whole story in seconds, then freeze.
 - The host paints the stage behind every scene. Your root element MUST be transparent — never paint
   a full-frame background color, gradient, or vignette. Paint only your surfaces, shapes and text;
   the dark stage shows through everywhere else, and it is what keeps the whole video feeling like

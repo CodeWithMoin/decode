@@ -98,7 +98,9 @@ def test_shipped_skills_load():
     assert "@decode/animation-api" in rendered
     assert "defineLayout" in rendered  # named only in the explicit do-not-use line
     assert "scene-api.md" not in rendered
-    assert len(system) + len(rendered) < 6000
+    # Bloat guard, not a hard product limit: raised from 6000 when the scale
+    # floor and duration-from-narration rules earned their place.
+    assert len(system) + len(rendered) < 7500
 
 
 def test_visualizer_requires_a_key(tmp_path):

@@ -210,7 +210,9 @@ function toScenes(
       // Audio is the timing authority (ADR-005): once narration exists, the
       // scene is as long as its measured clip, so the visual stays locked to the
       // voice. The plan's target is only the estimate used before voice lands.
-      dur: clip?.duration_seconds ?? beat.target_duration_seconds ?? 0,
+      // Pre-voice estimate: a plan without target durations must not clamp
+      // every scene to 1 frame and play a broken N/24-second "video".
+      dur: clip?.duration_seconds ?? beat.target_duration_seconds ?? 6,
       // The prototype's animation labels are a fixed vocabulary describing
       // stand-in visuals. A real module is not one of them, and naming one
       // would be a claim about generated code nobody checked.
@@ -478,7 +480,11 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
             signal: controller.signal,
             onEvent,
           });
-          failures += 1;
+          // A clean return is the server closing an idle stream, not a fault:
+          // reconnect immediately. Only real failures grow the backoff, and a
+          // stream that worked resets it — otherwise a few blips early in the
+          // session pin every later reconnect at the 10s ceiling for good.
+          failures = 0;
         } catch {
           if (controller.signal.aborted) return;
           failures += 1;
@@ -764,6 +770,16 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
           </main>
         ) : error && (!studio || artifactId) ? (
           <EditFailure message={error} onRetry={() => void load()} />
+        ) : artifactId ? (
+          // Artifacts exist but produced no playable scenes (a plan whose
+          // beats carry no ids, or an empty plan). Without this branch the
+          // creator lands back on the topic hero — but the project is no
+          // longer unbuilt, so typing there routes to revision, not a build:
+          // a dead end with no way forward.
+          <EditFailure
+            message="This build finished without any playable scenes. Ask for a rebuild in the chat, or open recovery to see what happened."
+            onRetry={() => void load()}
+          />
         ) : (
           <main className="mx-auto flex min-h-full w-full max-w-[720px] flex-col items-center justify-center p-8 text-center">
             <StageKicker>New video</StageKicker>
@@ -786,16 +802,31 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
             onDirectScene={directScene}
             showInspector={false}
             showTimeline={false}
-            candidateState={selectedCandidate ? (selectedCandidate.accepted_at ? "accepted" : "waiting") : null}
+            candidateState={selectedCandidate && selectedSource ? (selectedCandidate.accepted_at ? "accepted" : "waiting") : null}
             candidateApplying={acceptingTaskId === selectedCandidate?.task_id}
             candidateProgress={candidateProgress}
             onApplyCandidate={() => void acceptCandidate()}
           />
           </div>
+          {buildFailed && activeJob && (
+            // A later stage (voice, a re-run) failing after scenes exist must
+            // still surface somewhere actionable, not only as a chat line.
+            <div className="flex flex-none items-center gap-2 border-t border-[var(--nle-line)] bg-[var(--nle-panel)] px-4 py-2">
+              <span className="text-[11.5px] text-[#C4553B]">
+                A production step failed — everything already built is safe.
+              </span>
+              <button
+                onClick={() => router.push(`/studio/projects/${projectId}/jobs/${activeJob.job_id}`)}
+                className="ml-auto text-[11.5px] font-medium text-accent-deep hover:text-accent"
+              >
+                Open recovery
+              </button>
+            </div>
+          )}
           {renderState !== "idle" && (
             <div className="flex flex-none items-center gap-2 border-t border-[var(--nle-line)] bg-[var(--nle-panel)] px-4 py-2">
               <span className="text-[11.5px] text-[var(--nle-muted)]">
-                {renderState === "rendering" ? "Exporting your video…" : renderState === "done" ? "Export ready" : "Export failed"}
+                {renderState === "rendering" ? "Exporting your video…" : renderState === "done" ? "Export ready" : error || "Export failed."}
               </span>
               {renderState === "failed" && (
                 <button onClick={startExport} className="ml-auto text-[11.5px] font-medium text-accent-deep hover:text-accent">Retry</button>
