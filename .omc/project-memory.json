@@ -151,6 +151,12 @@
       "type": "file"
     },
     {
+      "path": "apps/backend/decode/agents/renderer/prompt.py",
+      "accessCount": 7,
+      "lastAccessed": 1787235022087,
+      "type": "file"
+    },
+    {
       "path": "apps/backend/decode/orchestrator_router.py",
       "accessCount": 6,
       "lastAccessed": 1787145106892,
@@ -160,12 +166,6 @@
       "path": "apps/backend/decode/execution/worker.py",
       "accessCount": 6,
       "lastAccessed": 1787155463537,
-      "type": "file"
-    },
-    {
-      "path": "apps/backend/decode/agents/renderer/prompt.py",
-      "accessCount": 5,
-      "lastAccessed": 1787209598042,
       "type": "file"
     },
     {

@@ -370,7 +370,7 @@ _COLOR_LITERAL = re.compile(
     r"#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b|\b(?:rgba?|hsla?)\(\s*([^)]*)\)"
 )
 _PRIMITIVES = re.compile(
-    r"<(?:Stack|Row|Anchor|Label|Connector|Card|Arrow|Subject|Choreography"
+    r"<(?:Act|Stack|Row|Anchor|Label|Connector|Card|Arrow|Subject|Choreography"
     r"|Container|Grid|Badge|DataStream|CodeBlock|MetricCard|Database|Queue|Cloud|Timeline)\b"
 )
 # The cast ids a choreography script may name: every animateable element is

@@ -1767,6 +1767,104 @@ function domRect(rect: DOMRect): Rect {
   return { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
 }
 
+/* ---------------------------------------------------------------------------
+ * <Act> — the STT-driven unit of a scene. A scene is a sequence of acts, each
+ * owning the stretch of narration spoken during it. <Act> finds its window from
+ * the word timestamps (match a `from`/`to` narration span, or pass explicit
+ * seconds), shows its content ONLY during that window with an automatic
+ * enter/exit fade, and hands the children a local progress `t` (0→1) to animate
+ * against freely — interpolate, spring, raw SVG, whatever the beat needs.
+ * Sequential acts crossfade in the same stage space; a shared element that must
+ * persist across acts lives OUTSIDE any <Act>.
+ * ------------------------------------------------------------------------- */
+
+interface ActWord {
+  word: string;
+  startInSeconds: number;
+  endInSeconds: number;
+}
+
+const normToken = (token: string) => token.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+// [startIndex, endIndex] of a narration phrase within the word list, matched on
+// normalized tokens; falls back to the first token alone, then null.
+function findPhrase(words: ActWord[], phrase: string): [number, number] | null {
+  const target = phrase.split(/\s+/).map(normToken).filter(Boolean);
+  if (!target.length) return null;
+  const tokens = words.map((w) => normToken(w.word));
+  for (let i = 0; i + target.length <= tokens.length; i++) {
+    let hit = true;
+    for (let j = 0; j < target.length; j++) {
+      if (tokens[i + j] !== target[j]) { hit = false; break; }
+    }
+    if (hit) return [i, i + target.length - 1];
+  }
+  const one = tokens.indexOf(target[0]);
+  return one >= 0 ? [one, one] : null;
+}
+
+export function Act({
+  words = [],
+  from,
+  to,
+  fromSeconds,
+  toSeconds,
+  fade = 0.4,
+  style,
+  children,
+}: {
+  words?: ActWord[];
+  /** Narration span that opens this act (matched against the word timings). */
+  from?: string;
+  /** Narration span that closes it; defaults to the end of narration. */
+  to?: string;
+  /** Explicit overrides, if you already know the seconds. */
+  fromSeconds?: number;
+  toSeconds?: number;
+  /** Crossfade seconds at each edge. */
+  fade?: number;
+  style?: CSSProperties;
+  /** Render prop `(t) => JSX` with local progress 0→1, or plain JSX. */
+  children: ((t: number) => ReactNode) | ReactNode;
+}) {
+  const frame = useCurrentFrame();
+  const { fps, durationInFrames } = useVideoConfig();
+  const now = frame / fps;
+
+  let start = fromSeconds;
+  let end = toSeconds;
+  if (start === undefined && from && words.length) {
+    const span = findPhrase(words, from);
+    if (span) start = words[span[0]].startInSeconds;
+  }
+  if (end === undefined && to && words.length) {
+    const span = findPhrase(words, to);
+    if (span) end = words[span[1]].endInSeconds;
+  }
+  if (start === undefined) start = 0;
+  if (end === undefined) {
+    end = words.length ? words[words.length - 1].endInSeconds : durationInFrames / fps;
+  }
+  if (end <= start) end = start + 0.5;
+
+  const draw = (t: number, opacity: number) => (
+    <AbsoluteFill style={{ opacity: q(opacity), ...style }}>
+      {typeof children === "function" ? (children as (t: number) => ReactNode)(t) : children}
+    </AbsoluteFill>
+  );
+
+  // Pre-voice (no timings yet): show the act's settled state so the scene is
+  // never blank; once word timings arrive each act takes its own window.
+  if (!words.length && fromSeconds === undefined) return draw(1, 1);
+
+  if (now < start - fade || now > end + fade) return null;
+
+  const t = Math.min(1, Math.max(0, (now - start) / (end - start)));
+  const enter = fade > 0 ? Math.min(1, Math.max(0, (now - (start - fade)) / fade)) : 1;
+  const exit = fade > 0 ? Math.min(1, Math.max(0, (end + fade - now) / fade)) : 1;
+  return draw(q(t), Math.min(enter, exit));
+}
+
 /**
  * Inspect a mounted design canvas. Call this from preview tooling at named
  * moments or representative frames; generated scenes should only annotate
