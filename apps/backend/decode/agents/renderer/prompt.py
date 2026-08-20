@@ -117,7 +117,10 @@ CHOREOGRAPHY_GUIDANCE = """## Scene authoring guidance — a 1920x1080 LANDING P
   - Lightweight vector motion / polish -> `Lottie`.
   - Draw a path ON, or MORPH one path into another -> `paths.evolvePath` / `paths.interpolatePath`.
   - Clean vector shapes -> `shapes` (`Circle`, `Rect`, `Star`, `Arrow`, `Callout`, `Pie`).
-  - Point attention / annotate -> `roughNotation` (underline, circle, highlight).
+  - Point attention / ANNOTATE -> `roughNotation.{Circle, Underline, Highlight, Box, Bracket,
+    StrikeThrough, CrossedOff}` — hand-drawn marks that read as teaching: circle the answer,
+    highlight the key term, underline the definition, cross off the wrong option, bracket a group.
+    Reveal each mark on the word it emphasises by placing it in that word's `<Act>`.
   - Motion emphasis -> `motionBlur`; background texture -> `noise`.
 - TIME THE LANDING PAGE TO THE VOICE with `<Act>`: wrap each part in
   `<Act from="loss starts high" to="lowers it" words={{words}}>{{(t) => (...)}}</Act>` — `from`/`to`
