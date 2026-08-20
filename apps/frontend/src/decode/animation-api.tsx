@@ -1,5 +1,5 @@
-import type { CSSProperties, HTMLAttributes, ReactNode, SVGProps } from "react";
-import { Children, Fragment } from "react";
+import type { CSSProperties, HTMLAttributes, ReactNode, RefObject, SVGProps } from "react";
+import { Children, Fragment, useLayoutEffect, useRef } from "react";
 import {
   AddressBook,
   ArrowRight,
@@ -142,6 +142,57 @@ export {
   useCurrentFrame,
   useVideoConfig,
 };
+
+
+/* ---------------------------------------------------------------------------
+ * The "right library" toolkit — re-exported so a scene reaches it through the
+ * one allowed import source. Deterministic under Remotion: D3 is pure (compute
+ * from useCurrentFrame), GSAP is frame-seeked via useGsapTimeline, the Remotion
+ * wrappers are frame-driven by design. Pick the right library per element:
+ * data/charts -> d3; timelines -> gsap; 3D -> THREE / ThreeCanvas; vector motion
+ * -> Lottie; draw-on/morph -> paths; shapes -> shapes; annotate -> roughNotation.
+ * ------------------------------------------------------------------------- */
+export * as d3 from "d3";
+export * as THREE from "three";
+export { gsap } from "gsap";
+export { Lottie } from "@remotion/lottie";
+export { ThreeCanvas } from "@remotion/three";
+export * as paths from "@remotion/paths";
+export * as shapes from "@remotion/shapes";
+export * as transitions from "@remotion/transitions";
+export * as roughNotation from "@remotion/rough-notation";
+export * as motionBlur from "@remotion/motion-blur";
+export * as noise from "@remotion/noise";
+export * as effects from "@remotion/effects";
+export * as gif from "@remotion/gif";
+
+import { gsap as _gsap } from "gsap";
+/**
+ * Frame-lock a GSAP timeline to the Remotion clock. Attach the returned ref to a
+ * wrapper element, build the PAUSED timeline in `setup` with scoped selectors;
+ * it is seeked to the current frame every render, so playback is deterministic
+ * and export-accurate.
+ */
+export function useGsapTimeline(
+  setup: (tl: ReturnType<typeof _gsap.timeline>) => void,
+): RefObject<HTMLDivElement | null> {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const scope = useRef<HTMLDivElement | null>(null);
+  const tl = useRef<ReturnType<typeof _gsap.timeline> | null>(null);
+  useLayoutEffect(() => {
+    const ctx = _gsap.context(() => {
+      tl.current = _gsap.timeline({ paused: true });
+      setup(tl.current);
+    }, scope);
+    return () => ctx.revert();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useLayoutEffect(() => {
+    tl.current?.seek(frame / fps);
+  }, [frame, fps]);
+  return scope;
+}
 
 /**
  * Where the current beat is: 0 at its first frame, 1 at its last.

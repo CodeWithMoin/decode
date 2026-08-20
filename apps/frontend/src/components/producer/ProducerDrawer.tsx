@@ -864,7 +864,7 @@ export function ProducerDrawer() {
               }
             }}
             aria-label="Write in Project Chat"
-            placeholder={connectedUnbuilt ? "What should we teach? e.g. “Explain backpropagation”" : "Describe the change you want…"}
+            placeholder={connectedUnbuilt ? "What should we teach?”" : "Describe the change you want…"}
             className={cx("max-h-[112px] min-h-[30px] flex-1 resize-none self-center border-none bg-transparent py-[5px] text-[14px] leading-[20px]", dark ? "text-[var(--nle-text)] placeholder:text-[var(--nle-faint)]" : "placeholder:text-t9")}
           />
           <Graphite
