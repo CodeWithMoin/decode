@@ -369,10 +369,7 @@ _HEX = re.compile(r"#[0-9a-fA-F]{6}\b")
 _COLOR_LITERAL = re.compile(
     r"#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b|\b(?:rgba?|hsla?)\(\s*([^)]*)\)"
 )
-_PRIMITIVES = re.compile(
-    r"<(?:Act|Stack|Row|Anchor|Label|Connector|Card|Arrow|Subject|Choreography"
-    r"|Container|Grid|Badge|DataStream|CodeBlock|MetricCard|Database|Queue|Cloud|Timeline)\b"
-)
+_PRIMITIVES = re.compile(r"<(?:Act|Stack|Row|Anchor|Label|Grid|CodeBlock)\b")
 # The cast ids a choreography script may name: every animateable element is
 # wrapped in <Subject id="...">, so the script can be checked against them.
 _SUBJECT_ID = re.compile(r"<Subject\b[^>]*\bid\s*=\s*[\"']([^\"']+)[\"']")
@@ -588,15 +585,6 @@ def _validate_stage_and_palette(scene: SceneModule, palette: dict | None) -> lis
                 "(Stack/Row/Anchor/Label/Connector from @decode/animation-api) instead of "
                 "freehand coordinates — sibling groups in Stack/Row, captions in Anchor, "
                 "between-labels in Connector, standalone text in Label.",
-            )
-        )
-    if _OPAQUE_FILL.search(source) or _OPAQUE_INSET.search(source):
-        found.append(
-            _violation(
-                "opaque_root",
-                f"{scene.beat_id}: a full-frame element paints a background (an AbsoluteFill "
-                "with a background, or an inset-0 layer). The host paints the stage; remove "
-                "full-frame fills so the scene is transparent over it.",
             )
         )
     prose = _SVG_BLOCK.sub("", source)

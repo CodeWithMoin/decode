@@ -128,10 +128,13 @@ CHOREOGRAPHY_GUIDANCE = """## Scene authoring guidance — a 1920x1080 LANDING P
   animations/transitions, no unseeded randomness — the render is deterministic frame-by-frame.
 - Every `<svg>` declares a `viewBox`. TEXT IS HTML, never `<svg><text>` — render words as a `Label`
   or `<div>` positioned alongside the vector.
-- NEVER paint a full-frame background — the host paints the stage. Take every colour from the palette
-  via `var(--decode-surface|border|ink|support|accent)` or the injected hex values.
-- Structural layout uses `Stack`/`Row`/`Grid` + `gap`; free absolute positioning is fine INSIDE an
-  `<svg>` you draw or a `<ThreeCanvas>`. Reserve `Card`/`Container` for genuinely card-like things.
+- PAINT THE PAGE'S OWN BACKGROUND — a designed full-frame ground, not a bare fill: a gradient in the
+  palette's surface hue, an organic field via `noise`, a subtle grain/glow via `effects`. Make it
+  distinct per scene; the page owns the whole 1920x1080 canvas like a real landing page. Take every
+  colour from the palette via `var(--decode-surface|border|ink|support|accent)` or the injected hex.
+- Structural layout uses `Stack`/`Row`/`Grid` + `gap` and HTML; free absolute positioning is fine
+  INSIDE an `<svg>` you draw or a `<ThreeCanvas>`. Draw surfaces/panels yourself (a rounded `<div>` or
+  a `shapes.Rect`) — there is no Card/Badge/Database vocabulary; the libraries draw the visuals.
 - Default-export `function Scene({ words })`. Declare two to six creator controls in the structured
   `controls` field; do not write a `CONTROLS` export."""
 
