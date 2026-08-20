@@ -37,7 +37,7 @@ const ChoreographyContext = createContext<ChoreographyContextValue | null>(null)
 export function Choreography({
   script,
   words,
-  accent = "#F2A47B",
+  accent = "var(--decode-accent, #4b8ea1)",
   children,
 }: {
   script: ChoreographyVerb[];
@@ -81,14 +81,15 @@ export function Subject({
 }) {
   const context = useContext(ChoreographyContext);
   const state = context?.state[id] ?? IDLE;
-  const accent = context?.accent ?? "#F2A47B";
+  // `indicate` draws attention with scale/opacity from the runtime — no coloured
+  // highlight ring. The ring added a flash of accent at scene start and read as
+  // chrome, not teaching.
   return (
     <div
       data-decode-box="subject"
       style={{
         opacity: q(state.opacity),
         transform: `scale(${q(state.scale)})`,
-        ...(state.isHighlighted ? { boxShadow: `0 0 0 2px ${accent}` } : undefined),
         ...style,
       }}
     >

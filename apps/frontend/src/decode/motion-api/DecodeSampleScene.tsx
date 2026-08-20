@@ -43,7 +43,7 @@ export function DecodeSampleScene({
 }) {
   return (
     <AbsoluteFill style={{ background: "transparent", overflow: "hidden" }}>
-      <Choreography script={script} words={words} accent="#F2A47B">
+      <Choreography script={script} words={words} accent="#4b8ea1">
         <DnsDiagram />
       </Choreography>
     </AbsoluteFill>
@@ -61,13 +61,13 @@ function DnsDiagram() {
             <Label text="example.com" size={34} weight={600} />
           </Card>
         </Subject>
-        <Arrow progress={nameToResolver} color="#F2A47B" />
+        <Arrow progress={nameToResolver} color="#4b8ea1" />
         <Subject id="resolver">
           <Card>
             <Label text="resolver" size={30} weight={600} />
           </Card>
         </Subject>
-        <Arrow progress={resolverToAddress} color="#F2A47B" />
+        <Arrow progress={resolverToAddress} color="#4b8ea1" />
         <Subject id="address">
           <Card>
             <Label text="203.0.113.7" size={34} weight={600} />

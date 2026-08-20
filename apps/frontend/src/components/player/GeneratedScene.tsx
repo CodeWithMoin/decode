@@ -1,6 +1,6 @@
 "use client";
 
-import { Component, useEffect, useRef, useState, type ReactNode } from "react";
+import { Component, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { continueRender, delayRender } from "remotion";
 import { AbsoluteFill, inspectScene } from "@decode/animation-api";
 import { loadSceneModule, SceneModuleError, type SceneComponent } from "@/lib/scene-module";
@@ -73,9 +73,118 @@ function GeneratedSceneSource({
   return (
     <SceneRenderBoundary key={source}>
       <LayoutInspection sceneId={scene.id}>
-        <Component {...controlProps(scene, overrides)} script={scene.script} words={scene.words} />
+        <SafeArea>
+          <Component {...controlProps(scene, overrides)} script={scene.script} words={scene.words} />
+        </SafeArea>
       </LayoutInspection>
     </SceneRenderBoundary>
+  );
+}
+
+// The 1920x1080 broadcast frame and its 96px safe margin (MASTER.md).
+const FRAME_W = 1920, FRAME_H = 1080, SAFE_MARGIN = 96;
+const SAFE_W = FRAME_W - 2 * SAFE_MARGIN, SAFE_H = FRAME_H - 2 * SAFE_MARGIN;
+const q6 = (n: number) => Math.round(n * 64) / 64; // match the renderer quantizer
+
+/**
+ * The host-owned SafeArea guarantee (spike: spikes/auto-repair). After the scene
+ * mounts, measure its real leaf geometry once and apply ONE rigid transform —
+ * scale-to-fit plus translate — to the whole scene so nothing sits past the 96px
+ * margin. Because every node moves by the same affine transform, all internal
+ * structure, spacing and aspect ratios are mathematically invariant: it can only
+ * shrink an over-large scene, never break a valid one. Overflow is a global
+ * containment concern the host solves deterministically; sibling spacing stays a
+ * composition concern (Stack/Row/Grid) and the vision gate.
+ *
+ * One measurement is correct: choreography reveals elements by opacity, so every
+ * element occupies its final layout slot from frame 0 — the content box is stable
+ * across the scene. We measure the untransformed content, then apply; the effect
+ * runs once (no feedback loop), and a delayRender holds a headless capture until
+ * the transform is committed so stills and the export match the preview.
+ */
+function SafeArea({ children }: { children: ReactNode }) {
+  const stageRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const palette = useStudio((s) => s.stagePalette);
+  const [fit, setFit] = useState<{ s: number; dx: number; dy: number } | null>(null);
+  const [handle] = useState(() => delayRender("safe-area fit"));
+
+  // The Director's palette, stamped once as CSS variables the scene primitives
+  // read (var(--decode-surface|border|ink|support|accent)). No scene component
+  // hardcodes a colour — every hue flows from here. When a project has no
+  // palette the variables are unset and each primitive falls back to its own
+  // dark default (never the brand amber). surface-deep is the quiet diagram
+  // surface, kept distinct from surface per the scene-visual contract.
+  const paletteVars = (palette
+    ? {
+        "--decode-surface": palette.surface,
+        "--decode-surface-deep": `color-mix(in srgb, ${palette.surface} 78%, #000)`,
+        "--decode-border": palette.border,
+        "--decode-ink": palette.ink,
+        "--decode-support": palette.support,
+        "--decode-accent": palette.accent,
+      }
+    : {}) as CSSProperties;
+
+  useLayoutEffect(() => {
+    const stage = stageRef.current, content = contentRef.current;
+    // Any path must resolve to a fit so the delayRender handle continues and a
+    // headless capture never hangs.
+    if (!stage || !content) { setFit({ s: 1, dx: 0, dy: 0 }); return; }
+    const sr = stage.getBoundingClientRect();
+    if (sr.width < 1) { setFit({ s: 1, dx: 0, dy: 0 }); return; }
+    const pxToComp = FRAME_W / sr.width; // the stage renders 1920 comp px at sr.width screen px
+    // Measure the GROUP boxes (Stack/Row/Grid), never the leaf Subjects. A leaf's
+    // `appear` animates transform: scale(), and getBoundingClientRect includes
+    // transforms — an unappeared card at scale(0) would measure ~0 and hide the
+    // true extent. Groups aren't scaled and their flex slots reserve full size
+    // regardless of reveal state, so their union is the stable layout bbox.
+    let L = Infinity, T = Infinity, R = -Infinity, B = -Infinity;
+    const groups = content.querySelectorAll('[data-decode-box="group"]');
+    const targets = groups.length ? groups : content.querySelectorAll("[data-decode-box]");
+    for (const el of targets) {
+      const r = (el as HTMLElement).getBoundingClientRect();
+      const x = (r.left - sr.left) * pxToComp, y = (r.top - sr.top) * pxToComp;
+      const w = r.width * pxToComp, h = r.height * pxToComp;
+      if (w < 4 || h < 4) continue;
+      if (w >= FRAME_W - 4 && h >= FRAME_H - 4) continue; // skip the full-frame root
+      L = Math.min(L, x); T = Math.min(T, y); R = Math.max(R, x + w); B = Math.max(B, y + h);
+    }
+    if (!isFinite(L)) { setFit({ s: 1, dx: 0, dy: 0 }); return; }
+    const bw = R - L, bh = B - T;
+    const s = Math.min(1, SAFE_W / bw, SAFE_H / bh);
+    // scaled bbox, then translate it fully inside the safe rect
+    const cx = L + bw / 2, cy = T + bh / 2;
+    const sx = cx - (bw * s) / 2, sy = cy - (bh * s) / 2, sw = bw * s, sh = bh * s;
+    const tx = sx < SAFE_MARGIN ? SAFE_MARGIN - sx : sx + sw > SAFE_MARGIN + SAFE_W ? SAFE_MARGIN + SAFE_W - (sx + sw) : 0;
+    const ty = sy < SAFE_MARGIN ? SAFE_MARGIN - sy : sy + sh > SAFE_MARGIN + SAFE_H ? SAFE_MARGIN + SAFE_H - (sy + sh) : 0;
+    // combined transform about origin 0,0: x' = s*x + (cx*(1-s)+tx)
+    setFit({ s: q6(s), dx: q6(cx * (1 - s) + tx), dy: q6(cy * (1 - s) + ty) });
+  }, []);
+
+  // Continue a headless capture only once the transform is committed, so stills
+  // and the export render the corrected frame, not the pre-fit one.
+  useEffect(() => {
+    if (fit) continueRender(handle);
+  }, [fit, handle]);
+
+  return (
+    <div
+      ref={stageRef}
+      style={{ position: "absolute", inset: 0, ...paletteVars }}
+    >
+      <div
+        ref={contentRef}
+        style={{
+          position: "absolute",
+          inset: 0,
+          transformOrigin: "0 0",
+          transform: fit ? `translate(${fit.dx}px, ${fit.dy}px) scale(${fit.s})` : undefined,
+        }}
+      >
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -200,7 +309,7 @@ function SceneError({ message }: { message: string }) {
       >
         <div
           style={{
-            color: "#F2A47B",
+            color: "#4b8ea1",
             fontFamily: "ui-monospace, monospace",
             fontSize: 18,
             letterSpacing: "0.1em",

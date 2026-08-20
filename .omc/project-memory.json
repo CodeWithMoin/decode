@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1787058873593,
-  "projectRoot": "/Users/moinuddinshaik/Downloads/decode",
+  "lastScanned": 1787167065537,
+  "projectRoot": "/Users/moinuddinshaik/Downloads/decode/.claude/worktrees/linear-twirling-clover",
   "techStack": {
     "languages": [
       {
@@ -47,14 +47,14 @@
       "path": "apps",
       "purpose": null,
       "fileCount": 0,
-      "lastAccessed": 1787058873583,
+      "lastAccessed": 1787167065531,
       "keyFiles": []
     },
     "design_handoff_decode_studio": {
       "path": "design_handoff_decode_studio",
       "purpose": null,
       "fileCount": 3,
-      "lastAccessed": 1787058873584,
+      "lastAccessed": 1787167065535,
       "keyFiles": [
         "Decode Studio.dc.html",
         "README.md",
@@ -64,47 +64,108 @@
     "docs": {
       "path": "docs",
       "purpose": "Documentation",
-      "fileCount": 13,
-      "lastAccessed": 1787058873584,
+      "fileCount": 17,
+      "lastAccessed": 1787167065536,
       "keyFiles": [
         "AGENT-GRAPH.md",
         "APP-STRUCTURE.md",
         "AUDIO-SYNC-PROPOSAL.md",
-        "CREATOR-LANGUAGE.md",
-        "DIRECTION-LOOP-PIVOT.md"
+        "CHOREOGRAPHY-API.md",
+        "CREATOR-LANGUAGE.md"
       ]
     },
     "hyperframes": {
       "path": "hyperframes",
       "purpose": null,
       "fileCount": 0,
-      "lastAccessed": 1787058873584,
+      "lastAccessed": 1787167065536,
+      "keyFiles": []
+    },
+    "spikes": {
+      "path": "spikes",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1787167065537,
       "keyFiles": []
     }
   },
   "hotPaths": [
     {
       "path": "apps/frontend/src/components/producer/ProducerDrawer.tsx",
-      "accessCount": 17,
-      "lastAccessed": 1787130593402,
+      "accessCount": 27,
+      "lastAccessed": 1787158287446,
       "type": "file"
     },
     {
       "path": "apps/frontend/src/components/connected/ConnectedEdit.tsx",
-      "accessCount": 12,
-      "lastAccessed": 1787130764641,
+      "accessCount": 23,
+      "lastAccessed": 1787209211744,
+      "type": "file"
+    },
+    {
+      "path": "apps/frontend/src/decode/animation-api.tsx",
+      "accessCount": 15,
+      "lastAccessed": 1787209583100,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/decode/execution/pipeline.py",
+      "accessCount": 11,
+      "lastAccessed": 1787154193749,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/decode/agents/renderer/validation.py",
+      "accessCount": 9,
+      "lastAccessed": 1787171873521,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/decode/execution/graph.py",
+      "accessCount": 9,
+      "lastAccessed": 1787171910092,
+      "type": "file"
+    },
+    {
+      "path": "apps/frontend/src/components/player/GeneratedScene.tsx",
+      "accessCount": 9,
+      "lastAccessed": 1787213940599,
       "type": "file"
     },
     {
       "path": "apps/backend/decode/agents/intake/__init__.py",
-      "accessCount": 5,
-      "lastAccessed": 1787071680452,
+      "accessCount": 8,
+      "lastAccessed": 1787164202563,
+      "type": "file"
+    },
+    {
+      "path": "apps/frontend/src/components/landing/WaitlistLanding.tsx",
+      "accessCount": 7,
+      "lastAccessed": 1787149905683,
+      "type": "file"
+    },
+    {
+      "path": "apps/frontend/src/lib/types.ts",
+      "accessCount": 7,
+      "lastAccessed": 1787209179664,
       "type": "file"
     },
     {
       "path": "apps/backend/decode/orchestrator_router.py",
-      "accessCount": 4,
-      "lastAccessed": 1787063495438,
+      "accessCount": 6,
+      "lastAccessed": 1787145106892,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/decode/execution/worker.py",
+      "accessCount": 6,
+      "lastAccessed": 1787155463537,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/decode/agents/renderer/prompt.py",
+      "accessCount": 5,
+      "lastAccessed": 1787209598042,
       "type": "file"
     },
     {
@@ -114,9 +175,45 @@
       "type": "file"
     },
     {
-      "path": "apps/frontend/src/lib/types.ts",
+      "path": "apps/backend/decode/orchestrator.py",
+      "accessCount": 4,
+      "lastAccessed": 1787151106276,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/decode/config.py",
+      "accessCount": 4,
+      "lastAccessed": 1787155423692,
+      "type": "file"
+    },
+    {
+      "path": "apps/frontend/scripts/render-stills.ts",
+      "accessCount": 4,
+      "lastAccessed": 1787167075960,
+      "type": "file"
+    },
+    {
+      "path": "apps/frontend/src/components/project/stages/Edit.tsx",
       "accessCount": 3,
-      "lastAccessed": 1787130550740,
+      "lastAccessed": 1787137163291,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/decode/agents/agent_runtime.py",
+      "accessCount": 3,
+      "lastAccessed": 1787148410125,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/decode/schemas.py",
+      "accessCount": 3,
+      "lastAccessed": 1787173080825,
+      "type": "file"
+    },
+    {
+      "path": "apps/frontend/src/store/studio.ts",
+      "accessCount": 3,
+      "lastAccessed": 1787209188483,
       "type": "file"
     },
     {
@@ -126,9 +223,39 @@
       "type": "file"
     },
     {
-      "path": "apps/backend/decode/orchestrator.py",
-      "accessCount": 1,
-      "lastAccessed": 1787063205491,
+      "path": "apps/backend/decode/pricing.py",
+      "accessCount": 2,
+      "lastAccessed": 1787148420732,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/tests/test_context.py",
+      "accessCount": 2,
+      "lastAccessed": 1787154196631,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/decode/agents/renderer/vision.py",
+      "accessCount": 2,
+      "lastAccessed": 1787158544543,
+      "type": "file"
+    },
+    {
+      "path": "spikes/manim/README.md",
+      "accessCount": 2,
+      "lastAccessed": 1787162401607,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/decode/agents/architect/__init__.py",
+      "accessCount": 2,
+      "lastAccessed": 1787163184710,
+      "type": "file"
+    },
+    {
+      "path": "apps/frontend/src/decode/motion-api/choreography.ts",
+      "accessCount": 2,
+      "lastAccessed": 1787173471423,
       "type": "file"
     },
     {
@@ -156,12 +283,6 @@
       "type": "file"
     },
     {
-      "path": "apps/backend/decode/agents/agent_runtime.py",
-      "accessCount": 1,
-      "lastAccessed": 1787069066871,
-      "type": "file"
-    },
-    {
       "path": "streaming.png",
       "accessCount": 1,
       "lastAccessed": 1787070799577,
@@ -174,9 +295,99 @@
       "type": "file"
     },
     {
-      "path": "apps/backend/decode/agents/renderer/prompt.py",
+      "path": "apps/backend/tests/test_svg_validation.py",
       "accessCount": 1,
-      "lastAccessed": 1787127822098,
+      "lastAccessed": 1787137903832,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/decode/execution/throttle.py",
+      "accessCount": 1,
+      "lastAccessed": 1787145002855,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/decode/agents/contracts.py",
+      "accessCount": 1,
+      "lastAccessed": 1787148387116,
+      "type": "file"
+    },
+    {
+      "path": "apps/frontend/src/app/api/waitlist/route.ts",
+      "accessCount": 1,
+      "lastAccessed": 1787149303617,
+      "type": "file"
+    },
+    {
+      "path": "apps/frontend/src/app/page.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1787149377949,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/decode/execution/conductor.py",
+      "accessCount": 1,
+      "lastAccessed": 1787154123529,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/tests/test_vision_gate.py",
+      "accessCount": 1,
+      "lastAccessed": 1787155478506,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/decode/agents/orchestrator/SKILL.md",
+      "accessCount": 1,
+      "lastAccessed": 1787157195001,
+      "type": "file"
+    },
+    {
+      "path": "docs/CHOREOGRAPHY-API.md",
+      "accessCount": 1,
+      "lastAccessed": 1787159133238,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/decode/agents/renderer/__init__.py",
+      "accessCount": 1,
+      "lastAccessed": 1787163240773,
+      "type": "file"
+    },
+    {
+      "path": "apps/backend/decode/agents/intake/topic-system.md",
+      "accessCount": 1,
+      "lastAccessed": 1787164156793,
+      "type": "file"
+    },
+    {
+      "path": "apps/frontend/src/decode/motion-api/tsgb.ts",
+      "accessCount": 1,
+      "lastAccessed": 1787166916851,
+      "type": "file"
+    },
+    {
+      "path": "apps/frontend/src/decode/motion-api/stage.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1787166949844,
+      "type": "file"
+    },
+    {
+      "path": "apps/frontend/src/decode/motion-api/index.ts",
+      "accessCount": 1,
+      "lastAccessed": 1787166999466,
+      "type": "file"
+    },
+    {
+      "path": "apps/frontend/src/decode/motion-api/DecodeSampleScene.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1787167027583,
+      "type": "file"
+    },
+    {
+      "path": "apps/frontend/src/remotion/root.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1787167062248,
       "type": "file"
     }
   ],

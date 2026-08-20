@@ -531,8 +531,8 @@ export function Label({
  * instead of needing absolute coordinates.
  */
 export function Card({
-  background = "#232323",
-  border = "#484848",
+  background = "var(--decode-surface, #232323)",
+  border = "var(--decode-border, #484848)",
   radius = 16,
   padding = 16,
   style,
@@ -575,7 +575,7 @@ export function Card({
 export function Container({
   title,
   variant = "solid",
-  accent = "#F2A47B",
+  accent = "var(--decode-accent, #4b8ea1)",
   padding = 24,
   gap = 16,
   style,
@@ -589,7 +589,7 @@ export function Container({
   style?: CSSProperties;
   children?: ReactNode;
 }) {
-  const borderColor = variant === "accent" ? accent : "#484848";
+  const borderColor = variant === "accent" ? accent : "var(--decode-border, #484848)";
   return (
     <div
       data-decode-box="group"
@@ -610,7 +610,7 @@ export function Container({
             fontSize: 14,
             letterSpacing: "0.12em",
             textTransform: "uppercase",
-            color: variant === "accent" ? accent : "#8A8A86",
+            color: variant === "accent" ? accent : "var(--decode-support, #8A8A86)",
           }}
         >
           {title}
@@ -649,9 +649,9 @@ export function Grid({
 }
 
 const BADGE_COLORS = {
-  success: "#8FE6C0",
-  warning: "#F2CE72",
-  info: "#8A8A86",
+  success: "var(--decode-positive, #8FE6C0)",
+  warning: "var(--decode-warn, #F2CE72)",
+  info: "var(--decode-support, #8A8A86)",
 } as const;
 
 /** A small inline status chip: "200 OK", "Pending". */
@@ -698,7 +698,7 @@ export function DataStream({
   speed = 1,
   direction = "row",
   length = 96,
-  color = "#F2A47B",
+  color = "var(--decode-accent, #4b8ea1)",
   thickness = 2,
   style,
 }: {
@@ -760,13 +760,13 @@ export function DataStream({
 /** Code with per-line highlight — fixed type, wraps long lines, never scrolls. */
 export function CodeBlock({
   code,
-  highlightLines = [],
   language,
   fontSize = 20,
-  accent = "#F2A47B",
   style,
 }: {
   code: string;
+  /** Accepted for API compatibility; the model still emits it, but code lines
+   *  are no longer visually highlighted — the tint added noise without value. */
   highlightLines?: number[];
   language?: string;
   fontSize?: number;
@@ -780,19 +780,18 @@ export function CodeBlock({
     .replace(/\\t/g, "  ")
     .replace(/\n$/, "")
     .split("\n");
-  const highlighted = new Set(highlightLines);
   return (
     <div
       data-decode-box="card"
       style={{
-        background: "#1C1C1C",
-        border: "2px solid #484848",
+        background: "var(--decode-surface-deep, #1C1C1C)",
+        border: "2px solid var(--decode-border, #484848)",
         borderRadius: 14,
         padding: "18px 0",
         fontFamily: "ui-monospace, monospace",
         fontSize,
         lineHeight: 1.6,
-        color: "#F0F6F1",
+        color: "var(--decode-ink, #F0F6F1)",
         ...style,
       }}
     >
@@ -803,7 +802,7 @@ export function CodeBlock({
             fontSize: Math.max(12, fontSize * 0.6),
             letterSpacing: "0.1em",
             textTransform: "uppercase",
-            color: "#8A8A86",
+            color: "var(--decode-support, #8A8A86)",
           }}
         >
           {language}
@@ -812,13 +811,7 @@ export function CodeBlock({
       {lines.map((line, index) => (
         <div
           key={index}
-          style={{
-            padding: "0 22px",
-            whiteSpace: "pre-wrap",
-            overflowWrap: "anywhere",
-            backgroundColor: highlighted.has(index + 1) ? "rgba(242, 164, 123, 0.14)" : undefined,
-            color: highlighted.has(index + 1) ? accent : undefined,
-          }}
+          style={{ padding: "0 22px", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
         >
           {line || " "}
         </div>
@@ -843,8 +836,8 @@ export function MetricCard({
     <div
       data-decode-box="card"
       style={{
-        background: "#232323",
-        border: "2px solid #484848",
+        background: "var(--decode-surface, #232323)",
+        border: "2px solid var(--decode-border, #484848)",
         borderRadius: 16,
         padding: "20px 28px",
         display: "flex",
@@ -860,7 +853,7 @@ export function MetricCard({
           fontSize: 15,
           letterSpacing: "0.12em",
           textTransform: "uppercase",
-          color: "#8A8A86",
+          color: "var(--decode-support, #8A8A86)",
           whiteSpace: "nowrap",
         }}
       >
@@ -870,13 +863,13 @@ export function MetricCard({
         style={{
           fontSize: 44,
           fontWeight: 600,
-          color: "#F0F6F1",
+          color: "var(--decode-ink, #F0F6F1)",
           fontVariantNumeric: "tabular-nums",
           lineHeight: 1.1,
         }}
       >
         {value}
-        {unit && <span style={{ fontSize: 22, color: "#8A8A86", marginLeft: 6 }}>{unit}</span>}
+        {unit && <span style={{ fontSize: 22, color: "var(--decode-support, #8A8A86)", marginLeft: 6 }}>{unit}</span>}
       </div>
     </div>
   );
@@ -921,7 +914,7 @@ function GlyphBox({
       <span
         style={{
           position: "relative",
-          color: "#F0F6F1",
+          color: "var(--decode-ink, #F0F6F1)",
           fontSize: 24,
           fontWeight: 600,
           whiteSpace: "nowrap",
@@ -944,8 +937,8 @@ export function Database({ label, style }: { label: string; style?: CSSPropertie
         <>
           <path
             d="M 2 14 L 2 86 A 48 12 0 0 0 98 86 L 98 14"
-            fill="#232323"
-            stroke="#484848"
+            fill="var(--decode-surface, #232323)"
+            stroke="var(--decode-border, #484848)"
             strokeWidth={2}
             vectorEffect="non-scaling-stroke"
           />
@@ -954,8 +947,8 @@ export function Database({ label, style }: { label: string; style?: CSSPropertie
             cy={14}
             rx={48}
             ry={12}
-            fill="#232323"
-            stroke="#484848"
+            fill="var(--decode-surface, #232323)"
+            stroke="var(--decode-border, #484848)"
             strokeWidth={2}
             vectorEffect="non-scaling-stroke"
           />
@@ -974,8 +967,8 @@ export function Queue({ label, style }: { label: string; style?: CSSProperties }
         display: "inline-flex",
         alignItems: "center",
         gap: 16,
-        background: "#232323",
-        border: "2px solid #484848",
+        background: "var(--decode-surface, #232323)",
+        border: "2px solid var(--decode-border, #484848)",
         borderRadius: 14,
         padding: "20px 28px",
         ...style,
@@ -989,13 +982,13 @@ export function Queue({ label, style }: { label: string; style?: CSSProperties }
               width: 7,
               height: 26,
               borderRadius: 2,
-              backgroundColor: "#8A8A86",
+              backgroundColor: "var(--decode-support, #8A8A86)",
               opacity: slotOpacity,
             }}
           />
         ))}
       </div>
-      <span style={{ color: "#F0F6F1", fontSize: 24, fontWeight: 600, whiteSpace: "nowrap" }}>
+      <span style={{ color: "var(--decode-ink, #F0F6F1)", fontSize: 24, fontWeight: 600, whiteSpace: "nowrap" }}>
         {label}
       </span>
     </div>
@@ -1013,8 +1006,8 @@ export function Cloud({ label, style }: { label: string; style?: CSSProperties }
       glyph={
         <path
           d="M 24 82 A 14 16 0 0 1 14 54 A 16 18 0 0 1 30 30 A 20 22 0 0 1 66 22 A 16 18 0 0 1 88 44 A 13 15 0 0 1 82 82 Z"
-          fill="#232323"
-          stroke="#484848"
+          fill="var(--decode-surface, #232323)"
+          stroke="var(--decode-border, #484848)"
           strokeWidth={2}
           vectorEffect="non-scaling-stroke"
         />
@@ -1028,7 +1021,7 @@ export function Timeline({
   direction = "horizontal",
   gap = 12,
   railLength = 42,
-  color = "#484848",
+  color = "var(--decode-border, #484848)",
   style,
   children,
 }: {
