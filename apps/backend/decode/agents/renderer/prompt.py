@@ -129,9 +129,11 @@ CHOREOGRAPHY_GUIDANCE = """## Scene authoring guidance — a 1920x1080 LANDING P
   `<Act>` and animates off `words` / `useCurrentFrame`.
 - Drive every moving value from `useCurrentFrame()` (or act-local `t`). No timers, no CSS
   animations/transitions, no unseeded randomness — the render is deterministic frame-by-frame.
-- FIT TEXT so it never clips: size titles and labels with `fitText` / `fitTextOnNLines` (the font
-  size that fills a box on 1..n lines) and `measureText` (a string's rendered size) from
-  `@decode/animation-api` — never guess a font size that overflows its container.
+- FIT TEXT so it never clips. Simplest: size with CSS (`fontSize`, `lineHeight`, `overflow`). To
+  compute an exact fit, call these with ONE OPTIONS OBJECT (never positional args):
+  `fitTextOnNLines({{ text, maxLines, maxBoxWidth, fontFamily, maxFontSize }})` -> `{{ fontSize, lines }}`;
+  `fitText({{ text, withinWidth, fontFamily }})` -> `{{ fontSize }}`;
+  `measureText({{ text, fontFamily, fontSize }})` -> `{{ width, height }}`.
 - Every `<svg>` declares a `viewBox`. TEXT IS HTML, never `<svg><text>` — render words as a `Label`
   or `<div>` positioned alongside the vector.
 - PAINT THE PAGE'S OWN BACKGROUND — a designed full-frame ground, not a bare fill: a gradient in the

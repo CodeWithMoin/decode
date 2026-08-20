@@ -163,10 +163,21 @@ function SafeArea({ children }: { children: ReactNode }) {
   }, []);
 
   // Continue a headless capture only once the transform is committed, so stills
-  // and the export render the corrected frame, not the pre-fit one.
+  // and the export render the corrected frame, not the pre-fit one. Continue
+  // exactly once — and, if the scene errors before the measurement runs, on
+  // unmount too, so a crashing scene never hangs the render on a stuck
+  // delayRender for the full timeout.
+  const continued = useRef(false);
+  const release = () => {
+    if (!continued.current) {
+      continued.current = true;
+      continueRender(handle);
+    }
+  };
   useEffect(() => {
-    if (fit) continueRender(handle);
+    if (fit) release();
   }, [fit, handle]);
+  useEffect(() => () => release(), [handle]);
 
   return (
     <div
