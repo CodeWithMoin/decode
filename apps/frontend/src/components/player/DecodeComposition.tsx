@@ -26,30 +26,76 @@ export type DecodeCompositionProps = {
   palette?: import("@/lib/types").PlanPalette | null;
 };
 
-/** The production's one backdrop. Painted here by the host — never by a scene —
- *  so the whole video reads as one film. Deterministic: derived from the
- *  Director's palette, no randomness, no animation, settled at every frame. */
+/** The production's one background. Painted here by the host — never by a
+ *  scene — so the whole video reads as one film. A real designed ground, not a
+ *  flat fill: a tinted base gradient, a gradient mesh in the Director's hues, a
+ *  fine technical grid, film grain, and a vignette. Deterministic: derived only
+ *  from the palette, fixed noise seed, no animation, settled at every frame. */
 function StageBackdrop({ palette }: { palette?: import("@/lib/types").PlanPalette | null }) {
   const accent = palette?.accent ?? "#F2A47B";
   const support = palette?.support ?? "#8B93A7";
+  const border = palette?.border ?? "#3A3A3A";
+  const surface = palette?.surface ?? "#161616";
+  // Fixed-seed fractal noise → film grain. A data URI keeps the render
+  // self-contained (no fetch, byte-identical on every machine).
+  const grain =
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240">` +
+        `<filter id="g"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" stitchTiles="stitch"/>` +
+        `<feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.05 0"/></filter>` +
+        `<rect width="240" height="240" filter="url(#g)"/></svg>`,
+    );
   return (
     <AbsoluteFill style={{ backgroundColor: "#0B0B0B" }}>
+      {/* The ground: a slow diagonal ramp out of the palette's surface hue, so
+          the stage is that world's darkness rather than a generic black. */}
+      <AbsoluteFill
+        style={{
+          background: `linear-gradient(160deg, ${surface}66 0%, #0B0B0B 42%, #0B0B0B 62%, ${surface}4D 100%)`,
+        }}
+      />
+      {/* The mesh: overlapping color fields in the project's own hues. Present
+          enough to be seen, still a full step below content contrast. */}
       <AbsoluteFill
         style={{
           background: [
-            // Two large, asymmetric glows in the project's own hues — quiet
-            // atmosphere, far below content contrast.
-            `radial-gradient(1200px 800px at 18% 8%, ${accent}14, transparent 70%)`,
-            `radial-gradient(1400px 900px at 85% 92%, ${support}10, transparent 70%)`,
-            // A faint center lift so the picture zone reads a step above the edges.
-            `radial-gradient(1600px 1000px at 50% 45%, #FFFFFF05, transparent 75%)`,
+            `radial-gradient(1100px 750px at 14% 4%, ${accent}2E, transparent 68%)`,
+            `radial-gradient(900px 650px at 96% 30%, ${support}1F, transparent 70%)`,
+            `radial-gradient(1300px 850px at 78% 100%, ${accent}1A, transparent 72%)`,
+            `radial-gradient(800px 600px at 4% 78%, ${support}24, transparent 70%)`,
+            // Center lift keeps the picture zone a step above the edges.
+            `radial-gradient(1500px 950px at 50% 46%, #FFFFFF07, transparent 74%)`,
           ].join(", "),
         }}
       />
+      {/* The craft layer: a fine technical grid in the palette's border hue,
+          faded out toward the edges so it reads as a drafting surface. */}
       <AbsoluteFill
         style={{
-          // Vignette: keeps eyes in the safe area, hides the frame's hard edge.
-          background: "radial-gradient(140% 110% at 50% 50%, transparent 62%, #00000066 100%)",
+          backgroundImage: [
+            `linear-gradient(${border}14 1px, transparent 1px)`,
+            `linear-gradient(90deg, ${border}14 1px, transparent 1px)`,
+          ].join(", "),
+          backgroundSize: "96px 96px, 96px 96px",
+          backgroundPosition: "center center",
+          maskImage: "radial-gradient(120% 100% at 50% 46%, #000 30%, transparent 78%)",
+          WebkitMaskImage: "radial-gradient(120% 100% at 50% 46%, #000 30%, transparent 78%)",
+        }}
+      />
+      {/* Film grain: kills banding in the gradients, gives the black some tooth. */}
+      <AbsoluteFill
+        style={{
+          backgroundImage: `url("${grain}")`,
+          backgroundRepeat: "repeat",
+          mixBlendMode: "overlay",
+          opacity: 0.5,
+        }}
+      />
+      {/* Vignette: keeps eyes in the safe area, hides the frame's hard edge. */}
+      <AbsoluteFill
+        style={{
+          background: "radial-gradient(140% 110% at 50% 50%, transparent 58%, #00000080 100%)",
         }}
       />
     </AbsoluteFill>
