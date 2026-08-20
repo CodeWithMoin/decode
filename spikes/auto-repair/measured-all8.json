@@ -1,0 +1,3268 @@
+{
+  "beats": {
+    "beat-01": [
+      {
+        "tag": "group",
+        "x": 0,
+        "y": 0,
+        "w": 1920,
+        "h": 1080,
+        "text": "One request, two possibl"
+      },
+      {
+        "tag": "subject",
+        "x": 574,
+        "y": 125,
+        "w": 772,
+        "h": 76,
+        "text": "One request, two possibl"
+      },
+      {
+        "tag": "group",
+        "x": 574,
+        "y": 125,
+        "w": 772,
+        "h": 76,
+        "text": "One request, two possibl"
+      },
+      {
+        "tag": "group",
+        "x": 574,
+        "y": 125,
+        "w": 772,
+        "h": 64,
+        "text": "One request, two possibl"
+      },
+      {
+        "tag": "group",
+        "x": 80,
+        "y": 249,
+        "w": 1760,
+        "h": 190,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 80,
+        "y": 249,
+        "w": 329,
+        "h": 189,
+        "text": ""
+      },
+      {
+        "tag": "card",
+        "x": 80,
+        "y": 249,
+        "w": 329,
+        "h": 189,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 530,
+        "y": 343,
+        "w": 110,
+        "h": 2,
+        "text": ""
+      },
+      {
+        "tag": "connector",
+        "x": 530,
+        "y": 343,
+        "w": 110,
+        "h": 2,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 761,
+        "y": 249,
+        "w": 349,
+        "h": 189,
+        "text": ""
+      },
+      {
+        "tag": "card",
+        "x": 761,
+        "y": 249,
+        "w": 349,
+        "h": 189,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 1230,
+        "y": 343,
+        "w": 110,
+        "h": 2,
+        "text": ""
+      },
+      {
+        "tag": "connector",
+        "x": 1230,
+        "y": 343,
+        "w": 110,
+        "h": 2,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 1461,
+        "y": 249,
+        "w": 379,
+        "h": 189,
+        "text": ""
+      },
+      {
+        "tag": "card",
+        "x": 1461,
+        "y": 249,
+        "w": 379,
+        "h": 189,
+        "text": ""
+      },
+      {
+        "tag": "group",
+        "x": 210,
+        "y": 487,
+        "w": 1500,
+        "h": 210,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 386,
+        "y": 591,
+        "w": 150,
+        "h": 2,
+        "text": ""
+      },
+      {
+        "tag": "connector",
+        "x": 386,
+        "y": 591,
+        "w": 150,
+        "h": 2,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 590,
+        "y": 485,
+        "w": 354,
+        "h": 212,
+        "text": ""
+      },
+      {
+        "tag": "card",
+        "x": 590,
+        "y": 485,
+        "w": 354,
+        "h": 212,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 998,
+        "y": 591,
+        "w": 150,
+        "h": 2,
+        "text": ""
+      },
+      {
+        "tag": "connector",
+        "x": 998,
+        "y": 591,
+        "w": 150,
+        "h": 2,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 1202,
+        "y": 485,
+        "w": 334,
+        "h": 212,
+        "text": ""
+      },
+      {
+        "tag": "card",
+        "x": 1202,
+        "y": 485,
+        "w": 334,
+        "h": 212,
+        "text": ""
+      },
+      {
+        "tag": "group",
+        "x": 210,
+        "y": 745,
+        "w": 1500,
+        "h": 210,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 278,
+        "y": 849,
+        "w": 150,
+        "h": 2,
+        "text": ""
+      },
+      {
+        "tag": "connector",
+        "x": 278,
+        "y": 849,
+        "w": 150,
+        "h": 2,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 482,
+        "y": 743,
+        "w": 354,
+        "h": 212,
+        "text": ""
+      },
+      {
+        "tag": "card",
+        "x": 482,
+        "y": 743,
+        "w": 354,
+        "h": 212,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 890,
+        "y": 849,
+        "w": 150,
+        "h": 2,
+        "text": ""
+      },
+      {
+        "tag": "connector",
+        "x": 890,
+        "y": 849,
+        "w": 150,
+        "h": 2,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 1096,
+        "y": 849,
+        "w": 150,
+        "h": 2,
+        "text": ""
+      },
+      {
+        "tag": "connector",
+        "x": 1096,
+        "y": 849,
+        "w": 150,
+        "h": 2,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 1300,
+        "y": 743,
+        "w": 344,
+        "h": 212,
+        "text": ""
+      },
+      {
+        "tag": "card",
+        "x": 1300,
+        "y": 743,
+        "w": 344,
+        "h": 212,
+        "text": ""
+      }
+    ],
+    "beat-02": [
+      {
+        "tag": "group",
+        "x": 633,
+        "y": 224,
+        "w": 1217,
+        "h": 684,
+        "text": "One request, two possibl"
+      },
+      {
+        "tag": "subject",
+        "x": 999,
+        "y": 304,
+        "w": 484,
+        "h": 48,
+        "text": "One request, two possibl"
+      },
+      {
+        "tag": "group",
+        "x": 999,
+        "y": 304,
+        "w": 484,
+        "h": 48,
+        "text": "One request, two possibl"
+      },
+      {
+        "tag": "group",
+        "x": 999,
+        "y": 304,
+        "w": 484,
+        "h": 40,
+        "text": "One request, two possibl"
+      },
+      {
+        "tag": "group",
+        "x": 684,
+        "y": 382,
+        "w": 1115,
+        "h": 120,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 684,
+        "y": 382,
+        "w": 209,
+        "h": 120,
+        "text": ""
+      },
+      {
+        "tag": "card",
+        "x": 684,
+        "y": 382,
+        "w": 209,
+        "h": 120,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 969,
+        "y": 441,
+        "w": 70,
+        "h": 1,
+        "text": ""
+      },
+      {
+        "tag": "connector",
+        "x": 969,
+        "y": 441,
+        "w": 70,
+        "h": 1,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 1115,
+        "y": 382,
+        "w": 222,
+        "h": 120,
+        "text": ""
+      },
+      {
+        "tag": "card",
+        "x": 1115,
+        "y": 382,
+        "w": 222,
+        "h": 120,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 1412,
+        "y": 441,
+        "w": 70,
+        "h": 1,
+        "text": ""
+      },
+      {
+        "tag": "connector",
+        "x": 1412,
+        "y": 441,
+        "w": 70,
+        "h": 1,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 1558,
+        "y": 382,
+        "w": 241,
+        "h": 120,
+        "text": ""
+      },
+      {
+        "tag": "card",
+        "x": 1558,
+        "y": 382,
+        "w": 241,
+        "h": 120,
+        "text": ""
+      },
+      {
+        "tag": "group",
+        "x": 766,
+        "y": 532,
+        "w": 951,
+        "h": 133,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 878,
+        "y": 598,
+        "w": 95,
+        "h": 1,
+        "text": ""
+      },
+      {
+        "tag": "connector",
+        "x": 878,
+        "y": 598,
+        "w": 95,
+        "h": 1,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 1008,
+        "y": 532,
+        "w": 222,
+        "h": 133,
+        "text": ""
+      },
+      {
+        "tag": "card",
+        "x": 1008,
+        "y": 532,
+        "w": 222,
+        "h": 133,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 1265,
+        "y": 598,
+        "w": 95,
+        "h": 1,
+        "text": ""
+      },
+      {
+        "tag": "connector",
+        "x": 1265,
+        "y": 598,
+        "w": 95,
+        "h": 1,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 1396,
+        "y": 532,
+        "w": 209,
+        "h": 133,
+        "text": ""
+      },
+      {
+        "tag": "card",
+        "x": 1396,
+        "y": 532,
+        "w": 209,
+        "h": 133,
+        "text": ""
+      },
+      {
+        "tag": "group",
+        "x": 766,
+        "y": 696,
+        "w": 951,
+        "h": 133,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 809,
+        "y": 762,
+        "w": 95,
+        "h": 1,
+        "text": ""
+      },
+      {
+        "tag": "connector",
+        "x": 809,
+        "y": 762,
+        "w": 95,
+        "h": 1,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 940,
+        "y": 696,
+        "w": 222,
+        "h": 133,
+        "text": ""
+      },
+      {
+        "tag": "card",
+        "x": 940,
+        "y": 696,
+        "w": 222,
+        "h": 133,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 1197,
+        "y": 762,
+        "w": 95,
+        "h": 1,
+        "text": ""
+      },
+      {
+        "tag": "connector",
+        "x": 1197,
+        "y": 762,
+        "w": 95,
+        "h": 1,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 1328,
+        "y": 762,
+        "w": 95,
+        "h": 1,
+        "text": ""
+      },
+      {
+        "tag": "connector",
+        "x": 1328,
+        "y": 762,
+        "w": 95,
+        "h": 1,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 1458,
+        "y": 696,
+        "w": 215,
+        "h": 133,
+        "text": ""
+      },
+      {
+        "tag": "card",
+        "x": 1458,
+        "y": 696,
+        "w": 215,
+        "h": 133,
+        "text": ""
+      },
+      {
+        "tag": "group",
+        "x": 693,
+        "y": 224,
+        "w": 1217,
+        "h": 684,
+        "text": "REQUEST ROUTINGAPI Gatew"
+      },
+      {
+        "tag": "subject",
+        "x": 1057,
+        "y": 394,
+        "w": 488,
+        "h": 67,
+        "text": "REQUEST ROUTINGAPI Gatew"
+      },
+      {
+        "tag": "group",
+        "x": 1057,
+        "y": 394,
+        "w": 488,
+        "h": 67,
+        "text": "REQUEST ROUTINGAPI Gatew"
+      },
+      {
+        "tag": "text",
+        "x": 1216,
+        "y": 394,
+        "w": 170,
+        "h": 22,
+        "text": "REQUEST ROUTING"
+      },
+      {
+        "tag": "text",
+        "x": 1057,
+        "y": 424,
+        "w": 488,
+        "h": 37,
+        "text": "API Gateway selects the "
+      },
+      {
+        "tag": "group",
+        "x": 744,
+        "y": 492,
+        "w": 1115,
+        "h": 247,
+        "text": "httpGET /profiles/42Host"
+      },
+      {
+        "tag": "subject",
+        "x": 737,
+        "y": 516,
+        "w": 259,
+        "h": 200,
+        "text": "httpGET /profiles/42Host"
+      },
+      {
+        "tag": "card",
+        "x": 737,
+        "y": 516,
+        "w": 259,
+        "h": 200,
+        "text": "httpGET /profiles/42Host"
+      },
+      {
+        "tag": "group",
+        "x": 749,
+        "y": 528,
+        "w": 236,
+        "h": 175,
+        "text": "httpGET /profiles/42Host"
+      },
+      {
+        "tag": "subject",
+        "x": 752,
+        "y": 530,
+        "w": 231,
+        "h": 134,
+        "text": "httpGET /profiles/42Host"
+      },
+      {
+        "tag": "card",
+        "x": 752,
+        "y": 530,
+        "w": 231,
+        "h": 134,
+        "text": "httpGET /profiles/42Host"
+      },
+      {
+        "tag": "text",
+        "x": 749,
+        "y": 681,
+        "w": 180,
+        "h": 22,
+        "text": "HTTP request arrives fir"
+      },
+      {
+        "tag": "subject",
+        "x": 1021,
+        "y": 605,
+        "w": 95,
+        "h": 22,
+        "text": "HTTP request"
+      },
+      {
+        "tag": "connector",
+        "x": 1021,
+        "y": 605,
+        "w": 95,
+        "h": 22,
+        "text": "HTTP request"
+      },
+      {
+        "tag": "subject",
+        "x": 1150,
+        "y": 495,
+        "w": 292,
+        "h": 242,
+        "text": "Inspect request properti"
+      },
+      {
+        "tag": "card",
+        "x": 1150,
+        "y": 495,
+        "w": 292,
+        "h": 242,
+        "text": "Inspect request properti"
+      },
+      {
+        "tag": "group",
+        "x": 1182,
+        "y": 516,
+        "w": 227,
+        "h": 199,
+        "text": "Inspect request properti"
+      },
+      {
+        "tag": "text",
+        "x": 1182,
+        "y": 516,
+        "w": 173,
+        "h": 21,
+        "text": "Inspect request properti"
+      },
+      {
+        "tag": "subject",
+        "x": 1176,
+        "y": 548,
+        "w": 239,
+        "h": 135,
+        "text": "textmethod = GETpath   ="
+      },
+      {
+        "tag": "card",
+        "x": 1176,
+        "y": 548,
+        "w": 239,
+        "h": 135,
+        "text": "textmethod = GETpath   ="
+      },
+      {
+        "tag": "text",
+        "x": 1182,
+        "y": 695,
+        "w": 215,
+        "h": 21,
+        "text": "Route match: GET + /prof"
+      },
+      {
+        "tag": "subject",
+        "x": 1475,
+        "y": 605,
+        "w": 95,
+        "h": 22,
+        "text": "matched route"
+      },
+      {
+        "tag": "connector",
+        "x": 1475,
+        "y": 605,
+        "w": 95,
+        "h": 22,
+        "text": "matched route"
+      },
+      {
+        "tag": "subject",
+        "x": 1594,
+        "y": 516,
+        "w": 273,
+        "h": 200,
+        "text": "profiles-serviceResponsi"
+      },
+      {
+        "tag": "card",
+        "x": 1594,
+        "y": 516,
+        "w": 273,
+        "h": 200,
+        "text": "profiles-serviceResponsi"
+      },
+      {
+        "tag": "group",
+        "x": 1615,
+        "y": 583,
+        "w": 230,
+        "h": 66,
+        "text": "profiles-serviceResponsi"
+      },
+      {
+        "tag": "text",
+        "x": 1615,
+        "y": 583,
+        "w": 156,
+        "h": 30,
+        "text": "profiles-service"
+      },
+      {
+        "tag": "text",
+        "x": 1615,
+        "y": 629,
+        "w": 230,
+        "h": 20,
+        "text": "Responsible for handling"
+      }
+    ],
+    "beat-03": [
+      {
+        "tag": "group",
+        "x": 0,
+        "y": 0,
+        "w": 1920,
+        "h": 1080,
+        "text": "REQUEST ROUTINGAPI Gatew"
+      },
+      {
+        "tag": "subject",
+        "x": 568,
+        "y": 267,
+        "w": 785,
+        "h": 108,
+        "text": "REQUEST ROUTINGAPI Gatew"
+      },
+      {
+        "tag": "group",
+        "x": 568,
+        "y": 267,
+        "w": 785,
+        "h": 108,
+        "text": "REQUEST ROUTINGAPI Gatew"
+      },
+      {
+        "tag": "text",
+        "x": 823,
+        "y": 267,
+        "w": 274,
+        "h": 36,
+        "text": "REQUEST ROUTING"
+      },
+      {
+        "tag": "text",
+        "x": 568,
+        "y": 315,
+        "w": 785,
+        "h": 60,
+        "text": "API Gateway selects the "
+      },
+      {
+        "tag": "group",
+        "x": 80,
+        "y": 423,
+        "w": 1760,
+        "h": 390,
+        "text": "httpGET /profiles/42Host"
+      },
+      {
+        "tag": "subject",
+        "x": 80,
+        "y": 468,
+        "w": 390,
+        "h": 300,
+        "text": "httpGET /profiles/42Host"
+      },
+      {
+        "tag": "card",
+        "x": 80,
+        "y": 468,
+        "w": 390,
+        "h": 300,
+        "text": "httpGET /profiles/42Host"
+      },
+      {
+        "tag": "group",
+        "x": 98,
+        "y": 487,
+        "w": 354,
+        "h": 263,
+        "text": "httpGET /profiles/42Host"
+      },
+      {
+        "tag": "subject",
+        "x": 98,
+        "y": 487,
+        "w": 354,
+        "h": 206,
+        "text": "httpGET /profiles/42Host"
+      },
+      {
+        "tag": "card",
+        "x": 98,
+        "y": 487,
+        "w": 354,
+        "h": 206,
+        "text": "httpGET /profiles/42Host"
+      },
+      {
+        "tag": "text",
+        "x": 98,
+        "y": 717,
+        "w": 271,
+        "h": 33,
+        "text": "HTTP request arrives fir"
+      },
+      {
+        "tag": "subject",
+        "x": 518,
+        "y": 601,
+        "w": 150,
+        "h": 34,
+        "text": "HTTP request"
+      },
+      {
+        "tag": "connector",
+        "x": 518,
+        "y": 601,
+        "w": 150,
+        "h": 34,
+        "text": "HTTP request"
+      },
+      {
+        "tag": "subject",
+        "x": 716,
+        "y": 423,
+        "w": 470,
+        "h": 390,
+        "text": "Inspect request properti"
+      },
+      {
+        "tag": "card",
+        "x": 716,
+        "y": 423,
+        "w": 470,
+        "h": 390,
+        "text": "Inspect request properti"
+      },
+      {
+        "tag": "group",
+        "x": 768,
+        "y": 458,
+        "w": 366,
+        "h": 321,
+        "text": "Inspect request properti"
+      },
+      {
+        "tag": "text",
+        "x": 768,
+        "y": 458,
+        "w": 278,
+        "h": 33,
+        "text": "Inspect request properti"
+      },
+      {
+        "tag": "subject",
+        "x": 768,
+        "y": 515,
+        "w": 366,
+        "h": 207,
+        "text": "textmethod = GETpath   ="
+      },
+      {
+        "tag": "card",
+        "x": 768,
+        "y": 515,
+        "w": 366,
+        "h": 207,
+        "text": "textmethod = GETpath   ="
+      },
+      {
+        "tag": "text",
+        "x": 768,
+        "y": 745,
+        "w": 345,
+        "h": 33,
+        "text": "Route match: GET + /prof"
+      },
+      {
+        "tag": "subject",
+        "x": 1234,
+        "y": 601,
+        "w": 150,
+        "h": 34,
+        "text": "matched route"
+      },
+      {
+        "tag": "connector",
+        "x": 1234,
+        "y": 601,
+        "w": 150,
+        "h": 34,
+        "text": "matched route"
+      },
+      {
+        "tag": "subject",
+        "x": 1432,
+        "y": 468,
+        "w": 410,
+        "h": 300,
+        "text": "profiles-serviceResponsi"
+      },
+      {
+        "tag": "card",
+        "x": 1432,
+        "y": 468,
+        "w": 410,
+        "h": 300,
+        "text": "profiles-serviceResponsi"
+      },
+      {
+        "tag": "group",
+        "x": 1464,
+        "y": 569,
+        "w": 345,
+        "h": 99,
+        "text": "profiles-serviceResponsi"
+      },
+      {
+        "tag": "text",
+        "x": 1464,
+        "y": 569,
+        "w": 235,
+        "h": 45,
+        "text": "profiles-service"
+      },
+      {
+        "tag": "text",
+        "x": 1464,
+        "y": 638,
+        "w": 345,
+        "h": 30,
+        "text": "Responsible for handling"
+      }
+    ],
+    "beat-04": [
+      {
+        "tag": "group",
+        "x": 0,
+        "y": 0,
+        "w": 1920,
+        "h": 1080,
+        "text": "protected dataaccess tok"
+      },
+      {
+        "tag": "group",
+        "x": 80,
+        "y": 273,
+        "w": 1760,
+        "h": 185,
+        "text": "protected dataaccess tok"
+      },
+      {
+        "tag": "subject",
+        "x": 80,
+        "y": 295,
+        "w": 300,
+        "h": 141,
+        "text": "protected data"
+      },
+      {
+        "tag": "card",
+        "x": 80,
+        "y": 295,
+        "w": 300,
+        "h": 141,
+        "text": "protected data"
+      },
+      {
+        "tag": "group",
+        "x": 127,
+        "y": 329,
+        "w": 207,
+        "h": 73,
+        "text": "protected data"
+      },
+      {
+        "tag": "text",
+        "x": 127,
+        "y": 361,
+        "w": 207,
+        "h": 41,
+        "text": "protected data"
+      },
+      {
+        "tag": "subject",
+        "x": 526,
+        "y": 349,
+        "w": 101,
+        "h": 34,
+        "text": "access token"
+      },
+      {
+        "tag": "connector",
+        "x": 526,
+        "y": 349,
+        "w": 101,
+        "h": 34,
+        "text": "access token"
+      },
+      {
+        "tag": "subject",
+        "x": 773,
+        "y": 316,
+        "w": 320,
+        "h": 100,
+        "text": ""
+      },
+      {
+        "tag": "card",
+        "x": 773,
+        "y": 316,
+        "w": 320,
+        "h": 100,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 1239,
+        "y": 349,
+        "w": 64,
+        "h": 34,
+        "text": "validate"
+      },
+      {
+        "tag": "connector",
+        "x": 1239,
+        "y": 349,
+        "w": 64,
+        "h": 34,
+        "text": "validate"
+      },
+      {
+        "tag": "subject",
+        "x": 1448,
+        "y": 273,
+        "w": 392,
+        "h": 185,
+        "text": "RECEIVING REQUEST-HANDLI"
+      },
+      {
+        "tag": "group",
+        "x": 1448,
+        "y": 273,
+        "w": 392,
+        "h": 185,
+        "text": "RECEIVING REQUEST-HANDLI"
+      },
+      {
+        "tag": "group",
+        "x": 1482,
+        "y": 344,
+        "w": 324,
+        "h": 80,
+        "text": "trust check"
+      },
+      {
+        "tag": "text",
+        "x": 1482,
+        "y": 362,
+        "w": 183,
+        "h": 44,
+        "text": "trust check"
+      },
+      {
+        "tag": "group",
+        "x": 80,
+        "y": 506,
+        "w": 1760,
+        "h": 157,
+        "text": "identity: callerpermissi"
+      },
+      {
+        "tag": "subject",
+        "x": 80,
+        "y": 513,
+        "w": 605,
+        "h": 143,
+        "text": "identity: callerpermissi"
+      },
+      {
+        "tag": "card",
+        "x": 80,
+        "y": 513,
+        "w": 605,
+        "h": 143,
+        "text": "identity: callerpermissi"
+      },
+      {
+        "tag": "group",
+        "x": 114,
+        "y": 547,
+        "w": 537,
+        "h": 75,
+        "text": "identity: callerpermissi"
+      },
+      {
+        "tag": "group",
+        "x": 114,
+        "y": 579,
+        "w": 537,
+        "h": 43,
+        "text": "identity: callerpermissi"
+      },
+      {
+        "tag": "text",
+        "x": 114,
+        "y": 579,
+        "w": 243,
+        "h": 43,
+        "text": "identity: caller"
+      },
+      {
+        "tag": "text",
+        "x": 381,
+        "y": 579,
+        "w": 270,
+        "h": 43,
+        "text": "permissions: scope"
+      },
+      {
+        "tag": "subject",
+        "x": 972,
+        "y": 568,
+        "w": 160,
+        "h": 34,
+        "text": "authorization context"
+      },
+      {
+        "tag": "connector",
+        "x": 972,
+        "y": 568,
+        "w": 160,
+        "h": 34,
+        "text": "authorization context"
+      },
+      {
+        "tag": "subject",
+        "x": 1420,
+        "y": 506,
+        "w": 420,
+        "h": 157,
+        "text": "identity + permissions"
+      },
+      {
+        "tag": "card",
+        "x": 1420,
+        "y": 506,
+        "w": 420,
+        "h": 157,
+        "text": "identity + permissions"
+      },
+      {
+        "tag": "group",
+        "x": 1475,
+        "y": 540,
+        "w": 310,
+        "h": 89,
+        "text": "identity + permissions"
+      },
+      {
+        "tag": "text",
+        "x": 1475,
+        "y": 588,
+        "w": 310,
+        "h": 41,
+        "text": "identity + permissions"
+      },
+      {
+        "tag": "subject",
+        "x": 600,
+        "y": 711,
+        "w": 721,
+        "h": 96,
+        "text": "gatewayservice"
+      },
+      {
+        "tag": "card",
+        "x": 600,
+        "y": 711,
+        "w": 721,
+        "h": 96,
+        "text": "gatewayservice"
+      },
+      {
+        "tag": "group",
+        "x": 786,
+        "y": 737,
+        "w": 348,
+        "h": 44,
+        "text": "gatewayservice"
+      },
+      {
+        "tag": "text",
+        "x": 810,
+        "y": 737,
+        "w": 126,
+        "h": 44,
+        "text": "gateway"
+      },
+      {
+        "tag": "text",
+        "x": 984,
+        "y": 737,
+        "w": 126,
+        "h": 44,
+        "text": "service"
+      }
+    ],
+    "beat-05": [
+      {
+        "tag": "group",
+        "x": 0,
+        "y": 0,
+        "w": 1920,
+        "h": 1080,
+        "text": "protected dataaccess tok"
+      },
+      {
+        "tag": "group",
+        "x": 80,
+        "y": 273,
+        "w": 1760,
+        "h": 185,
+        "text": "protected dataaccess tok"
+      },
+      {
+        "tag": "subject",
+        "x": 80,
+        "y": 295,
+        "w": 300,
+        "h": 141,
+        "text": "protected data"
+      },
+      {
+        "tag": "card",
+        "x": 80,
+        "y": 295,
+        "w": 300,
+        "h": 141,
+        "text": "protected data"
+      },
+      {
+        "tag": "group",
+        "x": 127,
+        "y": 329,
+        "w": 207,
+        "h": 73,
+        "text": "protected data"
+      },
+      {
+        "tag": "text",
+        "x": 127,
+        "y": 361,
+        "w": 207,
+        "h": 41,
+        "text": "protected data"
+      },
+      {
+        "tag": "subject",
+        "x": 526,
+        "y": 349,
+        "w": 101,
+        "h": 34,
+        "text": "access token"
+      },
+      {
+        "tag": "connector",
+        "x": 526,
+        "y": 349,
+        "w": 101,
+        "h": 34,
+        "text": "access token"
+      },
+      {
+        "tag": "subject",
+        "x": 773,
+        "y": 316,
+        "w": 320,
+        "h": 100,
+        "text": ""
+      },
+      {
+        "tag": "card",
+        "x": 773,
+        "y": 316,
+        "w": 320,
+        "h": 100,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 1239,
+        "y": 349,
+        "w": 64,
+        "h": 34,
+        "text": "validate"
+      },
+      {
+        "tag": "connector",
+        "x": 1239,
+        "y": 349,
+        "w": 64,
+        "h": 34,
+        "text": "validate"
+      },
+      {
+        "tag": "subject",
+        "x": 1449,
+        "y": 273,
+        "w": 391,
+        "h": 185,
+        "text": "RECEIVING REQUEST-HANDLI"
+      },
+      {
+        "tag": "group",
+        "x": 1449,
+        "y": 273,
+        "w": 391,
+        "h": 185,
+        "text": "RECEIVING REQUEST-HANDLI"
+      },
+      {
+        "tag": "group",
+        "x": 1483,
+        "y": 344,
+        "w": 323,
+        "h": 80,
+        "text": "trust check"
+      },
+      {
+        "tag": "text",
+        "x": 1483,
+        "y": 362,
+        "w": 182,
+        "h": 44,
+        "text": "trust check"
+      },
+      {
+        "tag": "group",
+        "x": 80,
+        "y": 506,
+        "w": 1760,
+        "h": 157,
+        "text": "identity: callerpermissi"
+      },
+      {
+        "tag": "subject",
+        "x": 80,
+        "y": 513,
+        "w": 604,
+        "h": 143,
+        "text": "identity: callerpermissi"
+      },
+      {
+        "tag": "card",
+        "x": 80,
+        "y": 513,
+        "w": 604,
+        "h": 143,
+        "text": "identity: callerpermissi"
+      },
+      {
+        "tag": "group",
+        "x": 114,
+        "y": 547,
+        "w": 536,
+        "h": 75,
+        "text": "identity: callerpermissi"
+      },
+      {
+        "tag": "group",
+        "x": 114,
+        "y": 579,
+        "w": 536,
+        "h": 43,
+        "text": "identity: callerpermissi"
+      },
+      {
+        "tag": "text",
+        "x": 114,
+        "y": 579,
+        "w": 243,
+        "h": 43,
+        "text": "identity: caller"
+      },
+      {
+        "tag": "text",
+        "x": 381,
+        "y": 579,
+        "w": 270,
+        "h": 43,
+        "text": "permissions: scope"
+      },
+      {
+        "tag": "subject",
+        "x": 972,
+        "y": 568,
+        "w": 160,
+        "h": 34,
+        "text": "authorization context"
+      },
+      {
+        "tag": "connector",
+        "x": 972,
+        "y": 568,
+        "w": 160,
+        "h": 34,
+        "text": "authorization context"
+      },
+      {
+        "tag": "subject",
+        "x": 1420,
+        "y": 506,
+        "w": 420,
+        "h": 157,
+        "text": "identity + permissions"
+      },
+      {
+        "tag": "card",
+        "x": 1420,
+        "y": 506,
+        "w": 420,
+        "h": 157,
+        "text": "identity + permissions"
+      },
+      {
+        "tag": "group",
+        "x": 1475,
+        "y": 540,
+        "w": 310,
+        "h": 89,
+        "text": "identity + permissions"
+      },
+      {
+        "tag": "text",
+        "x": 1475,
+        "y": 588,
+        "w": 310,
+        "h": 41,
+        "text": "identity + permissions"
+      },
+      {
+        "tag": "subject",
+        "x": 600,
+        "y": 711,
+        "w": 720,
+        "h": 96,
+        "text": "gatewayservice"
+      },
+      {
+        "tag": "card",
+        "x": 600,
+        "y": 711,
+        "w": 720,
+        "h": 96,
+        "text": "gatewayservice"
+      },
+      {
+        "tag": "group",
+        "x": 786,
+        "y": 737,
+        "w": 348,
+        "h": 44,
+        "text": "gatewayservice"
+      },
+      {
+        "tag": "text",
+        "x": 810,
+        "y": 737,
+        "w": 126,
+        "h": 44,
+        "text": "gateway"
+      },
+      {
+        "tag": "text",
+        "x": 984,
+        "y": 737,
+        "w": 126,
+        "h": 44,
+        "text": "service"
+      }
+    ],
+    "beat-06": [
+      {
+        "tag": "group",
+        "x": 0,
+        "y": 0,
+        "w": 1920,
+        "h": 1080,
+        "text": "Cache miss → database fa"
+      },
+      {
+        "tag": "subject",
+        "x": 479,
+        "y": 147,
+        "w": 961,
+        "h": 104,
+        "text": "Cache miss → database fa"
+      },
+      {
+        "tag": "group",
+        "x": 479,
+        "y": 147,
+        "w": 961,
+        "h": 104,
+        "text": "Cache miss → database fa"
+      },
+      {
+        "tag": "group",
+        "x": 479,
+        "y": 147,
+        "w": 961,
+        "h": 92,
+        "text": "Cache miss → database fa"
+      },
+      {
+        "tag": "group",
+        "x": 80,
+        "y": 301,
+        "w": 1760,
+        "h": 280,
+        "text": "profile:42resource keylo"
+      },
+      {
+        "tag": "subject",
+        "x": 87,
+        "y": 335,
+        "w": 353,
+        "h": 210,
+        "text": "profile:42resource key"
+      },
+      {
+        "tag": "card",
+        "x": 87,
+        "y": 335,
+        "w": 353,
+        "h": 210,
+        "text": "profile:42resource key"
+      },
+      {
+        "tag": "group",
+        "x": 116,
+        "y": 364,
+        "w": 295,
+        "h": 153,
+        "text": "profile:42resource key"
+      },
+      {
+        "tag": "group",
+        "x": 116,
+        "y": 378,
+        "w": 295,
+        "h": 92,
+        "text": "profile:42"
+      },
+      {
+        "tag": "text",
+        "x": 116,
+        "y": 483,
+        "w": 144,
+        "h": 34,
+        "text": "resource key"
+      },
+      {
+        "tag": "subject",
+        "x": 485,
+        "y": 413,
+        "w": 61,
+        "h": 56,
+        "text": "lookup key"
+      },
+      {
+        "tag": "connector",
+        "x": 485,
+        "y": 413,
+        "w": 61,
+        "h": 56,
+        "text": "lookup key"
+      },
+      {
+        "tag": "subject",
+        "x": 583,
+        "y": 331,
+        "w": 367,
+        "h": 219,
+        "text": "profile:42MISS · no usab"
+      },
+      {
+        "tag": "card",
+        "x": 583,
+        "y": 331,
+        "w": 367,
+        "h": 219,
+        "text": "profile:42MISS · no usab"
+      },
+      {
+        "tag": "group",
+        "x": 613,
+        "y": 361,
+        "w": 307,
+        "h": 159,
+        "text": "profile:42MISS · no usab"
+      },
+      {
+        "tag": "group",
+        "x": 613,
+        "y": 375,
+        "w": 307,
+        "h": 96,
+        "text": "profile:42"
+      },
+      {
+        "tag": "text",
+        "x": 613,
+        "y": 485,
+        "w": 253,
+        "h": 35,
+        "text": "MISS · no usable value"
+      },
+      {
+        "tag": "subject",
+        "x": 988,
+        "y": 413,
+        "w": 61,
+        "h": 56,
+        "text": "cache miss"
+      },
+      {
+        "tag": "connector",
+        "x": 988,
+        "y": 413,
+        "w": 61,
+        "h": 56,
+        "text": "cache miss"
+      },
+      {
+        "tag": "subject",
+        "x": 1087,
+        "y": 301,
+        "w": 311,
+        "h": 280,
+        "text": "fallback read"
+      },
+      {
+        "tag": "card",
+        "x": 1087,
+        "y": 301,
+        "w": 311,
+        "h": 280,
+        "text": "fallback read"
+      },
+      {
+        "tag": "group",
+        "x": 1117,
+        "y": 330,
+        "w": 251,
+        "h": 220,
+        "text": "fallback read"
+      },
+      {
+        "tag": "group",
+        "x": 1117,
+        "y": 345,
+        "w": 251,
+        "h": 192,
+        "text": "fallback read"
+      },
+      {
+        "tag": "subject",
+        "x": 1435,
+        "y": 401,
+        "w": 61,
+        "h": 79,
+        "text": "SELECT profile 42"
+      },
+      {
+        "tag": "connector",
+        "x": 1435,
+        "y": 401,
+        "w": 61,
+        "h": 79,
+        "text": "SELECT profile 42"
+      },
+      {
+        "tag": "subject",
+        "x": 1533,
+        "y": 345,
+        "w": 320,
+        "h": 191,
+        "text": "row returned"
+      },
+      {
+        "tag": "card",
+        "x": 1533,
+        "y": 345,
+        "w": 320,
+        "h": 191,
+        "text": "row returned"
+      },
+      {
+        "tag": "group",
+        "x": 1618,
+        "y": 375,
+        "w": 150,
+        "h": 131,
+        "text": "row returned"
+      },
+      {
+        "tag": "card",
+        "x": 1618,
+        "y": 375,
+        "w": 150,
+        "h": 68,
+        "text": ""
+      },
+      {
+        "tag": "text",
+        "x": 1618,
+        "y": 471,
+        "w": 150,
+        "h": 35,
+        "text": "row returned"
+      },
+      {
+        "tag": "group",
+        "x": 274,
+        "y": 629,
+        "w": 1373,
+        "h": 307,
+        "text": "profile recordcomplete r"
+      },
+      {
+        "tag": "subject",
+        "x": 274,
+        "y": 646,
+        "w": 360,
+        "h": 272,
+        "text": "profile record"
+      },
+      {
+        "tag": "card",
+        "x": 274,
+        "y": 646,
+        "w": 360,
+        "h": 272,
+        "text": "profile record"
+      },
+      {
+        "tag": "group",
+        "x": 302,
+        "y": 674,
+        "w": 304,
+        "h": 216,
+        "text": "profile record"
+      },
+      {
+        "tag": "group",
+        "x": 302,
+        "y": 686,
+        "w": 304,
+        "h": 192,
+        "text": "profile record"
+      },
+      {
+        "tag": "subject",
+        "x": 683,
+        "y": 754,
+        "w": 72,
+        "h": 56,
+        "text": "complete request"
+      },
+      {
+        "tag": "connector",
+        "x": 683,
+        "y": 754,
+        "w": 72,
+        "h": 56,
+        "text": "complete request"
+      },
+      {
+        "tag": "subject",
+        "x": 811,
+        "y": 635,
+        "w": 346,
+        "h": 295,
+        "text": "response readysuccessful"
+      },
+      {
+        "tag": "card",
+        "x": 811,
+        "y": 635,
+        "w": 346,
+        "h": 295,
+        "text": "response readysuccessful"
+      },
+      {
+        "tag": "group",
+        "x": 838,
+        "y": 662,
+        "w": 292,
+        "h": 241,
+        "text": "response readysuccessful"
+      },
+      {
+        "tag": "group",
+        "x": 838,
+        "y": 673,
+        "w": 292,
+        "h": 184,
+        "text": "response ready"
+      },
+      {
+        "tag": "text",
+        "x": 838,
+        "y": 869,
+        "w": 174,
+        "h": 34,
+        "text": "successful read"
+      },
+      {
+        "tag": "subject",
+        "x": 1213,
+        "y": 743,
+        "w": 61,
+        "h": 79,
+        "text": "prepare next read"
+      },
+      {
+        "tag": "connector",
+        "x": 1213,
+        "y": 743,
+        "w": 61,
+        "h": 79,
+        "text": "prepare next read"
+      },
+      {
+        "tag": "subject",
+        "x": 1324,
+        "y": 646,
+        "w": 363,
+        "h": 272,
+        "text": "store profile:42"
+      },
+      {
+        "tag": "card",
+        "x": 1324,
+        "y": 646,
+        "w": 363,
+        "h": 272,
+        "text": "store profile:42"
+      },
+      {
+        "tag": "group",
+        "x": 1352,
+        "y": 674,
+        "w": 307,
+        "h": 216,
+        "text": "store profile:42"
+      },
+      {
+        "tag": "group",
+        "x": 1352,
+        "y": 686,
+        "w": 307,
+        "h": 192,
+        "text": "store profile:42"
+      }
+    ],
+    "beat-07": [
+      {
+        "tag": "group",
+        "x": 624,
+        "y": 224,
+        "w": 1217,
+        "h": 684,
+        "text": "Cache miss → database fa"
+      },
+      {
+        "tag": "subject",
+        "x": 915,
+        "y": 316,
+        "w": 635,
+        "h": 68,
+        "text": "Cache miss → database fa"
+      },
+      {
+        "tag": "group",
+        "x": 915,
+        "y": 316,
+        "w": 635,
+        "h": 68,
+        "text": "Cache miss → database fa"
+      },
+      {
+        "tag": "group",
+        "x": 915,
+        "y": 316,
+        "w": 635,
+        "h": 61,
+        "text": "Cache miss → database fa"
+      },
+      {
+        "tag": "group",
+        "x": 675,
+        "y": 415,
+        "w": 1115,
+        "h": 177,
+        "text": "profile:42resource keylo"
+      },
+      {
+        "tag": "subject",
+        "x": 675,
+        "y": 434,
+        "w": 233,
+        "h": 139,
+        "text": "profile:42resource key"
+      },
+      {
+        "tag": "card",
+        "x": 675,
+        "y": 434,
+        "w": 233,
+        "h": 139,
+        "text": "profile:42resource key"
+      },
+      {
+        "tag": "group",
+        "x": 694,
+        "y": 453,
+        "w": 195,
+        "h": 101,
+        "text": "profile:42resource key"
+      },
+      {
+        "tag": "group",
+        "x": 694,
+        "y": 462,
+        "w": 195,
+        "h": 61,
+        "text": "profile:42"
+      },
+      {
+        "tag": "text",
+        "x": 694,
+        "y": 532,
+        "w": 95,
+        "h": 22,
+        "text": "resource key"
+      },
+      {
+        "tag": "subject",
+        "x": 930,
+        "y": 485,
+        "w": 41,
+        "h": 37,
+        "text": "lookup key"
+      },
+      {
+        "tag": "connector",
+        "x": 930,
+        "y": 485,
+        "w": 41,
+        "h": 37,
+        "text": "lookup key"
+      },
+      {
+        "tag": "subject",
+        "x": 994,
+        "y": 434,
+        "w": 233,
+        "h": 139,
+        "text": "profile:42MISS · no usab"
+      },
+      {
+        "tag": "card",
+        "x": 994,
+        "y": 434,
+        "w": 233,
+        "h": 139,
+        "text": "profile:42MISS · no usab"
+      },
+      {
+        "tag": "group",
+        "x": 1013,
+        "y": 453,
+        "w": 195,
+        "h": 101,
+        "text": "profile:42MISS · no usab"
+      },
+      {
+        "tag": "group",
+        "x": 1013,
+        "y": 462,
+        "w": 195,
+        "h": 61,
+        "text": "profile:42"
+      },
+      {
+        "tag": "text",
+        "x": 1013,
+        "y": 532,
+        "w": 160,
+        "h": 22,
+        "text": "MISS · no usable value"
+      },
+      {
+        "tag": "subject",
+        "x": 1249,
+        "y": 485,
+        "w": 41,
+        "h": 37,
+        "text": "cache miss"
+      },
+      {
+        "tag": "connector",
+        "x": 1249,
+        "y": 485,
+        "w": 41,
+        "h": 37,
+        "text": "cache miss"
+      },
+      {
+        "tag": "subject",
+        "x": 1313,
+        "y": 415,
+        "w": 197,
+        "h": 177,
+        "text": "fallback read"
+      },
+      {
+        "tag": "card",
+        "x": 1313,
+        "y": 415,
+        "w": 197,
+        "h": 177,
+        "text": "fallback read"
+      },
+      {
+        "tag": "group",
+        "x": 1332,
+        "y": 434,
+        "w": 159,
+        "h": 139,
+        "text": "fallback read"
+      },
+      {
+        "tag": "group",
+        "x": 1332,
+        "y": 443,
+        "w": 159,
+        "h": 122,
+        "text": "fallback read"
+      },
+      {
+        "tag": "subject",
+        "x": 1533,
+        "y": 477,
+        "w": 41,
+        "h": 52,
+        "text": "SELECT profile 42"
+      },
+      {
+        "tag": "connector",
+        "x": 1533,
+        "y": 477,
+        "w": 41,
+        "h": 52,
+        "text": "SELECT profile 42"
+      },
+      {
+        "tag": "subject",
+        "x": 1596,
+        "y": 443,
+        "w": 203,
+        "h": 121,
+        "text": "row returned"
+      },
+      {
+        "tag": "card",
+        "x": 1596,
+        "y": 443,
+        "w": 203,
+        "h": 121,
+        "text": "row returned"
+      },
+      {
+        "tag": "group",
+        "x": 1650,
+        "y": 462,
+        "w": 95,
+        "h": 83,
+        "text": "row returned"
+      },
+      {
+        "tag": "card",
+        "x": 1650,
+        "y": 462,
+        "w": 95,
+        "h": 43,
+        "text": ""
+      },
+      {
+        "tag": "text",
+        "x": 1650,
+        "y": 523,
+        "w": 95,
+        "h": 22,
+        "text": "row returned"
+      },
+      {
+        "tag": "group",
+        "x": 798,
+        "y": 622,
+        "w": 870,
+        "h": 195,
+        "text": "profile recordcomplete r"
+      },
+      {
+        "tag": "subject",
+        "x": 798,
+        "y": 634,
+        "w": 228,
+        "h": 172,
+        "text": "profile record"
+      },
+      {
+        "tag": "card",
+        "x": 798,
+        "y": 634,
+        "w": 228,
+        "h": 172,
+        "text": "profile record"
+      },
+      {
+        "tag": "group",
+        "x": 815,
+        "y": 651,
+        "w": 193,
+        "h": 137,
+        "text": "profile record"
+      },
+      {
+        "tag": "group",
+        "x": 815,
+        "y": 659,
+        "w": 193,
+        "h": 122,
+        "text": "profile record"
+      },
+      {
+        "tag": "subject",
+        "x": 1056,
+        "y": 701,
+        "w": 47,
+        "h": 37,
+        "text": "complete request"
+      },
+      {
+        "tag": "connector",
+        "x": 1056,
+        "y": 701,
+        "w": 47,
+        "h": 37,
+        "text": "complete request"
+      },
+      {
+        "tag": "subject",
+        "x": 1134,
+        "y": 622,
+        "w": 228,
+        "h": 195,
+        "text": "response readysuccessful"
+      },
+      {
+        "tag": "card",
+        "x": 1134,
+        "y": 622,
+        "w": 228,
+        "h": 195,
+        "text": "response readysuccessful"
+      },
+      {
+        "tag": "group",
+        "x": 1151,
+        "y": 640,
+        "w": 193,
+        "h": 159,
+        "text": "response readysuccessful"
+      },
+      {
+        "tag": "group",
+        "x": 1151,
+        "y": 648,
+        "w": 193,
+        "h": 122,
+        "text": "response ready"
+      },
+      {
+        "tag": "text",
+        "x": 1151,
+        "y": 777,
+        "w": 115,
+        "h": 22,
+        "text": "successful read"
+      },
+      {
+        "tag": "subject",
+        "x": 1392,
+        "y": 694,
+        "w": 41,
+        "h": 52,
+        "text": "prepare next read"
+      },
+      {
+        "tag": "connector",
+        "x": 1392,
+        "y": 694,
+        "w": 41,
+        "h": 52,
+        "text": "prepare next read"
+      },
+      {
+        "tag": "subject",
+        "x": 1463,
+        "y": 634,
+        "w": 230,
+        "h": 172,
+        "text": "store profile:42"
+      },
+      {
+        "tag": "card",
+        "x": 1463,
+        "y": 634,
+        "w": 230,
+        "h": 172,
+        "text": "store profile:42"
+      },
+      {
+        "tag": "group",
+        "x": 1481,
+        "y": 651,
+        "w": 195,
+        "h": 137,
+        "text": "store profile:42"
+      },
+      {
+        "tag": "group",
+        "x": 1481,
+        "y": 659,
+        "w": 195,
+        "h": 122,
+        "text": "store profile:42"
+      },
+      {
+        "tag": "group",
+        "x": 642,
+        "y": 224,
+        "w": 1217,
+        "h": 684,
+        "text": "PostgreSQLsuccessful rea"
+      },
+      {
+        "tag": "group",
+        "x": 693,
+        "y": 427,
+        "w": 1115,
+        "h": 158,
+        "text": "PostgreSQLsuccessful rea"
+      },
+      {
+        "tag": "subject",
+        "x": 694,
+        "y": 427,
+        "w": 265,
+        "h": 158,
+        "text": "PostgreSQLsuccessful rea"
+      },
+      {
+        "tag": "card",
+        "x": 694,
+        "y": 427,
+        "w": 265,
+        "h": 158,
+        "text": "PostgreSQLsuccessful rea"
+      },
+      {
+        "tag": "group",
+        "x": 759,
+        "y": 442,
+        "w": 134,
+        "h": 129,
+        "text": "PostgreSQLsuccessful rea"
+      },
+      {
+        "tag": "card",
+        "x": 760,
+        "y": 442,
+        "w": 132,
+        "h": 66,
+        "text": "PostgreSQL"
+      },
+      {
+        "tag": "text",
+        "x": 759,
+        "y": 522,
+        "w": 134,
+        "h": 26,
+        "text": "successful read"
+      },
+      {
+        "tag": "text",
+        "x": 818,
+        "y": 564,
+        "w": 17,
+        "h": 7,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 1012,
+        "y": 495,
+        "w": 40,
+        "h": 21,
+        "text": "result"
+      },
+      {
+        "tag": "connector",
+        "x": 1012,
+        "y": 495,
+        "w": 40,
+        "h": 21,
+        "text": "result"
+      },
+      {
+        "tag": "subject",
+        "x": 1102,
+        "y": 426,
+        "w": 271,
+        "h": 161,
+        "text": "SERVICEfan out the succe"
+      },
+      {
+        "tag": "card",
+        "x": 1102,
+        "y": 426,
+        "w": 271,
+        "h": 161,
+        "text": "SERVICEfan out the succe"
+      },
+      {
+        "tag": "group",
+        "x": 1124,
+        "y": 458,
+        "w": 228,
+        "h": 96,
+        "text": "SERVICEfan out the succe"
+      },
+      {
+        "tag": "text",
+        "x": 1191,
+        "y": 458,
+        "w": 94,
+        "h": 33,
+        "text": "SERVICE"
+      },
+      {
+        "tag": "text",
+        "x": 1124,
+        "y": 507,
+        "w": 228,
+        "h": 25,
+        "text": "fan out the successful r"
+      },
+      {
+        "tag": "text",
+        "x": 1229,
+        "y": 547,
+        "w": 17,
+        "h": 7,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 1424,
+        "y": 495,
+        "w": 40,
+        "h": 21,
+        "text": "SET"
+      },
+      {
+        "tag": "connector",
+        "x": 1424,
+        "y": 495,
+        "w": 40,
+        "h": 21,
+        "text": "SET"
+      },
+      {
+        "tag": "subject",
+        "x": 1514,
+        "y": 426,
+        "w": 297,
+        "h": 161,
+        "text": "Redisprofile:42"
+      },
+      {
+        "tag": "card",
+        "x": 1514,
+        "y": 426,
+        "w": 297,
+        "h": 161,
+        "text": "Redisprofile:42"
+      },
+      {
+        "tag": "group",
+        "x": 1600,
+        "y": 441,
+        "w": 124,
+        "h": 131,
+        "text": "Redisprofile:42"
+      },
+      {
+        "tag": "card",
+        "x": 1614,
+        "y": 441,
+        "w": 97,
+        "h": 67,
+        "text": "Redis"
+      },
+      {
+        "tag": "text",
+        "x": 1600,
+        "y": 521,
+        "w": 124,
+        "h": 31,
+        "text": "profile:42"
+      },
+      {
+        "tag": "text",
+        "x": 1654,
+        "y": 565,
+        "w": 17,
+        "h": 7,
+        "text": ""
+      },
+      {
+        "tag": "group",
+        "x": 693,
+        "y": 616,
+        "w": 1115,
+        "h": 120,
+        "text": "LATER REQUESTprofile:42c"
+      },
+      {
+        "tag": "subject",
+        "x": 694,
+        "y": 616,
+        "w": 265,
+        "h": 120,
+        "text": "LATER REQUESTprofile:42"
+      },
+      {
+        "tag": "card",
+        "x": 694,
+        "y": 616,
+        "w": 265,
+        "h": 120,
+        "text": "LATER REQUESTprofile:42"
+      },
+      {
+        "tag": "group",
+        "x": 750,
+        "y": 644,
+        "w": 152,
+        "h": 64,
+        "text": "LATER REQUESTprofile:42"
+      },
+      {
+        "tag": "text",
+        "x": 750,
+        "y": 644,
+        "w": 152,
+        "h": 28,
+        "text": "LATER REQUEST"
+      },
+      {
+        "tag": "text",
+        "x": 777,
+        "y": 684,
+        "w": 99,
+        "h": 25,
+        "text": "profile:42"
+      },
+      {
+        "tag": "subject",
+        "x": 1103,
+        "y": 665,
+        "w": 43,
+        "h": 21,
+        "text": "cache hit"
+      },
+      {
+        "tag": "connector",
+        "x": 1103,
+        "y": 665,
+        "w": 43,
+        "h": 21,
+        "text": "cache hit"
+      },
+      {
+        "tag": "subject",
+        "x": 1291,
+        "y": 665,
+        "w": 81,
+        "h": 21,
+        "text": "current response"
+      },
+      {
+        "tag": "connector",
+        "x": 1291,
+        "y": 665,
+        "w": 81,
+        "h": 21,
+        "text": "current response"
+      },
+      {
+        "tag": "subject",
+        "x": 1518,
+        "y": 616,
+        "w": 290,
+        "h": 120,
+        "text": "CURRENT RESPONSEsame dat"
+      },
+      {
+        "tag": "card",
+        "x": 1518,
+        "y": 616,
+        "w": 290,
+        "h": 120,
+        "text": "CURRENT RESPONSEsame dat"
+      },
+      {
+        "tag": "group",
+        "x": 1565,
+        "y": 636,
+        "w": 196,
+        "h": 81,
+        "text": "CURRENT RESPONSEsame dat"
+      },
+      {
+        "tag": "text",
+        "x": 1565,
+        "y": 636,
+        "w": 196,
+        "h": 28,
+        "text": "CURRENT RESPONSE"
+      },
+      {
+        "tag": "text",
+        "x": 1654,
+        "y": 675,
+        "w": 17,
+        "h": 7,
+        "text": ""
+      },
+      {
+        "tag": "text",
+        "x": 1585,
+        "y": 694,
+        "w": 155,
+        "h": 23,
+        "text": "same database result"
+      }
+    ],
+    "beat-08": [
+      {
+        "tag": "group",
+        "x": 632,
+        "y": 224,
+        "w": 1217,
+        "h": 684,
+        "text": "PostgreSQLsuccessful rea"
+      },
+      {
+        "tag": "group",
+        "x": 683,
+        "y": 427,
+        "w": 1115,
+        "h": 158,
+        "text": "PostgreSQLsuccessful rea"
+      },
+      {
+        "tag": "subject",
+        "x": 683,
+        "y": 427,
+        "w": 266,
+        "h": 158,
+        "text": "PostgreSQLsuccessful rea"
+      },
+      {
+        "tag": "card",
+        "x": 683,
+        "y": 427,
+        "w": 266,
+        "h": 158,
+        "text": "PostgreSQLsuccessful rea"
+      },
+      {
+        "tag": "group",
+        "x": 748,
+        "y": 441,
+        "w": 135,
+        "h": 130,
+        "text": "PostgreSQLsuccessful rea"
+      },
+      {
+        "tag": "card",
+        "x": 750,
+        "y": 441,
+        "w": 133,
+        "h": 66,
+        "text": "PostgreSQL"
+      },
+      {
+        "tag": "text",
+        "x": 748,
+        "y": 522,
+        "w": 135,
+        "h": 27,
+        "text": "successful read"
+      },
+      {
+        "tag": "text",
+        "x": 807,
+        "y": 564,
+        "w": 17,
+        "h": 7,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 1002,
+        "y": 495,
+        "w": 41,
+        "h": 22,
+        "text": "result"
+      },
+      {
+        "tag": "connector",
+        "x": 1002,
+        "y": 495,
+        "w": 41,
+        "h": 22,
+        "text": "result"
+      },
+      {
+        "tag": "subject",
+        "x": 1095,
+        "y": 427,
+        "w": 266,
+        "h": 158,
+        "text": "SERVICEfan out the succe"
+      },
+      {
+        "tag": "card",
+        "x": 1095,
+        "y": 427,
+        "w": 266,
+        "h": 158,
+        "text": "SERVICEfan out the succe"
+      },
+      {
+        "tag": "group",
+        "x": 1116,
+        "y": 459,
+        "w": 224,
+        "h": 94,
+        "text": "SERVICEfan out the succe"
+      },
+      {
+        "tag": "text",
+        "x": 1182,
+        "y": 459,
+        "w": 92,
+        "h": 32,
+        "text": "SERVICE"
+      },
+      {
+        "tag": "text",
+        "x": 1116,
+        "y": 507,
+        "w": 224,
+        "h": 25,
+        "text": "fan out the successful r"
+      },
+      {
+        "tag": "text",
+        "x": 1219,
+        "y": 546,
+        "w": 17,
+        "h": 7,
+        "text": ""
+      },
+      {
+        "tag": "subject",
+        "x": 1413,
+        "y": 495,
+        "w": 41,
+        "h": 22,
+        "text": "SET"
+      },
+      {
+        "tag": "connector",
+        "x": 1413,
+        "y": 495,
+        "w": 41,
+        "h": 22,
+        "text": "SET"
+      },
+      {
+        "tag": "subject",
+        "x": 1507,
+        "y": 427,
+        "w": 292,
+        "h": 158,
+        "text": "Redisprofile:42"
+      },
+      {
+        "tag": "card",
+        "x": 1507,
+        "y": 427,
+        "w": 292,
+        "h": 158,
+        "text": "Redisprofile:42"
+      },
+      {
+        "tag": "group",
+        "x": 1591,
+        "y": 442,
+        "w": 122,
+        "h": 129,
+        "text": "Redisprofile:42"
+      },
+      {
+        "tag": "card",
+        "x": 1605,
+        "y": 442,
+        "w": 95,
+        "h": 66,
+        "text": "Redis"
+      },
+      {
+        "tag": "text",
+        "x": 1591,
+        "y": 520,
+        "w": 122,
+        "h": 30,
+        "text": "profile:42"
+      },
+      {
+        "tag": "text",
+        "x": 1644,
+        "y": 564,
+        "w": 17,
+        "h": 7,
+        "text": ""
+      },
+      {
+        "tag": "group",
+        "x": 683,
+        "y": 616,
+        "w": 1115,
+        "h": 120,
+        "text": "LATER REQUESTprofile:42c"
+      },
+      {
+        "tag": "subject",
+        "x": 683,
+        "y": 616,
+        "w": 266,
+        "h": 120,
+        "text": "LATER REQUESTprofile:42"
+      },
+      {
+        "tag": "card",
+        "x": 683,
+        "y": 616,
+        "w": 266,
+        "h": 120,
+        "text": "LATER REQUESTprofile:42"
+      },
+      {
+        "tag": "group",
+        "x": 740,
+        "y": 644,
+        "w": 152,
+        "h": 65,
+        "text": "LATER REQUESTprofile:42"
+      },
+      {
+        "tag": "text",
+        "x": 740,
+        "y": 644,
+        "w": 152,
+        "h": 29,
+        "text": "LATER REQUEST"
+      },
+      {
+        "tag": "text",
+        "x": 766,
+        "y": 684,
+        "w": 99,
+        "h": 25,
+        "text": "profile:42"
+      },
+      {
+        "tag": "subject",
+        "x": 1093,
+        "y": 665,
+        "w": 44,
+        "h": 22,
+        "text": "cache hit"
+      },
+      {
+        "tag": "connector",
+        "x": 1093,
+        "y": 665,
+        "w": 44,
+        "h": 22,
+        "text": "cache hit"
+      },
+      {
+        "tag": "subject",
+        "x": 1281,
+        "y": 665,
+        "w": 82,
+        "h": 22,
+        "text": "current response"
+      },
+      {
+        "tag": "connector",
+        "x": 1281,
+        "y": 665,
+        "w": 82,
+        "h": 22,
+        "text": "current response"
+      },
+      {
+        "tag": "subject",
+        "x": 1507,
+        "y": 616,
+        "w": 292,
+        "h": 120,
+        "text": "CURRENT RESPONSEsame dat"
+      },
+      {
+        "tag": "card",
+        "x": 1507,
+        "y": 616,
+        "w": 292,
+        "h": 120,
+        "text": "CURRENT RESPONSEsame dat"
+      },
+      {
+        "tag": "group",
+        "x": 1554,
+        "y": 635,
+        "w": 197,
+        "h": 81,
+        "text": "CURRENT RESPONSEsame dat"
+      },
+      {
+        "tag": "text",
+        "x": 1554,
+        "y": 635,
+        "w": 197,
+        "h": 29,
+        "text": "CURRENT RESPONSE"
+      },
+      {
+        "tag": "text",
+        "x": 1644,
+        "y": 675,
+        "w": 17,
+        "h": 7,
+        "text": ""
+      },
+      {
+        "tag": "text",
+        "x": 1574,
+        "y": 694,
+        "w": 156,
+        "h": 23,
+        "text": "same database result"
+      },
+      {
+        "tag": "group",
+        "x": 668,
+        "y": 224,
+        "w": 1217,
+        "h": 684,
+        "text": "Both data branches conve"
+      },
+      {
+        "tag": "subject",
+        "x": 1106,
+        "y": 379,
+        "w": 340,
+        "h": 28,
+        "text": "Both data branches conve"
+      },
+      {
+        "tag": "group",
+        "x": 1106,
+        "y": 379,
+        "w": 340,
+        "h": 28,
+        "text": "Both data branches conve"
+      },
+      {
+        "tag": "text",
+        "x": 1106,
+        "y": 387,
+        "w": 340,
+        "h": 21,
+        "text": "Both data branches conve"
+      },
+      {
+        "tag": "group",
+        "x": 719,
+        "y": 438,
+        "w": 1115,
+        "h": 152,
+        "text": "request originresponsefo"
+      },
+      {
+        "tag": "subject",
+        "x": 715,
+        "y": 451,
+        "w": 211,
+        "h": 125,
+        "text": "request origin"
+      },
+      {
+        "tag": "card",
+        "x": 715,
+        "y": 451,
+        "w": 211,
+        "h": 125,
+        "text": "request origin"
+      },
+      {
+        "tag": "group",
+        "x": 772,
+        "y": 498,
+        "w": 96,
+        "h": 32,
+        "text": "request origin"
+      },
+      {
+        "tag": "text",
+        "x": 772,
+        "y": 509,
+        "w": 96,
+        "h": 22,
+        "text": "request origin"
+      },
+      {
+        "tag": "subject",
+        "x": 975,
+        "y": 503,
+        "w": 76,
+        "h": 22,
+        "text": "response"
+      },
+      {
+        "tag": "connector",
+        "x": 975,
+        "y": 503,
+        "w": 76,
+        "h": 22,
+        "text": "response"
+      },
+      {
+        "tag": "subject",
+        "x": 1107,
+        "y": 445,
+        "w": 256,
+        "h": 138,
+        "text": "forwards the completed r"
+      },
+      {
+        "tag": "card",
+        "x": 1107,
+        "y": 445,
+        "w": 256,
+        "h": 138,
+        "text": "forwards the completed r"
+      },
+      {
+        "tag": "group",
+        "x": 1129,
+        "y": 499,
+        "w": 212,
+        "h": 30,
+        "text": "forwards the completed r"
+      },
+      {
+        "tag": "text",
+        "x": 1129,
+        "y": 509,
+        "w": 212,
+        "h": 20,
+        "text": "forwards the completed r"
+      },
+      {
+        "tag": "subject",
+        "x": 1417,
+        "y": 503,
+        "w": 76,
+        "h": 22,
+        "text": "response"
+      },
+      {
+        "tag": "connector",
+        "x": 1417,
+        "y": 503,
+        "w": 76,
+        "h": 22,
+        "text": "response"
+      },
+      {
+        "tag": "subject",
+        "x": 1541,
+        "y": 435,
+        "w": 299,
+        "h": 158,
+        "text": "produces the response re"
+      },
+      {
+        "tag": "card",
+        "x": 1541,
+        "y": 435,
+        "w": 299,
+        "h": 158,
+        "text": "produces the response re"
+      },
+      {
+        "tag": "group",
+        "x": 1564,
+        "y": 498,
+        "w": 253,
+        "h": 31,
+        "text": "produces the response re"
+      },
+      {
+        "tag": "text",
+        "x": 1564,
+        "y": 509,
+        "w": 253,
+        "h": 21,
+        "text": "produces the response re"
+      },
+      {
+        "tag": "group",
+        "x": 719,
+        "y": 621,
+        "w": 1115,
+        "h": 133,
+        "text": "cache hitREDIScached rep"
+      },
+      {
+        "tag": "subject",
+        "x": 913,
+        "y": 676,
+        "w": 101,
+        "h": 22,
+        "text": "cache hit"
+      },
+      {
+        "tag": "connector",
+        "x": 913,
+        "y": 676,
+        "w": 101,
+        "h": 22,
+        "text": "cache hit"
+      },
+      {
+        "tag": "subject",
+        "x": 1045,
+        "y": 618,
+        "w": 218,
+        "h": 139,
+        "text": "REDIScached representati"
+      },
+      {
+        "tag": "card",
+        "x": 1045,
+        "y": 618,
+        "w": 218,
+        "h": 139,
+        "text": "REDIScached representati"
+      },
+      {
+        "tag": "group",
+        "x": 1083,
+        "y": 638,
+        "w": 142,
+        "h": 98,
+        "text": "REDIScached representati"
+      },
+      {
+        "tag": "card",
+        "x": 1105,
+        "y": 638,
+        "w": 99,
+        "h": 69,
+        "text": "REDIS"
+      },
+      {
+        "tag": "text",
+        "x": 1083,
+        "y": 716,
+        "w": 142,
+        "h": 20,
+        "text": "cached representation"
+      },
+      {
+        "tag": "subject",
+        "x": 1296,
+        "y": 621,
+        "w": 207,
+        "h": 131,
+        "text": "POSTGRESQLdatabase fallb"
+      },
+      {
+        "tag": "card",
+        "x": 1296,
+        "y": 621,
+        "w": 207,
+        "h": 131,
+        "text": "POSTGRESQLdatabase fallb"
+      },
+      {
+        "tag": "group",
+        "x": 1327,
+        "y": 641,
+        "w": 145,
+        "h": 93,
+        "text": "POSTGRESQLdatabase fallb"
+      },
+      {
+        "tag": "card",
+        "x": 1327,
+        "y": 641,
+        "w": 145,
+        "h": 65,
+        "text": "POSTGRESQL"
+      },
+      {
+        "tag": "text",
+        "x": 1346,
+        "y": 715,
+        "w": 106,
+        "h": 19,
+        "text": "database fallback"
+      },
+      {
+        "tag": "subject",
+        "x": 1539,
+        "y": 676,
+        "w": 101,
+        "h": 22,
+        "text": "fallback"
+      },
+      {
+        "tag": "connector",
+        "x": 1539,
+        "y": 676,
+        "w": 101,
+        "h": 22,
+        "text": "fallback"
+      }
+    ]
+  }
+}
