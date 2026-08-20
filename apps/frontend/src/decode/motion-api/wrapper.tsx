@@ -81,16 +81,16 @@ export function Subject({
 }) {
   const context = useContext(ChoreographyContext);
   const state = context?.state[id] ?? IDLE;
-  // The `indicate` ring is the Director's accent (var(--decode-accent)) — the
-  // project palette, never a hardcoded hue.
-  const accent = context?.accent ?? "var(--decode-accent, #4b8ea1)";
+  // `indicate` emphasises through the runtime's scale/opacity — NO ring. A 2px
+  // accent boxShadow read as a hard border box around every emphasised label,
+  // which is visual noise, not teaching. Attention comes from the pulse, not a
+  // drawn outline.
   return (
     <div
       data-decode-box="subject"
       style={{
         opacity: q(state.opacity),
         transform: `scale(${q(state.scale)})`,
-        ...(state.isHighlighted ? { boxShadow: `0 0 0 2px ${accent}` } : undefined),
         ...style,
       }}
     >
