@@ -53,6 +53,8 @@ interface StudioState {
   playbackRate: number;
   /** Resolved Motion Designer questions, keyed by scene index. */
   visualPick: Record<number, "A" | "B">;
+  /** The Director's project palette; the host stage backdrop derives from it. */
+  stagePalette: import("@/lib/types").PlanPalette | null;
   /** Artifact drift, persisted at project level so it survives panel changes. */
   staleByScene: Record<string, StaleKind[]>;
   /** Live overrides for a generated scene's declared controls, keyed by scene id then control name. Falls back to the module's declared default when absent. */
@@ -226,6 +228,7 @@ export const useStudio = create<StudioState>((set, get) => ({
   playing: false,
   playbackRate: 0,
   visualPick: {},
+  stagePalette: null,
   staleByScene: {},
   controlValues: {},
   _history: [],

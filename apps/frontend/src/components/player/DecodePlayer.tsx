@@ -31,7 +31,11 @@ export function DecodePlayer({ selfControlled = false }: { selfControlled?: bool
   const ownRef = useRef<PlayerRef | null>(null);
   const playerRef = sharedRef ?? ownRef;
   const durationInFrames = useMemo(() => getDecodeDurationInFrames(scenes), [scenes]);
-  const inputProps = useMemo(() => ({ scenes, visualPick }), [scenes, visualPick]);
+  const stagePalette = useStudio((state) => state.stagePalette);
+  const inputProps = useMemo(
+    () => ({ scenes, visualPick, palette: stagePalette }),
+    [scenes, visualPick, stagePalette],
+  );
 
 
 

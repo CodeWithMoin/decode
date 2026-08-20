@@ -427,6 +427,7 @@ export function ConnectedEdit({ projectId }: { projectId: string }) {
         playing: false,
         playbackRate: 0,
         visualPick: {},
+        stagePalette: approvedOf(planResult)?.palette ?? null,
         staleByScene: {},
         _history: [],
         _future: [],

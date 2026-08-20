@@ -21,17 +21,51 @@ const SCENE_SEAM_FRAMES = 10;
 export type DecodeCompositionProps = {
   scenes: Scene[];
   visualPick: Record<number, "A" | "B">;
+  /** The Director's project palette. The host derives the one stage backdrop
+   *  from it — generated once per project, behind every transparent scene. */
+  palette?: import("@/lib/types").PlanPalette | null;
 };
+
+/** The production's one backdrop. Painted here by the host — never by a scene —
+ *  so the whole video reads as one film. Deterministic: derived from the
+ *  Director's palette, no randomness, no animation, settled at every frame. */
+function StageBackdrop({ palette }: { palette?: import("@/lib/types").PlanPalette | null }) {
+  const accent = palette?.accent ?? "#F2A47B";
+  const support = palette?.support ?? "#8B93A7";
+  return (
+    <AbsoluteFill style={{ backgroundColor: "#0B0B0B" }}>
+      <AbsoluteFill
+        style={{
+          background: [
+            // Two large, asymmetric glows in the project's own hues — quiet
+            // atmosphere, far below content contrast.
+            `radial-gradient(1200px 800px at 18% 8%, ${accent}14, transparent 70%)`,
+            `radial-gradient(1400px 900px at 85% 92%, ${support}10, transparent 70%)`,
+            // A faint center lift so the picture zone reads a step above the edges.
+            `radial-gradient(1600px 1000px at 50% 45%, #FFFFFF05, transparent 75%)`,
+          ].join(", "),
+        }}
+      />
+      <AbsoluteFill
+        style={{
+          // Vignette: keeps eyes in the safe area, hides the frame's hard edge.
+          background: "radial-gradient(140% 110% at 50% 50%, transparent 62%, #00000066 100%)",
+        }}
+      />
+    </AbsoluteFill>
+  );
+}
 
 export function getDecodeDurationInFrames(scenes: Scene[]) {
   return getDecodeTimeline(scenes).durationInFrames;
 }
 
-export function DecodeComposition({ scenes, visualPick }: DecodeCompositionProps) {
+export function DecodeComposition({ scenes, visualPick, palette }: DecodeCompositionProps) {
   const timeline = getDecodeTimeline(scenes);
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#0B0B0B" }}>
+      <StageBackdrop palette={palette} />
       {timeline.clips.map(({ scene, sceneIndex, startFrame, durationInFrames }) => {
         if (scene.disabled) return null;
         const hasIncomingSeam = sceneIndex > 0 && !timeline.clips[sceneIndex - 1]?.scene.disabled;

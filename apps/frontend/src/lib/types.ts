@@ -217,8 +217,19 @@ export interface TeachingPlanSection {
   purpose: string;
 }
 
+/** The project's five color roles, chosen by the Director at plan time.
+ *  One palette per project; the host stage backdrop derives from it too. */
+export interface PlanPalette {
+  surface: string;
+  border: string;
+  ink: string;
+  support: string;
+  accent: string;
+}
+
 export interface TeachingPlanPayload {
   structure_name?: string;
+  palette?: PlanPalette | null;
   sections?: TeachingPlanSection[];
   through_line: string;
   rationale: string;
