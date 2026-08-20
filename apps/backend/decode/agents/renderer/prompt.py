@@ -130,6 +130,20 @@ CHOREOGRAPHY_GUIDANCE = """## Choreography authoring guidance
   narration calls out on its own words.
 - Every `targetId`/`secondaryTargetId` must match a `<Subject id>` in the cast — no verb may
   reference an id the JSX never renders.
+- SEMANTIC METAPHOR FIRST — match the container to the beat's concept, don't box everything.
+  A `Card`/`Container` border means "a bounded surface: a product UI tile, a document, a discrete
+  component". For an ABSTRACT beat — a flow, a cycle, a metric, a line graph, a spectrum, a
+  comparison of magnitudes — do NOT wrap ideas in cards. Render raw nodes (a `Database`/`Cloud`
+  glyph, a big `Label` number, a `Badge`), typography, and vector shapes directly on the dark
+  field, related by `Connector`/`Arrow` and position. Reserve cards for things that are actually
+  card-like; a diagram of a process is lines and nodes, not a row of boxes.
+- TEXT IS HTML, NEVER `<svg><text>` — use `<svg>` strictly for paths, arrows, curves and vector
+  shapes. Never put a `<text>` element inside an `<svg>`. All words are HTML: a `Label`, or a
+  `<div>` positioned beside or over the vector via a flex/anchor wrapper. (SVG text ignores the
+  layout engine and the safe-area/measure guarantees, and mis-renders across machines.)
+- FLOW LAYOUT, NOT OFFSETS — place every structural element with `Stack`/`Row`/`Grid` and `gap`.
+  `position: absolute` is only for a secondary overlay (a glow, a badge pinned to a corner),
+  anchored to a flow wrapper with clear margins — never for primary structure or to fake a grid.
 - COMPOSITION PATTERNS — reach for the assembly that fits the beat's structure; compose these
   atoms, never invent a layout out of nested `Card`s:
   - Pipeline / sequence (A→B→C): one `<Row justify="space-between">` of `Card`/`Database`/`Cloud`

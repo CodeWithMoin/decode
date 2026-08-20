@@ -81,15 +81,16 @@ export function Subject({
 }) {
   const context = useContext(ChoreographyContext);
   const state = context?.state[id] ?? IDLE;
-  // `indicate` draws attention with scale/opacity from the runtime — no coloured
-  // highlight ring. The ring added a flash of accent at scene start and read as
-  // chrome, not teaching.
+  // The `indicate` ring is the Director's accent (var(--decode-accent)) — the
+  // project palette, never a hardcoded hue.
+  const accent = context?.accent ?? "var(--decode-accent, #4b8ea1)";
   return (
     <div
       data-decode-box="subject"
       style={{
         opacity: q(state.opacity),
         transform: `scale(${q(state.scale)})`,
+        ...(state.isHighlighted ? { boxShadow: `0 0 0 2px ${accent}` } : undefined),
         ...style,
       }}
     >

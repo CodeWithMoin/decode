@@ -760,13 +760,13 @@ export function DataStream({
 /** Code with per-line highlight — fixed type, wraps long lines, never scrolls. */
 export function CodeBlock({
   code,
+  highlightLines = [],
   language,
   fontSize = 20,
+  accent = "var(--decode-accent, #4b8ea1)",
   style,
 }: {
   code: string;
-  /** Accepted for API compatibility; the model still emits it, but code lines
-   *  are no longer visually highlighted — the tint added noise without value. */
   highlightLines?: number[];
   language?: string;
   fontSize?: number;
@@ -780,6 +780,7 @@ export function CodeBlock({
     .replace(/\\t/g, "  ")
     .replace(/\n$/, "")
     .split("\n");
+  const highlighted = new Set(highlightLines);
   return (
     <div
       data-decode-box="card"
@@ -811,7 +812,17 @@ export function CodeBlock({
       {lines.map((line, index) => (
         <div
           key={index}
-          style={{ padding: "0 22px", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
+          style={{
+            padding: "0 22px",
+            whiteSpace: "pre-wrap",
+            overflowWrap: "anywhere",
+            // Highlight uses the project accent (var(--decode-accent)) — cyan on
+            // this project, never a hardcoded hue.
+            backgroundColor: highlighted.has(index + 1)
+              ? `color-mix(in srgb, ${accent} 16%, transparent)`
+              : undefined,
+            color: highlighted.has(index + 1) ? accent : undefined,
+          }}
         >
           {line || " "}
         </div>
