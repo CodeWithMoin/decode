@@ -120,6 +120,10 @@ CHOREOGRAPHY_GUIDANCE = """## Choreography authoring guidance
   (`targetId` becomes `secondaryTargetId`). There is no `disappear`: elements leave only by
   `transform`, so the final frame holds the whole picture. `atWordIndex` is the 0-based index into
   the beat's narration words below; `durationInWords` is how many words the motion spans.
+- FOCAL RULE: as the narration moves from one idea to the next, `dim` the previous idea's
+  subjects at that word. At any word index, at most 2-3 subjects hold full brightness or a
+  highlight — everything already explained recedes to context. A scene whose every element
+  stays at full opacity has no visual hierarchy.
 - Every `targetId`/`secondaryTargetId` must match a `<Subject id>` in the cast — no verb may
   reference an id the JSX never renders.
 - STAGE RULES (1920x1080 broadcast frame, not a desktop UI):

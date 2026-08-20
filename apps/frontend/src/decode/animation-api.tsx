@@ -773,7 +773,13 @@ export function CodeBlock({
   accent?: string;
   style?: CSSProperties;
 }) {
-  const lines = code.replace(/\n$/, "").split("\n");
+  // LLM-authored code often arrives with JSON-escaped breaks ("\\n", "\\t") —
+  // normalize them so they render as real lines, whatever the serializer did.
+  const lines = code
+    .replace(/\\n/g, "\n")
+    .replace(/\\t/g, "  ")
+    .replace(/\n$/, "")
+    .split("\n");
   const highlighted = new Set(highlightLines);
   return (
     <div
