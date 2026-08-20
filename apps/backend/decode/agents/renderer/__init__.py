@@ -24,7 +24,6 @@ from pydantic import BaseModel, Field
 
 from ...config import Settings
 from ...schemas import (
-    ChoreographyVerb,
     ProductionIntent,
     SceneControl,
     SceneModule,
@@ -41,23 +40,19 @@ from .validation import RUNTIME_VERSION, repair_message, validate_scenes
 
 
 class SceneDraft(BaseModel):
-    """One scene the model authors — React f(frame) only.
+    """One scene the model authors — a React f(frame) module, nothing else.
 
-    `component_source` is required and there is no `composition_html` field, so the
-    output schema forces a Remotion f(frame) module — imported from `@decode/animation-api`,
-    driven by `useCurrentFrame()`/`interpolate()` — the substrate the browser preview
-    and the `/direct` loop both drive. Timing is Remotion's own frame clock inside the
-    Sequence Decode lays the scene on, so there are no anchored `beats` to declare.
-
-    In choreography mode the same component is a relational cast, and `script`
-    carries the verb list it plays — declared here so the model's structured
-    output can carry it without leaving the schema.
+    `component_source` is required and there is no `composition_html` or `script`
+    field, so the output schema forces a single Remotion module imported from
+    `@decode/animation-api`. The scene is a sequence of `<Act>` blocks timed to the
+    STT word transcript, each holding free `useCurrentFrame()`/`interpolate()`
+    animation. There is no verb script: the animation lives in the code, so the
+    schema does not offer a `script` field for the model to fill.
     """
 
     beat_id: str = Field(min_length=1)
     controls: list[SceneControl] = Field(max_length=20)
     component_source: str = Field(min_length=1)
-    script: list[ChoreographyVerb] = Field(default_factory=list, max_length=200)
 
     def to_module(self) -> SceneModule:
         return SceneModule(
@@ -65,7 +60,6 @@ class SceneDraft(BaseModel):
             controls=self.controls,
             component_source=self.component_source,
             beats=[],
-            script=self.script,
         )
 
 
