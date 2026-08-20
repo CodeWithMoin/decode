@@ -115,7 +115,10 @@ CHOREOGRAPHY_GUIDANCE = """## Scene authoring guidance — a 1920x1080 LANDING P
     returned ref to a wrapper. It is seeked to the frame, so it stays deterministic.
   - 3D -> `THREE` (vanilla) for simple, `ThreeCanvas` (R3F) when composition demands.
   - Lightweight vector motion / polish -> `Lottie`.
-  - Draw a path ON, or MORPH one path into another -> `paths.evolvePath` / `paths.interpolatePath`.
+  - Draw a path ON (a curve drawing itself) -> `paths.evolvePath(progress, d)` returns
+    `{{ strokeDasharray, strokeDashoffset }}` you spread onto the `<path>`. ALWAYS use this — never
+    hand-compute strokeDasharray/strokeDashoffset from a guessed path length (a wrong length leaves
+    the curve invisible). MORPH one path into another -> `paths.interpolatePath(t, dA, dB)`.
   - Clean vector shapes -> `shapes` (`Circle`, `Rect`, `Star`, `Arrow`, `Callout`, `Pie`).
   - Point attention / ANNOTATE -> `roughNotation.{Circle, Underline, Highlight, Box, Bracket,
     StrikeThrough, CrossedOff}` — hand-drawn marks that read as teaching: circle the answer,
