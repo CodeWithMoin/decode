@@ -19,6 +19,7 @@ import httpx
 from ...config import Settings
 from ...providers.storage import object_store
 from ...schemas import ProductionIntent, Script, Voice, VoiceNarration
+from ...timing import even_split_words
 from ..contracts import ProviderUsage
 from .prompt import SKILLS
 
@@ -95,11 +96,19 @@ class FishAudioNarrator:
             await store.put(key, chunks(), max_bytes=20 * 1024 * 1024)
             measured = _mp3_duration_seconds(audio)
             duration = measured if measured is not None else len(beat.narration) / _CHARS_PER_SECOND
+            duration = round(max(1.0, duration), 2)
+            # Fish Audio returns audio + total duration but no word-level
+            # alignment, so estimate per-word timings by spreading the narration
+            # evenly across the measured duration. Without words the choreography
+            # clock never advances and every scene freezes at t=0. An estimate,
+            # not real alignment — replace with the provider's timestamps or a
+            # forced-alignment pass when available (see timing.even_split_words).
             clips.append(
                 VoiceNarration(
                     beat_id=beat.beat_id,
                     audio_key=key,
-                    duration_seconds=round(max(1.0, duration), 2),
+                    duration_seconds=duration,
+                    words=even_split_words(beat.narration, duration),
                 )
             )
 
