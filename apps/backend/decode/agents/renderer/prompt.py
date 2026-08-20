@@ -130,6 +130,18 @@ CHOREOGRAPHY_GUIDANCE = """## Choreography authoring guidance
   narration calls out on its own words.
 - Every `targetId`/`secondaryTargetId` must match a `<Subject id>` in the cast — no verb may
   reference an id the JSX never renders.
+- COMPOSITION PATTERNS — reach for the assembly that fits the beat's structure; compose these
+  atoms, never invent a layout out of nested `Card`s:
+  - Pipeline / sequence (A→B→C): one `<Row justify="space-between">` of `Card`/`Database`/`Cloud`
+    nodes, each pair joined by a `Connector`/`Arrow` whose label carries the step.
+  - Split comparison (this vs that): `<Grid columns={2}>` (or a two-child `Row`) of `Container`s,
+    one idea per column — never two overlapping stacks.
+  - Hierarchy / tree (root → children): a centered root `Card`, a `Connector` from it down to a
+    `<Row>` of child `Card`s. For a third level, each child becomes the root of its own
+    `Row` of grandchildren directly beneath it — keep the whole tree in one `<Stack>`, centered.
+  - Dashboard / metrics: a top `<Row>` of `MetricCard`s over a main `CodeBlock` or diagram.
+  - Nesting is normal: a `Container` ("VPC", "Cluster") holds a `Row` of `Card`s joined by
+    `DataStream`. Cluster with `Container`, sequence with `Row`+`Connector`, compare with `Grid`.
 - STAGE RULES (1920x1080 broadcast frame, not a desktop UI):
   - The root layout MUST fill the stage: wrap the cast in
     `<Stack align="center" justify="center" gap={48} style={{ width: "100%", height: "100%", padding: 80 }}>`
