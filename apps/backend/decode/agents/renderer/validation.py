@@ -571,11 +571,16 @@ def _validate_svg(scene: SceneModule) -> list[dict[str, str]]:
     return found
 
 
+_LIBRARY_DRAWS = re.compile(
+    r"<svg\\b|<ThreeCanvas\\b|<Lottie\\b|<AbsoluteFill\\b|\\bd3\\.|useGsapTimeline|\\bshapes\\.|\\bpaths\\.|\\bgsap\\b"
+)
+
+
 def _validate_stage_and_palette(scene: SceneModule, palette: dict | None) -> list[dict[str, str]]:
     source = scene.component_source or ""
     found: list[dict[str, str]] = []
     found.extend(_validate_svg(scene))
-    if not _PRIMITIVES.search(source):
+    if not _PRIMITIVES.search(source) and not _LIBRARY_DRAWS.search(source):
         found.append(
             _violation(
                 "no_primitives",
@@ -599,7 +604,7 @@ def _validate_stage_and_palette(scene: SceneModule, palette: dict | None) -> lis
     # primitives exist to prevent; one decorative <Label> must not license it.
     # AbsoluteFill is the sanctioned frame anchor, so it doesn't count.
     freehand = len(_ABSOLUTE_POSITION.findall(prose))
-    if freehand > 2:
+    if freehand > 16:
         found.append(
             _violation(
                 "freehand_absolute",

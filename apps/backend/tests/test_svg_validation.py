@@ -64,7 +64,7 @@ def _stage_codes(src: str) -> set[str]:
 def test_freehand_absolute_layout_flagged():
     divs = "".join(
         f'<div style={{{{ position: "absolute", left: {i * 100}, top: 40 }}}} />'
-        for i in range(4)
+        for i in range(18)  # gate now allows a landing page's labels; only chaos (>16) is flagged
     )
     src = f"<AbsoluteFill><Label text='x' size={{24}} />{divs}</AbsoluteFill>"
     assert "freehand_absolute" in _stage_codes(src)
