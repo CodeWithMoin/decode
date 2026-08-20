@@ -124,6 +124,10 @@ CHOREOGRAPHY_GUIDANCE = """## Choreography authoring guidance
   subjects at that word. At any word index, at most 2-3 subjects hold full brightness or a
   highlight — everything already explained recedes to context. A scene whose every element
   stays at full opacity has no visual hierarchy.
+- A container and its contents arrive together: give a card (and the label or code inside it)
+  ONE `appear` at the same `atWordIndex`, so it never shows as an empty outlined box waiting
+  to be filled. Only nest a later `appear` when a child is a genuinely separate reveal the
+  narration calls out on its own words.
 - Every `targetId`/`secondaryTargetId` must match a `<Subject id>` in the cast — no verb may
   reference an id the JSX never renders.
 - STAGE RULES (1920x1080 broadcast frame, not a desktop UI):
