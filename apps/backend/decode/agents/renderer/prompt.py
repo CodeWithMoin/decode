@@ -120,6 +120,15 @@ CHOREOGRAPHY_GUIDANCE = """## Choreography authoring guidance
   (`targetId` becomes `secondaryTargetId`). There is no `disappear`: elements leave only by
   `transform`, so the final frame holds the whole picture. `atWordIndex` is the 0-based index into
   the beat's narration words below; `durationInWords` is how many words the motion spans.
+- MULTI-ACT STAGE: one scene is a persistent stage that EVOLVES across the beat's narration, not
+  a static picture that assembles once. Read the narration and split it into 2-4 acts — spans of
+  words where the idea shifts (e.g. "loss is high" → "a step lowers it" → "compare the two"). The
+  same stage carries all acts: an element introduced in act 1 is `transform`ed into its evolved
+  form at the word that opens act 2 (a baseline graph becomes the high-loss graph; a single node
+  becomes a pair), the finished act's subjects `dim`, and the new focus is `indicate`d. Prefer
+  `transform` (morph A→B) over introducing a whole new cluster — the viewer should watch one thing
+  change, not cut to a fresh diagram. Anchor each act's `transform`/`dim`/`indicate` to the exact
+  word that begins it, so the change lands as the narration says it.
 - FOCAL RULE: as the narration moves from one idea to the next, `dim` the previous idea's
   subjects at that word. At any word index, at most 2-3 subjects hold full brightness or a
   highlight — everything already explained recedes to context. A scene whose every element

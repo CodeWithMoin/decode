@@ -102,3 +102,30 @@ def test_progress_and_time_anchors_clamp_into_the_scene():
     assert times["past_end"] == 3.0  # clamped to duration
     assert times["negative"] == 0.0
     assert times["past_dur"] == 3.0
+
+
+def test_align_words_maps_stt_onto_narration_tokens():
+    from decode.timing import align_words_to_tokens
+
+    narration = "The loss is high, then it drops low."
+    # STT drops "the", ignores punctuation, has real times for the rest.
+    stt = [
+        ("loss", 0.5, 0.9), ("is", 0.9, 1.1), ("high", 1.1, 1.6),
+        ("then", 2.0, 2.3), ("it", 2.3, 2.5), ("drops", 2.5, 3.0), ("low", 3.2, 3.7),
+    ]
+    words = align_words_to_tokens(narration, stt, 4.0)
+    # one Word per narration token, indices preserved
+    assert [w.text for w in words] == narration.split()
+    # matched tokens land on their spoken time (punctuation-insensitive)
+    assert words[3].text == "high," and words[3].start == 1.1
+    assert words[7].text == "low." and words[7].start == 3.2
+    # monotonic, clamped into [0, duration]
+    starts = [w.start for w in words]
+    assert starts == sorted(starts) and starts[0] >= 0 and words[-1].end <= 4.0
+
+
+def test_align_words_falls_back_when_no_stt():
+    from decode.timing import align_words_to_tokens, even_split_words
+
+    narration = "A short line of narration."
+    assert align_words_to_tokens(narration, [], 3.0) == even_split_words(narration, 3.0)

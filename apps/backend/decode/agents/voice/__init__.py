@@ -18,8 +18,11 @@ import httpx
 
 from ...config import Settings
 from ...providers.storage import object_store
+import asyncio
+import io
+
 from ...schemas import ProductionIntent, Script, Voice, VoiceNarration
-from ...timing import even_split_words
+from ...timing import Word, align_words_to_tokens, even_split_words
 from ..contracts import ProviderUsage
 from .prompt import SKILLS
 
@@ -82,6 +85,40 @@ class FishAudioNarrator:
             response.raise_for_status()
             return response.content
 
+    async def _align(self, narration: str, audio: bytes, duration: float) -> list[Word]:
+        """Word-level timings for one clip, from STT forced against the narration.
+
+        Transcribes the synthesized audio with word timestamps and maps them back
+        onto the narration's own tokens. Requires an OpenAI-compatible audio
+        endpoint (`openai_api_key`); when none is configured or the call fails,
+        returns an even split so the choreography still animates — an estimate,
+        never presented as a real read.
+        """
+        if not self.settings.openai_api_key:
+            return even_split_words(narration, duration)
+        try:
+            from openai import AsyncOpenAI
+
+            client = AsyncOpenAI(
+                api_key=self.settings.openai_api_key, base_url=self.settings.openai_base_url
+            )
+            buffer = io.BytesIO(audio)
+            buffer.name = "narration.mp3"
+            async with asyncio.timeout(45):
+                result = await client.audio.transcriptions.create(
+                    model=self.settings.openai_transcribe_model,
+                    file=buffer,
+                    response_format="verbose_json",
+                    timestamp_granularities=["word"],
+                )
+            spoken = [(w.word, w.start, w.end) for w in (getattr(result, "words", None) or [])]
+            aligned = align_words_to_tokens(narration, spoken, duration)
+            return aligned or even_split_words(narration, duration)
+        except Exception:
+            # No usable transcription endpoint in this environment, or a transient
+            # failure — degrade to the estimate rather than shipping a static scene.
+            return even_split_words(narration, duration)
+
     async def generate(self, intent: ProductionIntent, script: Script) -> Voice:
         store = object_store(self.settings)
         clips: list[VoiceNarration] = []
@@ -97,18 +134,17 @@ class FishAudioNarrator:
             measured = _mp3_duration_seconds(audio)
             duration = measured if measured is not None else len(beat.narration) / _CHARS_PER_SECOND
             duration = round(max(1.0, duration), 2)
-            # Fish Audio returns audio + total duration but no word-level
-            # alignment, so estimate per-word timings by spreading the narration
-            # evenly across the measured duration. Without words the choreography
-            # clock never advances and every scene freezes at t=0. An estimate,
-            # not real alignment — replace with the provider's timestamps or a
-            # forced-alignment pass when available (see timing.even_split_words).
+            # The choreography clock needs per-word timings. Transcribe the audio
+            # with word timestamps (STT) and map them back onto the narration's
+            # own tokens so each reveal lands on the spoken word; fall back to an
+            # even split when no transcription endpoint is reachable.
+            words = await self._align(beat.narration, audio, duration)
             clips.append(
                 VoiceNarration(
                     beat_id=beat.beat_id,
                     audio_key=key,
                     duration_seconds=duration,
-                    words=even_split_words(beat.narration, duration),
+                    words=words,
                 )
             )
 

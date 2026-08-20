@@ -46,6 +46,12 @@ class Settings(BaseSettings):
     # Evaluation is a separate model call with a separate quality/cost profile.
     # It may share credentials without coupling its model choice to generation.
     openai_evaluator_model: str = "gpt-5.6-luna"
+    # Speech-to-text for narration word-timing alignment. The synthesized audio is
+    # transcribed with word timestamps, which are mapped back onto the known
+    # narration tokens so the choreography lands each reveal on the spoken word.
+    # Empty key or a base_url without an audio endpoint → falls back to an even
+    # split (see agents/voice). DECODE_OPENAI_TRANSCRIBE_MODEL overrides.
+    openai_transcribe_model: str = "whisper-1"
     # Absent keys mean tracing is off, which is the normal case for tests and
     # for a dev loop that is not working on prompts. Points at the opt-in stack
     # in compose.langfuse.yaml, never at Langfuse Cloud by default: traces carry

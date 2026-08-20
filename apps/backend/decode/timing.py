@@ -55,6 +55,71 @@ def even_split_words(text: str, duration: float) -> list[Word]:
     ]
 
 
+def _norm(token: str) -> str:
+    """Compare tokens ignoring case and punctuation ("high," == "high")."""
+    return "".join(ch for ch in token.lower() if ch.isalnum())
+
+
+def align_words_to_tokens(
+    text: str, stt_words: list[tuple[str, float, float]], duration: float
+) -> list[Word]:
+    """Map STT word timestamps onto the narration's OWN tokens.
+
+    The choreography anchors verbs to `atWordIndex` — an index into the narration
+    tokenised by whitespace. An STT transcript has its own tokenisation (dropped
+    filler, split contractions), so we can't use its indices directly. We align
+    the two token streams (difflib), pin each matched narration token to its
+    spoken time, then interpolate the unmatched tokens between anchors. The result
+    has exactly one Word per narration token, in order — indices stay valid, and
+    each reveal lands on when its word is actually spoken.
+
+    Falls back to an even split when there are no usable anchors.
+    """
+    import difflib
+
+    tokens = [t for t in text.split() if t.strip()]
+    if not tokens or duration <= 0:
+        return []
+    usable = [(w, float(s), float(e)) for (w, s, e) in stt_words if _norm(w)]
+    if not usable:
+        return even_split_words(text, duration)
+
+    matcher = difflib.SequenceMatcher(
+        None, [_norm(t) for t in tokens], [_norm(w) for w, _, _ in usable], autojunk=False
+    )
+    starts: list[float | None] = [None] * len(tokens)
+    for i, j, n in matcher.get_matching_blocks():
+        for k in range(n):
+            starts[i + k] = usable[j + k][1]
+    if all(s is None for s in starts):
+        return even_split_words(text, duration)
+
+    # Interpolate gaps between anchors; extend to 0 at the head and `duration` at
+    # the tail so every token gets a monotonic start time.
+    anchors = [(idx, s) for idx, s in enumerate(starts) if s is not None]
+    if anchors[0][0] != 0:
+        anchors.insert(0, (0, 0.0))
+    if anchors[-1][0] != len(tokens) - 1:
+        anchors.append((len(tokens) - 1, duration))
+    filled = [0.0] * len(tokens)
+    for (i0, t0), (i1, t1) in zip(anchors, anchors[1:]):
+        filled[i0] = t0
+        for idx in range(i0 + 1, i1 + 1):
+            frac = (idx - i0) / (i1 - i0) if i1 > i0 else 1.0
+            filled[idx] = t0 + (t1 - t0) * frac
+    # Enforce monotonic non-decreasing, clamp to [0, duration].
+    for idx in range(1, len(filled)):
+        filled[idx] = min(duration, max(filled[idx], filled[idx - 1]))
+    return [
+        Word(
+            text=token,
+            start=_q3(filled[idx]),
+            end=_q3(filled[idx + 1] if idx + 1 < len(tokens) else duration),
+        )
+        for idx, token in enumerate(tokens)
+    ]
+
+
 class NarrationTiming(BaseModel):
     """The transcript of one scene's narration, timed. The timing authority.
 
