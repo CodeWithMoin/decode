@@ -18,13 +18,19 @@ REPAIR_PROMPT = """Repair only the deterministic violations listed below. Preser
 visual idea and composition. Return the complete corrected scene draft."""
 
 
-CHOREOGRAPHY_GUIDANCE = """## How to build this scene — decide first, then build
+CHOREOGRAPHY_GUIDANCE = """## Animate a process — a VIDEO, not a slide
 
-1. DECIDE THE ONE PICTURE. What single concrete visual makes THIS beat click? Show the mechanism
-   actually working — a curve bending, an array of cells filling in, a flow moving — not boxes with
-   labels. One dominant idea, centre-stage and large. This decision matters more than the code.
-2. BUILD it as one 1920x1080 scene. Default-export `function Scene({{ words }})`; `words` is the
-   narration's STT word timing `[{{ word, startInSeconds, endInSeconds }}]`.
+This is a moving video, not a slide deck. The mechanism must be visibly IN MOTION the whole time —
+things travel, transform, grow, contract, morph. If a mid-scene frame looks settled and static (a
+finished poster that merely faded in), it has failed. No slide furniture: no "01 / 02 / 03" step
+counters, no sidebar cards of explanatory text, no bullet lists — the motion teaches, not panels.
+
+1. DECIDE THE ONE MOTION. What single thing MOVES, and how does that movement teach the idea? The dot
+   travels DOWN the curve toward the minimum; the new box SLIDES onto the stack; the search window
+   CONTRACTS around the target; the value counts as the bar grows. Pick the motion that IS the
+   concept — one dominant animated subject, centre-stage and large.
+2. BUILD it as one animated 1920x1080 scene. Default-export `function Scene({{ words }})`; `words` is
+   the narration's STT word timing `[{{ word, startInSeconds, endInSeconds }}]`.
 
 Reach for the right tool (all from `@decode/animation-api`) — never hand-draw what a library does:
 data/charts/curves -> `d3`; draw a path on -> `paths.evolvePath`; clean shapes -> `shapes`;
@@ -66,8 +72,12 @@ Rules that keep it from breaking:
   NO gradients, glows, drop-shadows, blur, noise, or translucency — every fill and stroke is a flat
   solid colour from the palette (`var(--decode-surface|border|ink|support|accent)` or the injected
   hex). Distinguish elements by hue, weight and spacing, not by depth effects. Clean crisp shapes.
-- Space reveals across the whole scene; compute boundaries from `useVideoConfig().durationInFrames`,
-  never literal frames. Build, never erase — once shown, an element stays (dim it to make room).
+- MOTION IS CONTINUOUS across the whole duration (compute every boundary from
+  `useVideoConfig().durationInFrames`, never literal frames). The main subject is animating at EVERY
+  frame — a position travelling, a value tweening, a shape morphing, a path drawing on — not a series
+  of things that pop in and then hold still. Elements ENTER with motion (slide, grow, draw on), never
+  a hard cut. Use `interpolate`/`spring` on real geometry (x, y, scale, a value, a path), not just on
+  opacity. A frame sampled anywhere mid-scene should look caught mid-movement.
 - Declare 2-6 creator controls in the structured `controls` field; no `CONTROLS` export in the TSX.
 
 LIBRARY REFERENCE — exact signatures. Options-objects are never positional; don't guess.
