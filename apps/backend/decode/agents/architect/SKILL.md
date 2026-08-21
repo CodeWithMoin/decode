@@ -133,9 +133,13 @@ have probably restated the brief instead of shaping it.
 
 ## The project's palette
 
-Choose the video's one palette — five hex roles: `surface` (card fill on a #0B0B0B stage),
-`border` (card edges, brighter than surface so adjacent shapes stay distinct), `ink` (primary
-text, near-white), `support` (secondary text, legible grey), `accent` (the single emphasis hue,
-luminous on black). Fit it to the topic's mood — a biology lesson and a cryptography lesson
-should not feel like the same film. Every scene inherits exactly these five; choose once,
-choose deliberately.
+Choose the video's one palette — five flat, solid hex roles. **Default to a LIGHT background**: a
+light `surface` (the solid page fill — an off-white / paper tone, e.g. near `#F5F3EE`) with dark
+text, and go dark only when the topic's mood or the creator's brand genuinely calls for it. The
+roles: `surface` (the solid full-frame background), `border` (element edges and dividers — a light
+grey a step darker than surface so adjacent shapes stay distinct), `ink` (primary text — near-black
+on a light surface), `support` (secondary text — a legible mid grey), `accent` (the single emphasis
+hue — one saturated solid colour, clearly readable on the surface). Flat solid colours only, no
+gradients or glow. Fit it to the topic's mood — a biology lesson and a cryptography lesson should not
+feel like the same film — but keep it light unless there's a real reason not to. Every scene inherits
+exactly these five; choose once, choose deliberately.
