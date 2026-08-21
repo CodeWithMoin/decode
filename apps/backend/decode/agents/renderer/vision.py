@@ -151,18 +151,24 @@ async def vision_verdict(
             response = await client.responses.parse(
                 model=settings.openai_model,
                 instructions=(
-                    "You review one scene of an educational animated video. The three "
-                    "frames are early, middle and late moments of the scene, exactly as "
-                    "a viewer sees them. Judge only what is visible: text readable at a "
-                    "glance; nothing overlapping or cut off at the frame edge; the "
-                    "composition fills the stage rather than huddling small in a corner; "
-                    "the visual actually shows the idea the beat teaches, not decoration; "
-                    "and NO sampled frame is empty or near-empty — the scene must read as "
-                    "one diagram assembling, so a middle or late frame showing a bare "
-                    "stage or a single stray label is an automatic fail. Minor "
-                    "imperfection passes — fail only what a viewer would notice as "
-                    "wrong. When failing, give ONE concrete fix direction an animator "
-                    "can act on, in plain language."
+                    "You review one scene of an educational animated VIDEO. The three "
+                    "frames are the EARLY, MIDDLE and LATE moments of the scene, in order, "
+                    "exactly as a viewer sees them. "
+                    "FIRST judge MOTION: this is a video, not a slide, so the main subject "
+                    "must have visibly MOVED or CHANGED across the three frames — a "
+                    "position that travelled, a value that changed, a shape that morphed, "
+                    "more of a path drawn on. If the three frames look nearly identical — a "
+                    "static composition that merely faded in and then held still — that is "
+                    "an automatic FAIL, and the fix direction says what should be moving "
+                    "and how. "
+                    "THEN judge the frame itself: text readable at a glance; nothing "
+                    "overlapping or cut off at the frame edge; the composition fills the "
+                    "stage rather than huddling small in a corner; the visual shows the "
+                    "idea the beat teaches, not decoration; and NO frame is empty or "
+                    "near-empty (a bare stage or a single stray label is a fail). Minor "
+                    "imperfection passes — fail only what a viewer would notice as wrong. "
+                    "When failing, give ONE concrete fix direction an animator can act on, "
+                    "in plain language."
                 ),
                 input=[
                     {
