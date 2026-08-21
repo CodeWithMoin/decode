@@ -29,7 +29,7 @@ CHOREOGRAPHY_GUIDANCE = """## How to build this scene — decide first, then bui
 Reach for the right tool (all from `@decode/animation-api`) — never hand-draw what a library does:
 data/charts/curves -> `d3`; draw a path on -> `paths.evolvePath`; clean shapes -> `shapes`;
 annotate (circle/underline/highlight the point) -> `roughNotation`; timeline motion -> `gsap` via
-`useGsapTimeline`; 3D -> `THREE`/`ThreeCanvas`; background texture -> `noise`/`effects`.
+`useGsapTimeline`.
 
 CRITICAL — LIBRARY FIRST. Do NOT hand-place elements with absolute `left`/`top` pixels, hand-write
 SVG path strings (`d="M .. L .."`), or hand-roll `strokeDashoffset`. Eyeballed pixels collide — that
@@ -62,7 +62,10 @@ Rules that keep it from breaking:
   unseeded random. Pass sin/cos/pow through `q()` before it hits a style or SVG attribute.
 - Every `<svg>` declares a `viewBox`. Text is HTML (`Label` or `<div>`), never `<svg><text>`.
 - Lay out with `Stack`/`Row`/`Grid` + `gap`; keep focal content inside a 96px margin; don't overlap.
-- Paint your own background; take every colour from the palette (`var(--decode-surface|border|ink|support|accent)` or the injected hex).
+- STYLE: flat 2D, SOLID colours. Fill one solid background from the palette (`--decode-surface`).
+  NO gradients, glows, drop-shadows, blur, noise, or translucency — every fill and stroke is a flat
+  solid colour from the palette (`var(--decode-surface|border|ink|support|accent)` or the injected
+  hex). Distinguish elements by hue, weight and spacing, not by depth effects. Clean crisp shapes.
 - Space reveals across the whole scene; compute boundaries from `useVideoConfig().durationInFrames`,
   never literal frames. Build, never erase — once shown, an element stays (dim it to make room).
 - Declare 2-6 creator controls in the structured `controls` field; no `CONTROLS` export in the TSX.
@@ -103,7 +106,7 @@ def build_instructions(
     brief = {
         **visual_direction,
         "canvas": {"width": 1920, "height": 1080},
-        "background": "Paint your own full-frame background from the palette; #0B0B0B shows only where you leave it unpainted.",
+        "background": "Fill one solid background colour from the palette (flat, no gradient/glow/noise); #0B0B0B shows only where you leave it unpainted.",
     }
     prefix = f"""Create one complete Remotion TSX scene for every beat below.
 
