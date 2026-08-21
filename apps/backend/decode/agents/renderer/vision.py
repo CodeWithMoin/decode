@@ -54,7 +54,12 @@ def _render_stills(
     Synchronous on purpose — callers wrap it in a thread. Raises on failure;
     the caller turns any failure into "no opinion".
     """
-    work = Path(settings.render_cwd) / ".data" / "vision" / uuid.uuid4().hex
+    # Resolve to an absolute base: the subprocess runs with cwd=render_cwd, and a
+    # RELATIVE render_cwd (the default "apps/frontend") would double the path — the
+    # scenes.json argument would resolve against the already-render_cwd cwd — so the
+    # still render fails and the whole gate silently returns "no opinion".
+    base = Path(settings.render_cwd).resolve()
+    work = base / ".data" / "vision" / uuid.uuid4().hex
     work.mkdir(parents=True, exist_ok=True)
     scenes_json = work / "scenes.json"
     scenes_json.write_text(
@@ -85,7 +90,7 @@ def _render_stills(
         capture_output=True,
         text=True,
         timeout=_STILL_TIMEOUT_SECONDS,
-        cwd=settings.render_cwd,
+        cwd=str(base),
     )
     if result.returncode != 0:
         raise RuntimeError(f"still render failed: {result.stderr[-500:]}")
