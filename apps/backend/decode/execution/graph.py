@@ -57,6 +57,11 @@ STALE_TASK_LEASE_SECONDS = 600
 # so exhaustion surfaces as an ordinary Exception that _fail_task can retry —
 # arq's own timeout is a BaseException that leaks the RUNNING row instead.
 SCENE_GENERATION_TIMEOUT_SECONDS = 240
+# How many render → vision-critique → repair rounds a scene may run before it
+# ships as-is. The notebook loop converged in 1–2; 3 leaves headroom without
+# letting a stubborn scene spin. The static gates already passed, so a scene
+# that never satisfies the vision judge still ships and the creator re-directs.
+VISION_MAX_ROUNDS = 3
 
 
 def is_graph_job(kind: str) -> bool:
@@ -309,18 +314,22 @@ async def _run_scene_task(task_id: str, run_id: str) -> dict:
     if len(visuals.scenes) != 1 or visuals.scenes[0].beat_id != beat_id:
         raise ValueError(f"scene task {beat_id!r} must return exactly its requested scene")
 
-    # The vision loop: render what a viewer would see and let a multimodal
-    # model judge it. One repair round on a fail; a second fail ships anyway —
-    # the static gates already passed, and the creator can re-direct the scene.
-    # "No opinion" (gate off, no key, tooling trouble) changes nothing.
-    verdict = await vision_verdict(
-        get_settings(),
-        visuals.scenes[0],
-        beat,
-        narration.narration,
-        float(beat.target_duration_seconds or 10),
-    )
-    if verdict is not None and not verdict.passes and verdict.fix_direction.strip():
+    # The vision loop: render what a viewer would see, let a multimodal model
+    # judge it (or catch a runtime crash), and repair — re-judging after each
+    # fix so it converges the way the notebook loop did. Bounded by
+    # VISION_MAX_ROUNDS; a scene that never passes still ships (the static gates
+    # passed and the creator can re-direct). "No opinion" (gate off, no key,
+    # tooling trouble) changes nothing.
+    for _ in range(VISION_MAX_ROUNDS):
+        verdict = await vision_verdict(
+            get_settings(),
+            visuals.scenes[0],
+            beat,
+            narration.narration,
+            float(beat.target_duration_seconds or 10),
+        )
+        if verdict is None or verdict.passes or not verdict.fix_direction.strip():
+            break
         async with asyncio.timeout(SCENE_GENERATION_TIMEOUT_SECONDS), model_call_gate():
             repaired = await designer.regenerate_one(
                 intent,
@@ -331,8 +340,9 @@ async def _run_scene_task(task_id: str, run_id: str) -> dict:
                 "A reviewer looked at the rendered frames. Fix exactly this and "
                 f"change nothing else:\n{verdict.fix_direction}",
             )
-        if len(repaired.scenes) == 1 and repaired.scenes[0].beat_id == beat_id:
-            visuals = repaired
+        if not (len(repaired.scenes) == 1 and repaired.scenes[0].beat_id == beat_id):
+            break
+        visuals = repaired
 
     usage = getattr(designer, "last_usage", None)
     return {

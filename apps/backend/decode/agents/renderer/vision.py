@@ -41,8 +41,15 @@ _STILL_TIMEOUT_SECONDS = 120
 _JUDGE_TIMEOUT_SECONDS = 60
 
 
-def _render_stills(settings: Settings, scene: SceneModule, duration_seconds: float) -> list[Path]:
+def _render_stills(
+    settings: Settings, scene: SceneModule, duration_seconds: float
+) -> tuple[list[Path], list[str]]:
     """Render early/middle/late frames of one scene via the Node still script.
+
+    Returns the still paths and any runtime errors the scene threw. A scene that
+    crashes renders the error-boundary panel instead of throwing, so the still
+    "succeeds"; the Node script prints the real reason as `SCENE_ERROR <msg>`,
+    which we capture here so the caller can fix the CODE, not guess from pixels.
 
     Synchronous on purpose — callers wrap it in a thread. Raises on failure;
     the caller turns any failure into "no opinion".
@@ -85,7 +92,12 @@ def _render_stills(settings: Settings, scene: SceneModule, duration_seconds: flo
     stills = sorted(work.glob("p*.png"))
     if not stills:
         raise RuntimeError("still render produced no frames")
-    return stills
+    scene_errors = [
+        line[len("SCENE_ERROR ") :]
+        for line in result.stdout.splitlines()
+        if line.startswith("SCENE_ERROR ")
+    ]
+    return stills, scene_errors
 
 
 def cleanup_stills(stills: list[Path]) -> None:
@@ -109,7 +121,20 @@ async def vision_verdict(
 
     stills: list[Path] = []
     try:
-        stills = await asyncio.to_thread(_render_stills, settings, scene, duration_seconds)
+        stills, scene_errors = await asyncio.to_thread(
+            _render_stills, settings, scene, duration_seconds
+        )
+
+        # A crash beats any pixel critique: the scene rendered the error panel,
+        # so hand the exact exception straight back as the fix and skip the
+        # image judge entirely.
+        if scene_errors:
+            return VisionVerdict(
+                passes=False,
+                issues=[f"The scene threw at runtime: {msg}" for msg in scene_errors],
+                fix_direction="Fix this runtime error and change nothing else:\n"
+                + "\n".join(scene_errors),
+            )
 
         from openai import AsyncOpenAI
 
