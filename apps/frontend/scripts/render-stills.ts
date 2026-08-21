@@ -11,7 +11,7 @@
  * one per sampled progress point, printed one path per line.
  */
 
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { bundle } from "@remotion/bundler";
 import { renderStill, selectComposition } from "@remotion/renderer";
@@ -38,7 +38,17 @@ async function main() {
   mkdirSync(outDir, { recursive: true });
 
   const root = process.cwd();
-  const cache = path.join(root, BUNDLE_CACHE);
+  // Key the bundle cache on the newest source mtime under src/, so editing the
+  // player / scene loader / animation-api auto-invalidates it. Before this the
+  // cache never expired and the vision gate critiqued stale renders — the exact
+  // bug that made good scenes look like "SCENE UNAVAILABLE".
+  const srcDir = path.join(root, "src");
+  let newest = 0;
+  for (const rel of readdirSync(srcDir, { recursive: true }) as string[]) {
+    const stat = statSync(path.join(srcDir, rel));
+    if (stat.isFile() && stat.mtimeMs > newest) newest = stat.mtimeMs;
+  }
+  const cache = path.join(root, `${BUNDLE_CACHE}-${Math.round(newest)}`);
   const bundled = existsSync(path.join(cache, "index.html"))
     ? cache
     : await bundle({
@@ -66,6 +76,12 @@ async function main() {
     inputProps: props,
   });
 
+  // A generated scene that crashes renders the error-boundary panel instead of
+  // throwing, so the still looks "fine". GeneratedScene console.errors the real
+  // reason with a [SCENE_ERROR] tag; capture it and print it so the caller (the
+  // vision loop) can feed the actual exception back to fix the code.
+  const sceneErrors = new Set<string>();
+
   for (const point of POINTS) {
     const frame = Math.min(
       composition.durationInFrames - 1,
@@ -78,9 +94,15 @@ async function main() {
       frame,
       output,
       inputProps: props,
+      onBrowserLog: (log) => {
+        const marker = log.text.indexOf("[SCENE_ERROR]");
+        if (marker !== -1) sceneErrors.add(log.text.slice(marker + "[SCENE_ERROR]".length).trim());
+      },
     });
     console.log(output);
   }
+
+  for (const message of sceneErrors) console.log(`SCENE_ERROR ${message}`);
 }
 
 main().catch((error) => {

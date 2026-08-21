@@ -49,11 +49,14 @@ function GeneratedSceneSource({
       })
       .catch((cause: unknown) => {
         if (!live) return;
-        setError(
+        const message =
           cause instanceof SceneModuleError
             ? [cause.message, cause.detail].filter(Boolean).join(" ")
-            : "This scene could not be loaded.",
-        );
+            : `This scene could not be loaded. ${cause instanceof Error ? cause.message : String(cause)}`;
+        // Surface it to the browser console so a headless still/video render can
+        // capture the real reason (the vision loop feeds it back to fix the code).
+        console.error(`[SCENE_ERROR] ${message}`);
+        setError(message);
       })
       .finally(() => continueRender(renderHandle));
     return () => {
@@ -255,9 +258,10 @@ class SceneRenderBoundary extends Component<
   state = { message: "" };
 
   static getDerivedStateFromError(cause: unknown) {
-    return {
-      message: cause instanceof Error ? cause.message : "This scene could not be rendered.",
-    };
+    const message = cause instanceof Error ? cause.message : "This scene could not be rendered.";
+    // Same reason as the compile catch: make a headless render see the real error.
+    console.error(`[SCENE_ERROR] ${message}`);
+    return { message };
   }
 
   render() {

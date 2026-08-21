@@ -119,6 +119,13 @@ class ModelVisualizer:
                     "narration": narration.get(beat.id, ""),
                     "segments": segments.get(beat.id, []),
                     "duration_seconds": beat.target_duration_seconds,
+                    # Optional per-beat engine hint (e.g. "d3") when the plan knows
+                    # the visual is a chart/curve/graph the library owns.
+                    **(
+                        {"recommended_engine": beat.recommended_engine}
+                        if getattr(beat, "recommended_engine", None)
+                        else {}
+                    ),
                 }
                 for beat in plan.beats
             ],

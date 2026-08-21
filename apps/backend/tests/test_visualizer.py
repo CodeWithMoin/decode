@@ -96,7 +96,11 @@ def test_shipped_skills_load():
     assert "useCurrentFrame" in rendered
     assert "interpolate" in rendered
     assert "@decode/animation-api" in rendered
-    assert "defineLayout" in rendered  # named only in the explicit do-not-use line
+    assert "<Act" in rendered  # the STT-timed act model is the authoring unit
+    # The legacy card/layout vocabulary was deleted with REMOTION_GUIDANCE and
+    # must never reappear in the prompt.
+    assert "defineLayout" not in rendered
+    assert "Cards of the same role" not in rendered
     assert "scene-api.md" not in rendered
     # Bloat guard, not a hard product limit: raised from 6000 when the scale
     # floor and duration-from-narration rules earned their place.

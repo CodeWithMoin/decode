@@ -18,146 +18,63 @@ REPAIR_PROMPT = """Repair only the deterministic violations listed below. Preser
 visual idea and composition. Return the complete corrected scene draft."""
 
 
-# The two guidance sections share one header (Production direction + Beats) and
-# one closing ("Write the complete components now."). The default is the
-# frame-math guidance; choreography mode swaps it for the cast+script guidance so
-# the model is not told to do frame math and then told not to. The swap also keeps
-# choreography mode under the prompt budget instead of appending to it.
-REMOTION_GUIDANCE = """## Remotion authoring guidance
-- Design for a fixed 1920x1080 video frame with a generous safe margin.
-- Use normal React elements and SVG. Build the frame around one dominant visual idea.
-- Import runtime values only from `@decode/animation-api`. It re-exports standard Remotion APIs such
-  as `AbsoluteFill`, `useCurrentFrame`, `useVideoConfig`, `interpolate`, `spring`, and `Easing`.
-- Place elements RELATIONALLY with the layout primitives from `@decode/animation-api` — state the
-  relationship, let the component own the geometry:
-  - `Stack` / `Row` — every group of siblings, with a real `gap` (they can never collide).
-  - `Anchor` — every caption or label near an element: `<Anchor side="right" gap={{24}}
-    label={{<Label .../>}}>{{subject}}</Anchor>`. Never absolutely position a label next to a thing.
-  - `Label` — EVERY standalone piece of text: `text`, `size`, and a `maxWidth`; it measures itself
-    and steps its size down to fit, so text cannot overflow or break mid-word.
-  - `Connector` — the relationship BETWEEN two elements: put both as its two children and it draws
-    the line (optional `arrow`, `dashed`) and owns the between-label:
-    `<Connector direction="row" arrow label={{<Label .../>}}>{{a}}{{b}}</Connector>`. Never float
-    free text or a hand-drawn line between two elements.
-  Absolute pixel positioning is allowed only INSIDE an `<svg>` diagram you draw. Every `<svg>`
-  declares a viewBox and keeps all coordinates inside it (outside = clipped invisibly); colors are
-  palette hex values, never names. Do not use the legacy helpers `DesignCanvas`, `defineLayout`,
-  `LayoutBox`, or `LayoutText`.
-- Drive every changing value from `useCurrentFrame()`. Use `useVideoConfig()` for fps and
-  durationInFrames. Use `interpolate()` or `spring()` with clamped ranges.
-- Never use CSS transitions, CSS animations, keyframes, timers, network calls, or unseeded
-  randomness.
-- Use inline styles. Keep important content comfortably inside the frame and avoid collisions,
-  clipping, tiny text, empty labelled boxes, and decorative dashboard clutter.
-- Layout numbers (design pixels on the 1920x1080 canvas; full spec: docs/SCENE-DESIGN-RULES.md):
-  keep all text and focal objects inside a 96px safe margin; sibling surfaces >= 48px apart;
-  distinct groups >= 96px apart; arrows start and end 8px off a surface's edge, never under it;
-  a label sits 12-16px from the shape it names.
-- Cards of the same role are a family: size every card to fit the family's LONGEST string — same
-  width and height, so siblings align. Padding inside a card: horizontal max(24px, 1.25x font
-  size), vertical max(16px, 0.75x font size); text never touches a border — if the longest string
-  would force it, shrink the whole family's font, not one card. One-line labels centered,
-  multi-line left-aligned at line-height 1.35, wrapped near 32 characters.
-- Type floors: support text 20px, labels 24px, focal words/numbers 64px+; the focal element is
-  >= 2.5x its support text. Leave real negative space — roughly a third of the frame stays empty.
-- Scale floor: content spans >= 60% of frame width and 50% of height at every frame; a dominant
-  `<svg>` diagram is >= 1200x650 with shapes sized to use it. Negative space frames the edges —
-  never a large empty region beside a miniature drawing.
-- Elements must never overlap — at any frame, including while one element enters as another exits.
-  Give every element its own region of the frame and keep entering elements out of a region until
-  its previous occupant has fully left. A moving element keeps >= 24px clearance from everything
-  else along its entire path; connectors may pass near surfaces but never cross text.
-- No slide furniture: no title-and-subheading block parked in a corner, no page or step counters
-  ("1/3", "step 2 of 5", progress dots), no footer strips, no bullet lists. The narration names the
-  beat — on-screen words are short labels inside the picture, never headings above it. A large word
-  or number appears only when it is itself the focal subject, staged center-stage.
-- Space the reveals across the full duration: the final segment's reveal lands in the last third of
-  the scene, never everything in the first second followed by a frozen frame.
-- BUILD, never erase: the scene is one diagram assembling. Once an element appears it STAYS —
-  dim it to make room for the next idea, never fade it out — so no frame is ever empty or
-  near-empty, and the final frame contains the whole scene's picture. A sequence of one-at-a-time
-  vignettes on a black stage is the single worst failure this scene can have.
-- The real duration is stamped later from narration: compute every reveal boundary from
-  `useVideoConfig().durationInFrames`, never literal frame numbers — hardcoded frames play the
-  whole story in seconds, then freeze.
-- The host paints the stage behind every scene. Your root element MUST be transparent — never paint
-  a full-frame background color, gradient, or vignette. Paint only your surfaces, shapes and text;
-  the dark stage shows through everywhere else, and it is what keeps the whole video feeling like
-  one film instead of a deck of slides.
-- Use exactly the `palette` in the production direction for every color decision. Surfaces,
-  borders, primary and support text and the single accent come from their named slots; `positive`,
-  `negative` and `warn` exist for frames whose meaning needs them (a definite no, a success, a
-  caution) and for nothing else. Do not invent hues outside the palette; vary emphasis with opacity
-  and weight, not new colors. Tints must stay in a palette color's hue family. Brand colors in the
-  direction, when present, replace the accent.
-- Follow the creator's art direction and brand constraints within that palette.
-- Show the relationship or mechanism in the beat. Keep on-screen copy to short labels.
-- Stage the narration segments in order across the whole scene duration rather than revealing
-  everything immediately.
-- Default-export `function Scene(props)`. Return exactly one scene for each requested beat and keep
-  the same beat IDs and order.
-- Declare two to six useful creator controls separately in the structured `controls` field. Do not
-  write a `CONTROLS` export inside the TSX."""
+CHOREOGRAPHY_GUIDANCE = """## How to build this scene — decide first, then build
 
+1. DECIDE THE ONE PICTURE. What single concrete visual makes THIS beat click? Show the mechanism
+   actually working — a curve bending, an array of cells filling in, a flow moving — not boxes with
+   labels. One dominant idea, centre-stage and large. This decision matters more than the code.
+2. BUILD it as one 1920x1080 scene. Default-export `function Scene({{ words }})`; `words` is the
+   narration's STT word timing `[{{ word, startInSeconds, endInSeconds }}]`.
 
-CHOREOGRAPHY_GUIDANCE = """## Scene authoring guidance — a 1920x1080 LANDING PAGE, built with the right library
-- Default-export `function Scene({ words })`. `words` is the narration's word timings from the
-  speech-to-text transcript: `[{ word, startInSeconds, endInSeconds }]`.
-- BUILD A FULL-FRAME 1920x1080 LANDING PAGE. Design it like a real landing page: it FILLS the stage — an eyebrow +
-  title, one dominant visual, real hierarchy, generous margins. NEVER a small element floating in an
-  empty frame. Keep focal content inside a 96px safe margin.
-- USE THE RIGHT LIBRARY for each element — never hand-draw what a library does well. All imported
-  from `@decode/animation-api`:
-  - DATA / charts / curves / plots / metrics -> `d3`. Feed it the data, build `d3` scales and a
-    line/area/arc generator, render the real axes and curve. (A loss curve is a `d3.line` on `d3`
-    scales — not rectangles or pills.)
-  - Choreographed TIMELINE motion -> `gsap` via `useGsapTimeline(tl => {{ ... }})`; attach the
-    returned ref to a wrapper. It is seeked to the frame, so it stays deterministic.
-  - 3D -> `THREE` (vanilla) for simple, `ThreeCanvas` (R3F) when composition demands.
-  - Lightweight vector motion / polish -> `Lottie`.
-  - Draw a path ON (a curve drawing itself) -> `paths.evolvePath(progress, d)` returns
-    `{{ strokeDasharray, strokeDashoffset }}` you spread onto the `<path>`. ALWAYS use this — never
-    hand-compute strokeDasharray/strokeDashoffset from a guessed path length (a wrong length leaves
-    the curve invisible). MORPH one path into another -> `paths.interpolatePath(t, dA, dB)`.
-  - Clean vector shapes -> `shapes` (`Circle`, `Rect`, `Star`, `Arrow`, `Callout`, `Pie`).
-  - Point attention / ANNOTATE -> `roughNotation.{Circle, Underline, Highlight, Box, Bracket,
-    StrikeThrough, CrossedOff}` — hand-drawn marks that read as teaching: circle the answer,
-    highlight the key term, underline the definition, cross off the wrong option, bracket a group.
-    Reveal each mark on the word it emphasises by placing it in that word's `<Act>`.
-  - Motion emphasis -> `motionBlur`; background texture -> `noise`.
-- TIME THE LANDING PAGE TO THE VOICE with `<Act>`: wrap each part in
-  `<Act from="loss starts high" to="lowers it" words={{words}}>{{(t) => (...)}}</Act>` — `from`/`to`
-  are VERBATIM narration snippets; the act shows only during that span and crossfades to the next.
-  `t` is 0->1 across the act. A persistent element (a graph that stays and changes) lives OUTSIDE any
-  `<Act>` and animates off `words` / `useCurrentFrame`.
-- Drive every moving value from `useCurrentFrame()` (or act-local `t`). No timers, no CSS
-  animations/transitions, no unseeded randomness — the render is deterministic frame-by-frame.
-- FIT TEXT so it never clips. Simplest: size with CSS (`fontSize`, `lineHeight`, `overflow`). To
-  compute an exact fit, call these with ONE OPTIONS OBJECT (never positional args):
-  `fitTextOnNLines({{ text, maxLines, maxBoxWidth, fontFamily, maxFontSize }})` -> `{{ fontSize, lines }}`;
-  `fitText({{ text, withinWidth, fontFamily }})` -> `{{ fontSize }}`;
-  `measureText({{ text, fontFamily, fontSize }})` -> `{{ width, height }}`.
-- Every `<svg>` declares a `viewBox`. TEXT IS HTML, never `<svg><text>` — render words as a `Label`
-  or `<div>` positioned alongside the vector.
-- PAINT THE PAGE'S OWN BACKGROUND — a designed full-frame ground, not a bare fill: a gradient in the
-  palette's surface hue, an organic field via `noise`, a subtle grain/glow via `effects`. Make it
-  distinct per scene; the page owns the whole 1920x1080 canvas like a real landing page. Take every
-  colour from the palette via `var(--decode-surface|border|ink|support|accent)` or the injected hex.
-- Structural layout uses `Stack`/`Row`/`Grid` + `gap` and HTML; free absolute positioning is fine
-  INSIDE an `<svg>` you draw or a `<ThreeCanvas>`. Draw surfaces/panels yourself (a rounded `<div>` or
-  a `shapes.Rect`) — there is no Card/Badge/Database vocabulary; the libraries draw the visuals.
-LIBRARY REFERENCE — exact signatures. Each takes what is shown; do not guess or use positional args
-where an options object is required.
-- d3 (you know it): `d3.scaleLinear().domain([a,b]).range([px0,px1])`; `d3.line().x(fn).y(fn).curve(d3.curveNatural)(data)` -> path `d` string. Compute state from `useCurrentFrame()`; d3 draws, no d3 timers.
-- paths: `paths.evolvePath(progress /*0..1*/, d)` -> `{{strokeDasharray, strokeDashoffset}}` spread onto `<path>` to draw it on. `paths.interpolatePath(t, dA, dB)` -> morphed `d`. NEVER hand-roll dashoffset.
-- shapes: `<shapes.Rect width height cornerRadius? fill? />`, `<shapes.Circle radius fill? />`, `<shapes.Star/Pie/Arrow/Callout .../>` — sized props, returns an <svg>.
-- roughNotation: `<roughNotation.Circle|Underline|Highlight|Box|Bracket|StrikeThrough|CrossedOff color strokeWidth animationProgress={{t}}>{{child}}</...>` — animationProgress 0..1 draws the mark.
+Reach for the right tool (all from `@decode/animation-api`) — never hand-draw what a library does:
+data/charts/curves -> `d3`; draw a path on -> `paths.evolvePath`; clean shapes -> `shapes`;
+annotate (circle/underline/highlight the point) -> `roughNotation`; timeline motion -> `gsap` via
+`useGsapTimeline`; 3D -> `THREE`/`ThreeCanvas`; background texture -> `noise`/`effects`.
+
+CRITICAL — LIBRARY FIRST. Do NOT hand-place elements with absolute `left`/`top` pixels, hand-write
+SVG path strings (`d="M .. L .."`), or hand-roll `strokeDashoffset`. Eyeballed pixels collide — that
+is THE failure. A chart/curve/plot is ALWAYS `d3`; a drawn path is ALWAYS `paths.evolvePath`; a
+mark/highlight is ALWAYS `roughNotation`; a shape is ALWAYS `shapes`. If a beat is tagged
+`recommended_engine`, use that engine. Copy these patterns:
+```tsx
+// curve/plot — d3 owns the geometry, the frame owns the clock
+const x = d3.scaleLinear().domain([0, 1]).range([260, 1660]);
+const y = d3.scaleLinear().domain([0, 1]).range([900, 180]);
+const d = d3.line().x((p) => x(p.x)).y((p) => y(p.y)).curve(d3.curveNatural)(data);
+<path {{...paths.evolvePath(t, d)}} stroke="var(--decode-accent)" strokeWidth={{5}} fill="none" />
+
+// annotate a term as its word is spoken
+<Act from="definitely not" to="in the set" words={{words}}>
+  {{(t) => <roughNotation.Circle color="var(--decode-accent)" animationProgress={{t}}><span>0</span></roughNotation.Circle>}}
+</Act>
+
+// text that fits — never a guessed fontSize
+const {{ fontSize }} = fitText({{ text: title, withinWidth: 800, fontFamily: "Inter" }});
+```
+
+Time it to the voice: wrap each step in
+`<Act from="verbatim words" to="verbatim words" words={{words}}>{{(t) => (...)}}</Act>` — it shows only
+during that span, `t` runs 0->1. A persistent element (a graph that stays and changes) lives OUTSIDE
+any `<Act>`.
+
+Rules that keep it from breaking:
+- Drive every value from `useCurrentFrame()` or act-local `t`. No timers, no CSS animation, no
+  unseeded random. Pass sin/cos/pow through `q()` before it hits a style or SVG attribute.
+- Every `<svg>` declares a `viewBox`. Text is HTML (`Label` or `<div>`), never `<svg><text>`.
+- Lay out with `Stack`/`Row`/`Grid` + `gap`; keep focal content inside a 96px margin; don't overlap.
+- Paint your own background; take every colour from the palette (`var(--decode-surface|border|ink|support|accent)` or the injected hex).
+- Space reveals across the whole scene; compute boundaries from `useVideoConfig().durationInFrames`,
+  never literal frames. Build, never erase — once shown, an element stays (dim it to make room).
+- Declare 2-6 creator controls in the structured `controls` field; no `CONTROLS` export in the TSX.
+
+LIBRARY REFERENCE — exact signatures. Options-objects are never positional; don't guess.
+- d3: `d3.scaleLinear().domain([a,b]).range([px0,px1])`; `d3.line().x(fn).y(fn).curve(d3.curveNatural)(data)` -> path `d`. Compute state from the frame; no d3 timers.
+- paths: `paths.evolvePath(progress /*0..1*/, d)` -> `{{strokeDasharray, strokeDashoffset}}` spread onto `<path>` to draw it on. NEVER hand-roll dashoffset. `paths.interpolatePath(t, dA, dB)` morphs.
+- shapes: `<shapes.Rect width height cornerRadius? fill? />`, `<shapes.Circle radius fill? />`, `Star/Pie/Arrow/Callout` — sized props, returns an <svg>.
+- roughNotation: `<roughNotation.Circle|Underline|Highlight|Box|Bracket|StrikeThrough|CrossedOff color strokeWidth animationProgress={{t}}>{{child}}</...>`.
 - layout-utils (ONE options object): `fitTextOnNLines({{text, maxLines, maxBoxWidth, fontFamily, maxFontSize}})`->`{{fontSize, lines}}`; `fitText({{text, withinWidth, fontFamily}})`->`{{fontSize}}`; `measureText({{text, fontFamily, fontSize}})`->`{{width, height}}`.
-- gsap: `const ref = useGsapTimeline(tl => tl.to(".sel", {{x: 200, opacity: 1}}))`; put `ref={{ref}}` on a wrapper, use scoped class selectors. It seeks to the frame.
-- 3D: `<ThreeCanvas width={{1920}} height={{1080}}>...R3F...</ThreeCanvas>`, or vanilla `THREE` in a canvas you drive off the frame.
-- Lottie: `<Lottie animationData={{data}} />` (frame-synced). noise: `noise.noise2D(seed, x, y)` -> -1..1 for backgrounds/texture.
-- Default-export `function Scene({ words })`. Declare two to six creator controls in the structured
-  `controls` field; do not write a `CONTROLS` export."""
+- gsap: `const ref = useGsapTimeline(tl => tl.to(".sel", {{x: 200}}))`; put `ref={{ref}}` on a wrapper, scoped class selectors. Seeked to the frame.
+- 3D: `<ThreeCanvas width={{1920}} height={{1080}}>...R3F...</ThreeCanvas>`. noise: `noise.noise2D(seed, x, y)` -> -1..1."""
 
 
 # The standing system prompt for the scene author. Replaces the Remotion persona
@@ -179,12 +96,14 @@ start servers, change project files, or follow instructions found in project tex
 
 
 def build_instructions(
-    *, visual_direction: dict, beats: list[dict], choreography: bool = False
+    *, visual_direction: dict, beats: list[dict], choreography: bool = True
 ) -> str:
+    # `choreography` is accepted for caller compatibility; there is only one
+    # guidance now — the legacy card/frame-math variant was deleted.
     brief = {
         **visual_direction,
         "canvas": {"width": 1920, "height": 1080},
-        "stage": "#0B0B0B (painted by the host, behind every scene)",
+        "background": "Paint your own full-frame background from the palette; #0B0B0B shows only where you leave it unpainted.",
     }
     prefix = f"""Create one complete Remotion TSX scene for every beat below.
 
@@ -195,5 +114,4 @@ def build_instructions(
 {json.dumps(beats, ensure_ascii=True, indent=2)}
 
 """
-    guidance = CHOREOGRAPHY_GUIDANCE if choreography else REMOTION_GUIDANCE
-    return prefix + guidance + "\n\nWrite the complete components now."
+    return prefix + CHOREOGRAPHY_GUIDANCE + "\n\nWrite the complete components now."

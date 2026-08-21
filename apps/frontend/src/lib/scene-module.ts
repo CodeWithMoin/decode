@@ -156,7 +156,12 @@ export function loadSceneModule(source: string): Promise<SceneComponent> {
     // callbacks) even though it may not import it — and the gate would reject
     // the import anyway. Give every scene module a React binding up front;
     // rewriteImports points it at the shared shim like any other specifier.
-    const compiled = `import * as React from "react";\n${await transpile(source)}`;
+    // But if the source already imports React itself (`import React ...` or
+    // `import * as React ...`), injecting a second binding is a duplicate
+    // declaration that fails to compile — so inject only when it's missing. The
+    // source's own react import resolves through the same shim.
+    const importsReact = /^\s*import\s+(?:\*\s+as\s+React|React)\b/m.test(source);
+    const compiled = `${importsReact ? "" : 'import * as React from "react";\n'}${await transpile(source)}`;
     const wired = await rewriteImports(compiled);
     const url = URL.createObjectURL(new Blob([wired], { type: "text/javascript" }));
     urls.add(url);
