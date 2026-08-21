@@ -1,258 +1,99 @@
-# `@decode/animation-api` — Remotion plus Decode's scene tools
+# `@decode/animation-api` — the scene contract
 
-A scene is a self-contained React component and a pure function of Remotion's frame clock. Import
-only from `@decode/animation-api`. It re-exports the useful Remotion APIs unchanged and adds the
-format, layout, typography and deterministic geometry tools generated scenes need.
+A scene is one self-contained React component, a pure function of Remotion's frame clock. Import
+**only** from `@decode/animation-api`; it re-exports the Remotion runtime plus a toolkit of drawing
+libraries and a few layout primitives. No raw `remotion`/`react` import, relative module, UI kit, CSS
+import, network, timers, `eval`, `new Function`, or `dangerouslySetInnerHTML`.
 
 ```tsx
-import {
-  AbsoluteFill,
-  DesignCanvas,
-  useCurrentFrame,
-  useVideoConfig,
-  interpolate,
-  Easing,
-} from "@decode/animation-api";
+import { AbsoluteFill, Act, d3, paths, useCurrentFrame, useVideoConfig } from "@decode/animation-api";
 
-export default function Scene(props) {
+export default function Scene({ words }) {
   const frame = useCurrentFrame();
-  const {fps, durationInFrames} = useVideoConfig();
+  const { fps, durationInFrames } = useVideoConfig();
   // ...
 }
 ```
 
-No raw `remotion` or `react` import, relative module, UI kit, CSS import, network, timers, `eval`,
-`new Function` or `dangerouslySetInnerHTML`. Decode supplies the JSX runtime and mounts the component.
+## What a scene is
 
-## Core Remotion exports
+A **full-frame 1920x1080 landing page that animates, timed to the voice.** It fills the stage —
+eyebrow + title, one dominant visual, real hierarchy, generous margins — never a small element
+floating in an empty frame. Build the visual with the **right library** (see below), not hand-drawn
+rectangles-as-charts.
 
-Use these exactly as in Remotion:
+## The drawing toolkit — reach for the right one
 
-```ts
-useCurrentFrame();
-useVideoConfig(); // width, height, fps, durationInFrames
-interpolate();
-interpolateColors();
-spring();
-measureSpring();
-Easing;
-AbsoluteFill;
-Sequence;
-Series;
-Freeze;
-Interactive;
-Img;
-Audio;
-Video;
-staticFile();
-random(seed);
-```
+All re-exported from `@decode/animation-api`. Exact signatures are in the prompt's LIBRARY REFERENCE.
 
-For transforms, prefer separate CSS properties because they remain editable and do not affect
-layout:
+- `d3` — data, charts, curves, plots, axes. A loss curve is `d3.line` on `d3` scales, not pills.
+- `paths` — `paths.evolvePath(progress, d)` to draw a path on; `paths.interpolatePath(t, dA, dB)` to
+  morph. Never hand-roll `strokeDasharray`/`strokeDashoffset`.
+- `shapes` — `Circle`, `Rect`, `Star`, `Arrow`, `Callout`, `Pie` as clean vector `<svg>`.
+- `roughNotation` — `Circle`, `Underline`, `Highlight`, `Box`, `Bracket`, `StrikeThrough`,
+  `CrossedOff`; hand-drawn teaching marks, `animationProgress={t}` reveals them.
+- `gsap` via `useGsapTimeline(tl => …)` — choreographed timeline motion, seeked to the frame.
+- `THREE` / `ThreeCanvas` — 3D. `Lottie` — lightweight vector motion. `noise` — texture/backgrounds.
+  `motionBlur`, `effects`, `transitions`, `gif` — polish.
+
+## Timing to the voice — `Act`
+
+`words` is the narration's speech-to-text word timing: `[{ word, startInSeconds, endInSeconds }]`.
 
 ```tsx
-style={{
-  opacity,
-  translate: `${x}px ${y}px`,
-  scale,
-  rotate: `${degrees}deg`,
-}}
+<Act from="loss starts high" to="lowers it" words={words}>
+  {(t) => /* t is 0→1 across this act */ <Curve progress={t} />}
+</Act>
 ```
 
-When an order-sensitive transform string is actually necessary, the API also exports
-`makeTransform`, `translate`, `translateX`, `translateY`, `scale`, `scaleX`, `scaleY`, `rotate`,
-`rotateX`, `rotateY`, `rotateZ`, `skew`, `skewX`, `skewY` and `perspective` from Remotion's official
-animation utilities.
+`from`/`to` are **verbatim** narration snippets; the act shows only during that span and crossfades to
+the next. A persistent element (a graph that stays and keeps changing) lives **outside** any `Act`
+and animates off `useCurrentFrame()` / `words`.
 
-## Formats and design canvas
+## Layout primitives (relational, never magic numbers)
 
-The project chooses widescreen, vertical, square, portrait or custom dimensions and 24, 30 or 60
-fps. `useVideoConfig()` gives the actual render settings. `useFormat()` additionally gives a
-canonical design canvas and safe area:
+- `Stack` / `Row` — sibling groups with a real `gap`; they can't collide.
+- `Grid` — a grid of cells.
+- `Anchor` — a caption/label beside a subject: `<Anchor side="right" gap={24} label={…}>{subject}</Anchor>`.
+- `Label` — every standalone text run: measures itself, steps its size down to fit, never overflows.
+- `CodeBlock` — syntax-highlighted code with a line highlight.
+- `Path` — an SVG path with a normalized `trimEnd={progress}` draw-on.
+- `Icon` — one icon vocabulary: `<Icon name="database" size={32} />`.
 
-```ts
-const format = useFormat();
-// family, width, height, designWidth, designHeight, fps,
-// durationInFrames, aspectRatio, safeArea
-```
+Absolute pixel positioning is allowed only **inside an `<svg>` you draw**; every `<svg>` declares a
+`viewBox`. Text is HTML (`Label` or a `<div>`), **never** `<svg><text>`.
 
-Wrap authored coordinates in `DesignCanvas`. A widescreen scene is always designed at 1920x1080 and
-is scaled to 720p, 1080p or 4K by the wrapper. Vertical is 1080x1920, square 1080x1080 and portrait
-1080x1350. A custom aspect ratio uses its actual dimensions.
+The legacy layout helpers `DesignCanvas`, `defineLayout`, `LayoutBox`, and `LayoutText` still exist
+for old scenes but are **not used** here — compose the frame directly with the primitives above.
 
-```tsx
-<AbsoluteFill style={{background: "#0B0B0B"}}>
-  <DesignCanvas>
-    {/* canonical design-pixel coordinates */}
-  </DesignCanvas>
-</AbsoluteFill>
-```
+## Text that fits
 
-`useSafeArea()` returns the content-safe rectangle in canonical design pixels. Backgrounds, glows
-and connectors may leave it. Text, diagrams and focal objects stay inside it.
-
-## Plan regions before drawing
-
-Use normalized regions to allocate the composition before writing components:
-
-```tsx
-const format = useFormat();
-const layout = defineLayout(format, {
-  hub: {x: 0.35, y: 0.32, width: 0.30, height: 0.36, space: "safe"},
-  left: {x: 0, y: 0.2, width: 0.22, height: 0.6, space: "safe"},
-  right: {x: 0.78, y: 0.2, width: 0.22, height: 0.6, space: "safe"},
-});
-```
-
-`x` and `y` are always the region's **top-left**, never its center. `width` and `height` are normalized
-sizes in the same space. A region outside `0..1` is rejected instead of rendering partly outside the
-frame. For intentional point anchoring outside `defineLayout`, use `anchorRect()` explicitly.
-
-Use absolute positioning for those major regions and flex/grid inside each component. Do not place
-every label and icon with unrelated magic numbers.
-
-Annotate important boxes so preview validation can report clipping and collisions:
-
-```tsx
-<LayoutBox id="platform-hub" rect={layout.hub} collision="solid" safe>
-  <div style={{position: "absolute", inset: 0, display: "flex", alignItems: "center", gap: 16}}>...</div>
-</LayoutBox>
-```
-
-`LayoutBox` already applies `left`, `top`, `width` and `height`. Its child uses `inset: 0`; never apply
-the same rectangle or `rectStyle(layout.hub)` to the child, which would double the offset.
-
-Collision policies are `solid`, `overlay`, `background` and `connector`. Glows and connectors are not
-solid. Intentional overlays must say so. Wrap constrained text in `LayoutText`; the preview checks its
-scroll dimensions for overflow.
-
-Geometry helpers:
-
-```ts
-q(value);                         // deterministic quantisation
-clamp(value, minimum, maximum);
-mix(from, to, progress);
-insetRect(rect, insetX, insetY?);
-anchorRect(point, width, height, anchor?);
-rectStyle(rect);
-radialLayout({center, count, radiusX, radiusY?, startAngle?});
-distributeHorizontal(rect, count, gap?);
-distributeVertical(rect, count, gap?);
-pointOnRectEdge(rect, target, padding?);
-intersects(first, second, minimumGap?);
-contains(outer, inner, tolerance?);
-```
-
-Use `pointOnRectEdge` for arrows and lines so connectors meet a surface edge rather than its center.
-
-## Timing
-
-Use frames and fps for ordinary Remotion timing. Duration comes from the enclosing narration-sized
-Sequence; read it, never replace it with a competing `DURATION_IN_FRAMES` constant.
-
-```tsx
-const frame = useCurrentFrame();
-const {fps, durationInFrames} = useVideoConfig();
-const enter = interpolate(frame, [0, 0.45 * fps], [0, 1], {
-  extrapolateLeft: "clamp",
-  extrapolateRight: "clamp",
-  easing: EASE_PRESETS.easeOut,
-});
-```
-
-The beat arrives with ordered narration segments. Spread their visible moments across the whole
-scene; do not reveal everything in the first second and hold a frozen picture.
-
-For named normalized moments, use `useSceneTiming`:
-
-```tsx
-const timing = useSceneTiming({
-  establish: {at: 0.02, duration: 0.12},
-  connect: {at: 0.28, duration: 0.30},
-  resolve: {at: 0.72, duration: 0.16},
-});
-
-const connect = timing.progressOf("connect");
-```
-
-`useProgress()` and `useSpring()` remain available for normalized animation. `EASE_PRESETS` contains
-`linear`, `easeOut`, `easeInOut` and `soft`; `SPRING_PRESETS` contains `gentle`, `smooth`, `bouncy`
-and `stiff`.
+`@remotion/layout-utils` is re-exported: `fitText`, `fitTextOnNLines`, `measureText`, `fillTextBox`.
+Call each with **one options object**, never positional args. Match measured properties to rendered
+properties. Simplest path: size with CSS (`fontSize`, `lineHeight`, `overflow`).
 
 ## Determinism
 
-Every moving value is derived from `useCurrentFrame()`, `interpolate()` or `spring()`. Never use CSS
-transitions, CSS animations or keyframes: they do not render correctly frame by frame.
+Every moving value derives from `useCurrentFrame()` (or an act's local `t`), through `interpolate()`
+or `spring()`. No CSS transitions/animations/keyframes, no timers, no `Math.random()` (use
+`random(seed)`). Pass any `Math.sin`/`cos`/`pow` through `q()` before it reaches a style or SVG
+attribute — Node and browser libm differ in the last ULP and React reports a hydration mismatch.
 
-Pass every `Math.sin`, `Math.cos`, `Math.pow` or other platform curve through `q()` before it reaches
-a style or SVG attribute. Use `random(seed)`, never `Math.random()`.
+## Background & palette
 
-```tsx
-const bob = q(Math.sin(frame / fps) * 4);
-```
+Paint your **own** background per scene (a `noise`/`effects` gradient or wash) — the scene owns the
+whole frame. Use exactly the `palette` in the production direction for every color; vary emphasis
+with opacity and weight, not new hues.
 
-## Typography
+## Duration & staging
 
-`fontCss()` resolves fonts loaded by Decode. Available families are `Inter`, `Space Grotesk`,
-`Bricolage Grotesque` and `Geist Mono`.
+Real duration is stamped later from narration. Compute every reveal boundary from
+`useVideoConfig().durationInFrames`, never literal frame numbers. Stage the narration segments in
+order across the whole scene — the last segment lands in the final third, never everything in the
+first second followed by a frozen frame. Build, never erase: once an element appears it stays (dim
+it to make room), so the final frame holds the whole picture.
 
-The API re-exports Remotion's official `measureText`, `fitText`, `fitTextOnNLines` and `fillTextBox`
-from `@remotion/layout-utils`. Match measurement properties to rendered properties and keep text in a
-`LayoutText` so overflow is still checked after a creator edits a control.
+## Controls
 
-```tsx
-const fitted = fitText({
-  text: props.title,
-  withinWidth: layout.hub.width - 64,
-  fontFamily: "Inter",
-  fontWeight: 700,
-});
-const titleSize = Math.min(72, fitted.fontSize);
-```
-
-## Icons and paths
-
-`Icon` keeps scenes on one dependency-safe icon vocabulary:
-
-```tsx
-<Icon name="database" size={32} weight="light" color={props.accent} />
-```
-
-Names: `address-book`, `arrow-right`, `brain`, `chart-bar`, `check`, `cloud`, `code`, `credit-card`,
-`cube`, `database`, `file-text`, `flow-arrow`, `gear-six`, `globe`, `lightning`, `lock`,
-`magnifying-glass`, `play`, `plug`, `pulse`, `question`, `stack`, `users`, `warning`, `x`.
-
-`Path` is an SVG path with normalized draw-on controls:
-
-```tsx
-<svg viewBox="0 0 400 200">
-  <Path d="M 20 100 C 120 20 280 180 380 100" trimEnd={progress} fill="none" stroke={props.accent} />
-</svg>
-```
-
-## Scene structure
-
-One default export, but compose it from coordinated internal layers:
-
-```tsx
-export default function Scene(props) {
-  return (
-    <AbsoluteFill style={{background: props.background}}>
-      <DesignCanvas>
-        <AtmosphereLayer />
-        <ConnectionLayer />
-        <SubjectLayer />
-        <EvidenceLayer />
-        <AnnotationLayer />
-      </DesignCanvas>
-    </AbsoluteFill>
-  );
-}
-```
-
-Not every scene needs every layer. Motion must explain a relationship or state change. After a scene
-settles, allow at most one continuous motion system, and only when it communicates an ongoing process.
-
-Do not export `CONTROLS`; Decode writes it from the structured controls beside the source. Every
-`props.<name>` used by the component must have a declared control.
+Default-export `function Scene({ words })`. Declare two to six creator controls in the structured
+`controls` field. Do **not** write a `CONTROLS` export inside the TSX; Decode generates it.

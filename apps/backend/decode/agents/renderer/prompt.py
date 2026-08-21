@@ -146,6 +146,16 @@ CHOREOGRAPHY_GUIDANCE = """## Scene authoring guidance — a 1920x1080 LANDING P
 - Structural layout uses `Stack`/`Row`/`Grid` + `gap` and HTML; free absolute positioning is fine
   INSIDE an `<svg>` you draw or a `<ThreeCanvas>`. Draw surfaces/panels yourself (a rounded `<div>` or
   a `shapes.Rect`) — there is no Card/Badge/Database vocabulary; the libraries draw the visuals.
+LIBRARY REFERENCE — exact signatures. Each takes what is shown; do not guess or use positional args
+where an options object is required.
+- d3 (you know it): `d3.scaleLinear().domain([a,b]).range([px0,px1])`; `d3.line().x(fn).y(fn).curve(d3.curveNatural)(data)` -> path `d` string. Compute state from `useCurrentFrame()`; d3 draws, no d3 timers.
+- paths: `paths.evolvePath(progress /*0..1*/, d)` -> `{{strokeDasharray, strokeDashoffset}}` spread onto `<path>` to draw it on. `paths.interpolatePath(t, dA, dB)` -> morphed `d`. NEVER hand-roll dashoffset.
+- shapes: `<shapes.Rect width height cornerRadius? fill? />`, `<shapes.Circle radius fill? />`, `<shapes.Star/Pie/Arrow/Callout .../>` — sized props, returns an <svg>.
+- roughNotation: `<roughNotation.Circle|Underline|Highlight|Box|Bracket|StrikeThrough|CrossedOff color strokeWidth animationProgress={{t}}>{{child}}</...>` — animationProgress 0..1 draws the mark.
+- layout-utils (ONE options object): `fitTextOnNLines({{text, maxLines, maxBoxWidth, fontFamily, maxFontSize}})`->`{{fontSize, lines}}`; `fitText({{text, withinWidth, fontFamily}})`->`{{fontSize}}`; `measureText({{text, fontFamily, fontSize}})`->`{{width, height}}`.
+- gsap: `const ref = useGsapTimeline(tl => tl.to(".sel", {{x: 200, opacity: 1}}))`; put `ref={{ref}}` on a wrapper, use scoped class selectors. It seeks to the frame.
+- 3D: `<ThreeCanvas width={{1920}} height={{1080}}>...R3F...</ThreeCanvas>`, or vanilla `THREE` in a canvas you drive off the frame.
+- Lottie: `<Lottie animationData={{data}} />` (frame-synced). noise: `noise.noise2D(seed, x, y)` -> -1..1 for backgrounds/texture.
 - Default-export `function Scene({ words })`. Declare two to six creator controls in the structured
   `controls` field; do not write a `CONTROLS` export."""
 
