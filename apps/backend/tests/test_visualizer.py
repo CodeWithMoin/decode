@@ -102,9 +102,12 @@ def test_shipped_skills_load():
     assert "defineLayout" not in rendered
     assert "Cards of the same role" not in rendered
     assert "scene-api.md" not in rendered
-    # Bloat guard, not a hard product limit: raised from 6000 when the scale
-    # floor and duration-from-narration rules earned their place.
-    assert len(system) + len(rendered) < 7500
+    # Bloat guard, not a hard product limit: the prompt now injects a full seed
+    # (a whole worked scene to edit) AND the generated PROP CONTRACT (§7, one
+    # authoritative signature per component from component_manifest.json). Both
+    # are worth the tokens; the bound tracks that reality with headroom.
+    assert "### 7. PROP CONTRACT" in rendered  # generated component contract is present
+    assert len(system) + len(rendered) < 70000
 
 
 def test_visualizer_requires_a_key(tmp_path):

@@ -1,0 +1,730 @@
+{
+  "scenes": [
+    {
+      "id": "beat-01",
+      "title": "beat-01",
+      "dur": 10.3,
+      "anim": "",
+      "reason": "",
+      "objective": "",
+      "caption": "A neural network is layers of neurons joined by weighted connections. A signal flows from the input layer, through the hidden layer, to the output.",
+      "prompt": "",
+      "viz": "",
+      "hot": [],
+      "narration": "A neural network is layers of neurons joined by weighted connections. A signal flows from the input layer, through the hidden layer, to the output.",
+      "alt": "",
+      "altUsed": false,
+      "fadeIn": 0.3,
+      "fadeOut": 0.3,
+      "componentSource": "import {\n  AbsoluteFill,\n  Network,\n  Statement,\n  tokens,\n  interpolate,\n  useCurrentFrame,\n  useVideoConfig,\n  EASE_PRESETS,\n} from \"@decode/animation-api\";\n\ntype Word = { word: string; startInSeconds: number; endInSeconds: number };\n\nconst norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, \"\");\n\nfunction wordAt(words: Word[] | undefined, token: string): number | null {\n  if (!words?.length) return null;\n  const hit = words.find((word) => norm(word.word) === norm(token));\n  return hit ? hit.startInSeconds : null;\n}\n\nconst LAYERS = [3, 5, 3];\nconst EASE = {\n  extrapolateLeft: \"clamp\" as const,\n  extrapolateRight: \"clamp\" as const,\n  easing: EASE_PRESETS.easeInOut,\n};\n\nexport default function Scene({ words }: { words?: Word[] }) {\n  const frame = useCurrentFrame();\n  const { fps } = useVideoConfig();\n  const now = frame / fps;\n  const voiced = Boolean(words?.length);\n\n  const startAt = wordAt(words, \"layers\") ?? wordAt(words, \"neurons\") ?? 0.2;\n  const endAt = wordAt(words, \"output\") ?? startAt + 4;\n  const progress = voiced\n    ? interpolate(now, [startAt, Math.max(startAt + 2.5, endAt)], [0, 1], EASE)\n    : 1;\n\n  return (\n    <AbsoluteFill style={{ background: tokens.color.surface }}>\n      <Statement\n        text=\"A neural network passes signals through layers\"\n        words={words}\n        emphasize={[\"layers\", \"signals\"]}\n        reveal=\"word\"\n        accent=\"blue\"\n        placement=\"top\"\n      />\n      <Network\n        layers={LAYERS}\n        layerLabels={[\"Input\", \"Hidden\", \"Output\"]}\n        layerColors={[\"blue\", \"orange\", \"green\"]}\n        progress={progress}\n      />\n    </AbsoluteFill>\n  );\n}\n",
+      "words": [
+        {
+          "word": "A",
+          "startInSeconds": 0.0,
+          "endInSeconds": 0.34
+        },
+        {
+          "word": "neural",
+          "startInSeconds": 0.34,
+          "endInSeconds": 0.68
+        },
+        {
+          "word": "network",
+          "startInSeconds": 0.68,
+          "endInSeconds": 1.02
+        },
+        {
+          "word": "is",
+          "startInSeconds": 1.02,
+          "endInSeconds": 1.36
+        },
+        {
+          "word": "layers",
+          "startInSeconds": 1.36,
+          "endInSeconds": 1.7
+        },
+        {
+          "word": "of",
+          "startInSeconds": 1.7,
+          "endInSeconds": 2.04
+        },
+        {
+          "word": "neurons",
+          "startInSeconds": 2.04,
+          "endInSeconds": 2.38
+        },
+        {
+          "word": "joined",
+          "startInSeconds": 2.38,
+          "endInSeconds": 2.72
+        },
+        {
+          "word": "by",
+          "startInSeconds": 2.72,
+          "endInSeconds": 3.06
+        },
+        {
+          "word": "weighted",
+          "startInSeconds": 3.06,
+          "endInSeconds": 3.4
+        },
+        {
+          "word": "connections.",
+          "startInSeconds": 3.4,
+          "endInSeconds": 3.74
+        },
+        {
+          "word": "A",
+          "startInSeconds": 3.74,
+          "endInSeconds": 4.08
+        },
+        {
+          "word": "signal",
+          "startInSeconds": 4.08,
+          "endInSeconds": 4.42
+        },
+        {
+          "word": "flows",
+          "startInSeconds": 4.42,
+          "endInSeconds": 4.76
+        },
+        {
+          "word": "from",
+          "startInSeconds": 4.76,
+          "endInSeconds": 5.1
+        },
+        {
+          "word": "the",
+          "startInSeconds": 5.1,
+          "endInSeconds": 5.44
+        },
+        {
+          "word": "input",
+          "startInSeconds": 5.44,
+          "endInSeconds": 5.78
+        },
+        {
+          "word": "layer,",
+          "startInSeconds": 5.78,
+          "endInSeconds": 6.12
+        },
+        {
+          "word": "through",
+          "startInSeconds": 6.12,
+          "endInSeconds": 6.46
+        },
+        {
+          "word": "the",
+          "startInSeconds": 6.46,
+          "endInSeconds": 6.8
+        },
+        {
+          "word": "hidden",
+          "startInSeconds": 6.8,
+          "endInSeconds": 7.14
+        },
+        {
+          "word": "layer,",
+          "startInSeconds": 7.14,
+          "endInSeconds": 7.48
+        },
+        {
+          "word": "to",
+          "startInSeconds": 7.48,
+          "endInSeconds": 7.82
+        },
+        {
+          "word": "the",
+          "startInSeconds": 7.82,
+          "endInSeconds": 8.16
+        },
+        {
+          "word": "output.",
+          "startInSeconds": 8.16,
+          "endInSeconds": 8.5
+        }
+      ],
+      "component_source": "import {\n  AbsoluteFill,\n  Network,\n  Statement,\n  tokens,\n  interpolate,\n  useCurrentFrame,\n  useVideoConfig,\n  EASE_PRESETS,\n} from \"@decode/animation-api\";\n\ntype Word = { word: string; startInSeconds: number; endInSeconds: number };\n\nconst norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, \"\");\n\nfunction wordAt(words: Word[] | undefined, token: string): number | null {\n  if (!words?.length) return null;\n  const hit = words.find((word) => norm(word.word) === norm(token));\n  return hit ? hit.startInSeconds : null;\n}\n\nconst LAYERS = [3, 5, 3];\nconst EASE = {\n  extrapolateLeft: \"clamp\" as const,\n  extrapolateRight: \"clamp\" as const,\n  easing: EASE_PRESETS.easeInOut,\n};\n\nexport default function Scene({ words }: { words?: Word[] }) {\n  const frame = useCurrentFrame();\n  const { fps } = useVideoConfig();\n  const now = frame / fps;\n  const voiced = Boolean(words?.length);\n\n  const startAt = wordAt(words, \"layers\") ?? wordAt(words, \"neurons\") ?? 0.2;\n  const endAt = wordAt(words, \"output\") ?? startAt + 4;\n  const progress = voiced\n    ? interpolate(now, [startAt, Math.max(startAt + 2.5, endAt)], [0, 1], EASE)\n    : 1;\n\n  return (\n    <AbsoluteFill style={{ background: tokens.color.surface }}>\n      <Statement\n        text=\"A neural network passes signals through layers\"\n        words={words}\n        emphasize={[\"layers\", \"signals\"]}\n        reveal=\"word\"\n        accent=\"blue\"\n        placement=\"top\"\n      />\n      <Network\n        layers={LAYERS}\n        layerLabels={[\"Input\", \"Hidden\", \"Output\"]}\n        layerColors={[\"blue\", \"orange\", \"green\"]}\n        progress={progress}\n      />\n    </AbsoluteFill>\n  );\n}\n"
+    },
+    {
+      "id": "beat-02",
+      "title": "beat-02",
+      "dur": 11.32,
+      "anim": "",
+      "reason": "",
+      "objective": "",
+      "caption": "Training is a loop. The forward pass makes a prediction, we measure the loss, the backward pass finds the gradient, we update the weights, and then it repeats.",
+      "prompt": "",
+      "viz": "",
+      "hot": [],
+      "narration": "Training is a loop. The forward pass makes a prediction, we measure the loss, the backward pass finds the gradient, we update the weights, and then it repeats.",
+      "alt": "",
+      "altUsed": false,
+      "fadeIn": 0.3,
+      "fadeOut": 0.3,
+      "componentSource": "import {\n  AbsoluteFill,\n  Arrow,\n  Node,\n  Place,\n  Statement,\n  tokens,\n  interpolate,\n  useCurrentFrame,\n  useVideoConfig,\n  EASE_PRESETS,\n} from \"@decode/animation-api\";\n\ntype Word = { word: string; startInSeconds: number; endInSeconds: number };\n\nconst norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, \"\");\nfunction wordAt(words: Word[] | undefined, token: string): number | null {\n  if (!words?.length) return null;\n  const hit = words.find((word) => norm(word.word) === norm(token));\n  return hit ? hit.startInSeconds : null;\n}\n\nconst EASE = {\n  extrapolateLeft: \"clamp\" as const,\n  extrapolateRight: \"clamp\" as const,\n  easing: EASE_PRESETS.easeInOut,\n};\n\nexport default function Scene({ words }: { words?: Word[] }) {\n  const frame = useCurrentFrame();\n  const { fps } = useVideoConfig();\n  const now = frame / fps;\n  const voiced = Boolean(words?.length);\n  const startAt = wordAt(words, \"loop\") ?? wordAt(words, \"forward\") ?? 0.2;\n  const build = voiced\n    ? interpolate(now, [startAt, startAt + 5], [0, 1], EASE)\n    : 1;\n\n  const stageProgress = (index: number) =>\n    interpolate(build, [index / 4, (index + 1) / 4], [0, 1], EASE);\n\n  return (\n    <AbsoluteFill style={{ background: tokens.color.surface }}>\n      <Statement\n        text=\"Training repeats four steps\"\n        words={words}\n        emphasize={[\"repeats\", \"four\"]}\n        reveal=\"word\"\n        accent=\"blue\"\n        placement=\"top\"\n      />\n\n      <Place region=\"top-left\">\n        <Node color=\"blue\" filled={stageProgress(0) > 0.8}>Forward pass</Node>\n      </Place>\n      <Place region=\"top-right\">\n        <Node color=\"orange\" filled={stageProgress(1) > 0.8}>Measure loss</Node>\n      </Place>\n      <Place region=\"bottom-right\">\n        <Node color=\"purple\" filled={stageProgress(2) > 0.8}>Backward pass</Node>\n      </Place>\n      <Place region=\"bottom-left\">\n        <Node color=\"green\" filled={stageProgress(3) > 0.8}>Update weights</Node>\n      </Place>\n\n      <Arrow from={{ x: 690, y: 330 }} to={{ x: 1230, y: 330 }} color=\"blue\" progress={stageProgress(1)} />\n      <Arrow from={{ x: 1430, y: 430 }} to={{ x: 1430, y: 650 }} color=\"orange\" progress={stageProgress(2)} />\n      <Arrow from={{ x: 1230, y: 750 }} to={{ x: 690, y: 750 }} color=\"purple\" progress={stageProgress(3)} />\n      <Arrow from={{ x: 490, y: 650 }} to={{ x: 490, y: 430 }} color=\"green\" progress={stageProgress(4)} curve={0.35} />\n    </AbsoluteFill>\n  );\n}\n",
+      "words": [
+        {
+          "word": "Training",
+          "startInSeconds": 0.0,
+          "endInSeconds": 0.34
+        },
+        {
+          "word": "is",
+          "startInSeconds": 0.34,
+          "endInSeconds": 0.68
+        },
+        {
+          "word": "a",
+          "startInSeconds": 0.68,
+          "endInSeconds": 1.02
+        },
+        {
+          "word": "loop.",
+          "startInSeconds": 1.02,
+          "endInSeconds": 1.36
+        },
+        {
+          "word": "The",
+          "startInSeconds": 1.36,
+          "endInSeconds": 1.7
+        },
+        {
+          "word": "forward",
+          "startInSeconds": 1.7,
+          "endInSeconds": 2.04
+        },
+        {
+          "word": "pass",
+          "startInSeconds": 2.04,
+          "endInSeconds": 2.38
+        },
+        {
+          "word": "makes",
+          "startInSeconds": 2.38,
+          "endInSeconds": 2.72
+        },
+        {
+          "word": "a",
+          "startInSeconds": 2.72,
+          "endInSeconds": 3.06
+        },
+        {
+          "word": "prediction,",
+          "startInSeconds": 3.06,
+          "endInSeconds": 3.4
+        },
+        {
+          "word": "we",
+          "startInSeconds": 3.4,
+          "endInSeconds": 3.74
+        },
+        {
+          "word": "measure",
+          "startInSeconds": 3.74,
+          "endInSeconds": 4.08
+        },
+        {
+          "word": "the",
+          "startInSeconds": 4.08,
+          "endInSeconds": 4.42
+        },
+        {
+          "word": "loss,",
+          "startInSeconds": 4.42,
+          "endInSeconds": 4.76
+        },
+        {
+          "word": "the",
+          "startInSeconds": 4.76,
+          "endInSeconds": 5.1
+        },
+        {
+          "word": "backward",
+          "startInSeconds": 5.1,
+          "endInSeconds": 5.44
+        },
+        {
+          "word": "pass",
+          "startInSeconds": 5.44,
+          "endInSeconds": 5.78
+        },
+        {
+          "word": "finds",
+          "startInSeconds": 5.78,
+          "endInSeconds": 6.12
+        },
+        {
+          "word": "the",
+          "startInSeconds": 6.12,
+          "endInSeconds": 6.46
+        },
+        {
+          "word": "gradient,",
+          "startInSeconds": 6.46,
+          "endInSeconds": 6.8
+        },
+        {
+          "word": "we",
+          "startInSeconds": 6.8,
+          "endInSeconds": 7.14
+        },
+        {
+          "word": "update",
+          "startInSeconds": 7.14,
+          "endInSeconds": 7.48
+        },
+        {
+          "word": "the",
+          "startInSeconds": 7.48,
+          "endInSeconds": 7.82
+        },
+        {
+          "word": "weights,",
+          "startInSeconds": 7.82,
+          "endInSeconds": 8.16
+        },
+        {
+          "word": "and",
+          "startInSeconds": 8.16,
+          "endInSeconds": 8.5
+        },
+        {
+          "word": "then",
+          "startInSeconds": 8.5,
+          "endInSeconds": 8.84
+        },
+        {
+          "word": "it",
+          "startInSeconds": 8.84,
+          "endInSeconds": 9.18
+        },
+        {
+          "word": "repeats.",
+          "startInSeconds": 9.18,
+          "endInSeconds": 9.52
+        }
+      ],
+      "component_source": "import {\n  AbsoluteFill,\n  Arrow,\n  Node,\n  Place,\n  Statement,\n  tokens,\n  interpolate,\n  useCurrentFrame,\n  useVideoConfig,\n  EASE_PRESETS,\n} from \"@decode/animation-api\";\n\ntype Word = { word: string; startInSeconds: number; endInSeconds: number };\n\nconst norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, \"\");\nfunction wordAt(words: Word[] | undefined, token: string): number | null {\n  if (!words?.length) return null;\n  const hit = words.find((word) => norm(word.word) === norm(token));\n  return hit ? hit.startInSeconds : null;\n}\n\nconst EASE = {\n  extrapolateLeft: \"clamp\" as const,\n  extrapolateRight: \"clamp\" as const,\n  easing: EASE_PRESETS.easeInOut,\n};\n\nexport default function Scene({ words }: { words?: Word[] }) {\n  const frame = useCurrentFrame();\n  const { fps } = useVideoConfig();\n  const now = frame / fps;\n  const voiced = Boolean(words?.length);\n  const startAt = wordAt(words, \"loop\") ?? wordAt(words, \"forward\") ?? 0.2;\n  const build = voiced\n    ? interpolate(now, [startAt, startAt + 5], [0, 1], EASE)\n    : 1;\n\n  const stageProgress = (index: number) =>\n    interpolate(build, [index / 4, (index + 1) / 4], [0, 1], EASE);\n\n  return (\n    <AbsoluteFill style={{ background: tokens.color.surface }}>\n      <Statement\n        text=\"Training repeats four steps\"\n        words={words}\n        emphasize={[\"repeats\", \"four\"]}\n        reveal=\"word\"\n        accent=\"blue\"\n        placement=\"top\"\n      />\n\n      <Place region=\"top-left\">\n        <Node color=\"blue\" filled={stageProgress(0) > 0.8}>Forward pass</Node>\n      </Place>\n      <Place region=\"top-right\">\n        <Node color=\"orange\" filled={stageProgress(1) > 0.8}>Measure loss</Node>\n      </Place>\n      <Place region=\"bottom-right\">\n        <Node color=\"purple\" filled={stageProgress(2) > 0.8}>Backward pass</Node>\n      </Place>\n      <Place region=\"bottom-left\">\n        <Node color=\"green\" filled={stageProgress(3) > 0.8}>Update weights</Node>\n      </Place>\n\n      <Arrow from={{ x: 690, y: 330 }} to={{ x: 1230, y: 330 }} color=\"blue\" progress={stageProgress(1)} />\n      <Arrow from={{ x: 1430, y: 430 }} to={{ x: 1430, y: 650 }} color=\"orange\" progress={stageProgress(2)} />\n      <Arrow from={{ x: 1230, y: 750 }} to={{ x: 690, y: 750 }} color=\"purple\" progress={stageProgress(3)} />\n      <Arrow from={{ x: 490, y: 650 }} to={{ x: 490, y: 430 }} color=\"green\" progress={stageProgress(4)} curve={0.35} />\n    </AbsoluteFill>\n  );\n}\n"
+    },
+    {
+      "id": "beat-03",
+      "title": "beat-03",
+      "dur": 10.3,
+      "anim": "",
+      "reason": "",
+      "objective": "",
+      "caption": "As training goes on, the loss falls step by step, dropping quickly at first and then leveling off as the model settles near the minimum.",
+      "prompt": "",
+      "viz": "",
+      "hot": [],
+      "narration": "As training goes on, the loss falls step by step, dropping quickly at first and then leveling off as the model settles near the minimum.",
+      "alt": "",
+      "altUsed": false,
+      "fadeIn": 0.3,
+      "fadeOut": 0.3,
+      "componentSource": "import {\n  AbsoluteFill,\n  Label,\n  Plot,\n  Statement,\n  tokens,\n  interpolate,\n  useCurrentFrame,\n  useVideoConfig,\n  EASE_PRESETS,\n} from \"@decode/animation-api\";\n\ntype Word = { word: string; startInSeconds: number; endInSeconds: number };\n\nconst norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, \"\");\nfunction wordAt(words: Word[] | undefined, token: string): number | null {\n  if (!words?.length) return null;\n  const hit = words.find((word) => norm(word.word) === norm(token));\n  return hit ? hit.startInSeconds : null;\n}\n\nconst MIN_X = 0.82;\nconst loss = (x: number) => 0.14 + 2.7 * Math.exp(-4.2 * x) + 0.08 * (x - MIN_X) * (x - MIN_X);\nconst DATA = Array.from({ length: 64 }, (_, index) => {\n  const x = index / 63;\n  return { x, y: loss(x) };\n});\n\nconst EASE = {\n  extrapolateLeft: \"clamp\" as const,\n  extrapolateRight: \"clamp\" as const,\n  easing: EASE_PRESETS.easeInOut,\n};\n\nexport default function Scene({ words }: { words?: Word[] }) {\n  const frame = useCurrentFrame();\n  const { fps } = useVideoConfig();\n  const now = frame / fps;\n  const voiced = Boolean(words?.length);\n  const startAt = wordAt(words, \"loss\") ?? wordAt(words, \"falls\") ?? 0.3;\n  const progress = voiced\n    ? interpolate(now, [startAt, startAt + 3], [0, 1], EASE)\n    : 1;\n  const markerAt = voiced\n    ? interpolate(now, [startAt + 1.2, startAt + 3], [0.05, MIN_X], EASE)\n    : MIN_X;\n\n  return (\n    <AbsoluteFill style={{ background: tokens.color.surface }}>\n      <Statement\n        text=\"Loss falls, then levels off\"\n        words={words}\n        emphasize={[\"falls\", \"levels\"]}\n        reveal=\"word\"\n        accent=\"blue\"\n        placement=\"top\"\n      />\n      <Plot\n        data={DATA}\n        xDomain={[0, 1]}\n        yDomain={[0, 3.2]}\n        color=\"blue\"\n        progress={progress}\n        markerAt={markerAt}\n      />\n      <Label text=\"Training steps\" size={30} color={tokens.color.ink} region=\"bottom\" />\n      <Label text=\"Loss\" size={30} color={tokens.color.ink} region=\"left\" />\n    </AbsoluteFill>\n  );\n}\n",
+      "words": [
+        {
+          "word": "As",
+          "startInSeconds": 0.0,
+          "endInSeconds": 0.34
+        },
+        {
+          "word": "training",
+          "startInSeconds": 0.34,
+          "endInSeconds": 0.68
+        },
+        {
+          "word": "goes",
+          "startInSeconds": 0.68,
+          "endInSeconds": 1.02
+        },
+        {
+          "word": "on,",
+          "startInSeconds": 1.02,
+          "endInSeconds": 1.36
+        },
+        {
+          "word": "the",
+          "startInSeconds": 1.36,
+          "endInSeconds": 1.7
+        },
+        {
+          "word": "loss",
+          "startInSeconds": 1.7,
+          "endInSeconds": 2.04
+        },
+        {
+          "word": "falls",
+          "startInSeconds": 2.04,
+          "endInSeconds": 2.38
+        },
+        {
+          "word": "step",
+          "startInSeconds": 2.38,
+          "endInSeconds": 2.72
+        },
+        {
+          "word": "by",
+          "startInSeconds": 2.72,
+          "endInSeconds": 3.06
+        },
+        {
+          "word": "step,",
+          "startInSeconds": 3.06,
+          "endInSeconds": 3.4
+        },
+        {
+          "word": "dropping",
+          "startInSeconds": 3.4,
+          "endInSeconds": 3.74
+        },
+        {
+          "word": "quickly",
+          "startInSeconds": 3.74,
+          "endInSeconds": 4.08
+        },
+        {
+          "word": "at",
+          "startInSeconds": 4.08,
+          "endInSeconds": 4.42
+        },
+        {
+          "word": "first",
+          "startInSeconds": 4.42,
+          "endInSeconds": 4.76
+        },
+        {
+          "word": "and",
+          "startInSeconds": 4.76,
+          "endInSeconds": 5.1
+        },
+        {
+          "word": "then",
+          "startInSeconds": 5.1,
+          "endInSeconds": 5.44
+        },
+        {
+          "word": "leveling",
+          "startInSeconds": 5.44,
+          "endInSeconds": 5.78
+        },
+        {
+          "word": "off",
+          "startInSeconds": 5.78,
+          "endInSeconds": 6.12
+        },
+        {
+          "word": "as",
+          "startInSeconds": 6.12,
+          "endInSeconds": 6.46
+        },
+        {
+          "word": "the",
+          "startInSeconds": 6.46,
+          "endInSeconds": 6.8
+        },
+        {
+          "word": "model",
+          "startInSeconds": 6.8,
+          "endInSeconds": 7.14
+        },
+        {
+          "word": "settles",
+          "startInSeconds": 7.14,
+          "endInSeconds": 7.48
+        },
+        {
+          "word": "near",
+          "startInSeconds": 7.48,
+          "endInSeconds": 7.82
+        },
+        {
+          "word": "the",
+          "startInSeconds": 7.82,
+          "endInSeconds": 8.16
+        },
+        {
+          "word": "minimum.",
+          "startInSeconds": 8.16,
+          "endInSeconds": 8.5
+        }
+      ],
+      "component_source": "import {\n  AbsoluteFill,\n  Label,\n  Plot,\n  Statement,\n  tokens,\n  interpolate,\n  useCurrentFrame,\n  useVideoConfig,\n  EASE_PRESETS,\n} from \"@decode/animation-api\";\n\ntype Word = { word: string; startInSeconds: number; endInSeconds: number };\n\nconst norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, \"\");\nfunction wordAt(words: Word[] | undefined, token: string): number | null {\n  if (!words?.length) return null;\n  const hit = words.find((word) => norm(word.word) === norm(token));\n  return hit ? hit.startInSeconds : null;\n}\n\nconst MIN_X = 0.82;\nconst loss = (x: number) => 0.14 + 2.7 * Math.exp(-4.2 * x) + 0.08 * (x - MIN_X) * (x - MIN_X);\nconst DATA = Array.from({ length: 64 }, (_, index) => {\n  const x = index / 63;\n  return { x, y: loss(x) };\n});\n\nconst EASE = {\n  extrapolateLeft: \"clamp\" as const,\n  extrapolateRight: \"clamp\" as const,\n  easing: EASE_PRESETS.easeInOut,\n};\n\nexport default function Scene({ words }: { words?: Word[] }) {\n  const frame = useCurrentFrame();\n  const { fps } = useVideoConfig();\n  const now = frame / fps;\n  const voiced = Boolean(words?.length);\n  const startAt = wordAt(words, \"loss\") ?? wordAt(words, \"falls\") ?? 0.3;\n  const progress = voiced\n    ? interpolate(now, [startAt, startAt + 3], [0, 1], EASE)\n    : 1;\n  const markerAt = voiced\n    ? interpolate(now, [startAt + 1.2, startAt + 3], [0.05, MIN_X], EASE)\n    : MIN_X;\n\n  return (\n    <AbsoluteFill style={{ background: tokens.color.surface }}>\n      <Statement\n        text=\"Loss falls, then levels off\"\n        words={words}\n        emphasize={[\"falls\", \"levels\"]}\n        reveal=\"word\"\n        accent=\"blue\"\n        placement=\"top\"\n      />\n      <Plot\n        data={DATA}\n        xDomain={[0, 1]}\n        yDomain={[0, 3.2]}\n        color=\"blue\"\n        progress={progress}\n        markerAt={markerAt}\n      />\n      <Label text=\"Training steps\" size={30} color={tokens.color.ink} region=\"bottom\" />\n      <Label text=\"Loss\" size={30} color={tokens.color.ink} region=\"left\" />\n    </AbsoluteFill>\n  );\n}\n"
+    },
+    {
+      "id": "beat-04",
+      "title": "beat-04",
+      "dur": 9.28,
+      "anim": "",
+      "reason": "",
+      "objective": "",
+      "caption": "But watch the two curves. Training loss keeps dropping, yet validation loss turns and starts to rise. That growing gap is overfitting.",
+      "prompt": "",
+      "viz": "",
+      "hot": [],
+      "narration": "But watch the two curves. Training loss keeps dropping, yet validation loss turns and starts to rise. That growing gap is overfitting.",
+      "alt": "",
+      "altUsed": false,
+      "fadeIn": 0.3,
+      "fadeOut": 0.3,
+      "componentSource": "import {\n  AbsoluteFill,\n  Chart,\n  Statement,\n  tokens,\n  interpolate,\n  useCurrentFrame,\n  useVideoConfig,\n  EASE_PRESETS,\n} from \"@decode/animation-api\";\n\ntype Word = { word: string; startInSeconds: number; endInSeconds: number };\n\nconst norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, \"\");\nfunction wordAt(words: Word[] | undefined, token: string): number | null {\n  if (!words?.length) return null;\n  const hit = words.find((word) => norm(word.word) === norm(token));\n  return hit ? hit.startInSeconds : null;\n}\n\nconst EPOCHS = 30;\nconst trainLoss = (x: number) => 0.92 * Math.exp(-x / 8) + 0.07;\nconst validationLoss = (x: number) => trainLoss(x) + 0.026 * Math.max(0, x - 12) * Math.max(0, x - 12) / 10;\nconst TRAIN = Array.from({ length: 48 }, (_, index) => {\n  const x = (index / 47) * EPOCHS;\n  return { x, y: trainLoss(x) };\n});\nconst VALIDATION = Array.from({ length: 48 }, (_, index) => {\n  const x = (index / 47) * EPOCHS;\n  return { x, y: validationLoss(x) };\n});\n\nconst EASE = {\n  extrapolateLeft: \"clamp\" as const,\n  extrapolateRight: \"clamp\" as const,\n  easing: EASE_PRESETS.easeInOut,\n};\n\nexport default function Scene({ words }: { words?: Word[] }) {\n  const frame = useCurrentFrame();\n  const { fps } = useVideoConfig();\n  const now = frame / fps;\n  const voiced = Boolean(words?.length);\n  const startAt = wordAt(words, \"curves\") ?? wordAt(words, \"training\") ?? 0.2;\n  const progress = voiced\n    ? interpolate(now, [startAt, startAt + 3.2], [0, 1], EASE)\n    : 1;\n\n  return (\n    <AbsoluteFill style={{ background: tokens.color.surface }}>\n      <Statement\n        text=\"When validation rises, the gap is overfitting\"\n        words={words}\n        emphasize={[\"validation\", \"rises\", \"overfitting\"]}\n        reveal=\"word\"\n        accent=\"orange\"\n        placement=\"top\"\n      />\n      <Chart\n        kind=\"line\"\n        series={[\n          { data: TRAIN, color: \"blue\", label: \"Training loss\" },\n          { data: VALIDATION, color: \"orange\", label: \"Validation loss\" },\n        ]}\n        xDomain={[0, EPOCHS]}\n        yDomain={[0, 1.2]}\n        progress={progress}\n        xAxisProgress={progress}\n        yAxisProgress={progress}\n        xLabel=\"Training steps\"\n        yLabel=\"Loss\"\n      />\n    </AbsoluteFill>\n  );\n}\n",
+      "words": [
+        {
+          "word": "But",
+          "startInSeconds": 0.0,
+          "endInSeconds": 0.34
+        },
+        {
+          "word": "watch",
+          "startInSeconds": 0.34,
+          "endInSeconds": 0.68
+        },
+        {
+          "word": "the",
+          "startInSeconds": 0.68,
+          "endInSeconds": 1.02
+        },
+        {
+          "word": "two",
+          "startInSeconds": 1.02,
+          "endInSeconds": 1.36
+        },
+        {
+          "word": "curves.",
+          "startInSeconds": 1.36,
+          "endInSeconds": 1.7
+        },
+        {
+          "word": "Training",
+          "startInSeconds": 1.7,
+          "endInSeconds": 2.04
+        },
+        {
+          "word": "loss",
+          "startInSeconds": 2.04,
+          "endInSeconds": 2.38
+        },
+        {
+          "word": "keeps",
+          "startInSeconds": 2.38,
+          "endInSeconds": 2.72
+        },
+        {
+          "word": "dropping,",
+          "startInSeconds": 2.72,
+          "endInSeconds": 3.06
+        },
+        {
+          "word": "yet",
+          "startInSeconds": 3.06,
+          "endInSeconds": 3.4
+        },
+        {
+          "word": "validation",
+          "startInSeconds": 3.4,
+          "endInSeconds": 3.74
+        },
+        {
+          "word": "loss",
+          "startInSeconds": 3.74,
+          "endInSeconds": 4.08
+        },
+        {
+          "word": "turns",
+          "startInSeconds": 4.08,
+          "endInSeconds": 4.42
+        },
+        {
+          "word": "and",
+          "startInSeconds": 4.42,
+          "endInSeconds": 4.76
+        },
+        {
+          "word": "starts",
+          "startInSeconds": 4.76,
+          "endInSeconds": 5.1
+        },
+        {
+          "word": "to",
+          "startInSeconds": 5.1,
+          "endInSeconds": 5.44
+        },
+        {
+          "word": "rise.",
+          "startInSeconds": 5.44,
+          "endInSeconds": 5.78
+        },
+        {
+          "word": "That",
+          "startInSeconds": 5.78,
+          "endInSeconds": 6.12
+        },
+        {
+          "word": "growing",
+          "startInSeconds": 6.12,
+          "endInSeconds": 6.46
+        },
+        {
+          "word": "gap",
+          "startInSeconds": 6.46,
+          "endInSeconds": 6.8
+        },
+        {
+          "word": "is",
+          "startInSeconds": 6.8,
+          "endInSeconds": 7.14
+        },
+        {
+          "word": "overfitting.",
+          "startInSeconds": 7.14,
+          "endInSeconds": 7.48
+        }
+      ],
+      "component_source": "import {\n  AbsoluteFill,\n  Chart,\n  Statement,\n  tokens,\n  interpolate,\n  useCurrentFrame,\n  useVideoConfig,\n  EASE_PRESETS,\n} from \"@decode/animation-api\";\n\ntype Word = { word: string; startInSeconds: number; endInSeconds: number };\n\nconst norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, \"\");\nfunction wordAt(words: Word[] | undefined, token: string): number | null {\n  if (!words?.length) return null;\n  const hit = words.find((word) => norm(word.word) === norm(token));\n  return hit ? hit.startInSeconds : null;\n}\n\nconst EPOCHS = 30;\nconst trainLoss = (x: number) => 0.92 * Math.exp(-x / 8) + 0.07;\nconst validationLoss = (x: number) => trainLoss(x) + 0.026 * Math.max(0, x - 12) * Math.max(0, x - 12) / 10;\nconst TRAIN = Array.from({ length: 48 }, (_, index) => {\n  const x = (index / 47) * EPOCHS;\n  return { x, y: trainLoss(x) };\n});\nconst VALIDATION = Array.from({ length: 48 }, (_, index) => {\n  const x = (index / 47) * EPOCHS;\n  return { x, y: validationLoss(x) };\n});\n\nconst EASE = {\n  extrapolateLeft: \"clamp\" as const,\n  extrapolateRight: \"clamp\" as const,\n  easing: EASE_PRESETS.easeInOut,\n};\n\nexport default function Scene({ words }: { words?: Word[] }) {\n  const frame = useCurrentFrame();\n  const { fps } = useVideoConfig();\n  const now = frame / fps;\n  const voiced = Boolean(words?.length);\n  const startAt = wordAt(words, \"curves\") ?? wordAt(words, \"training\") ?? 0.2;\n  const progress = voiced\n    ? interpolate(now, [startAt, startAt + 3.2], [0, 1], EASE)\n    : 1;\n\n  return (\n    <AbsoluteFill style={{ background: tokens.color.surface }}>\n      <Statement\n        text=\"When validation rises, the gap is overfitting\"\n        words={words}\n        emphasize={[\"validation\", \"rises\", \"overfitting\"]}\n        reveal=\"word\"\n        accent=\"orange\"\n        placement=\"top\"\n      />\n      <Chart\n        kind=\"line\"\n        series={[\n          { data: TRAIN, color: \"blue\", label: \"Training loss\" },\n          { data: VALIDATION, color: \"orange\", label: \"Validation loss\" },\n        ]}\n        xDomain={[0, EPOCHS]}\n        yDomain={[0, 1.2]}\n        progress={progress}\n        xAxisProgress={progress}\n        yAxisProgress={progress}\n        xLabel=\"Training steps\"\n        yLabel=\"Loss\"\n      />\n    </AbsoluteFill>\n  );\n}\n"
+    },
+    {
+      "id": "beat-05",
+      "title": "beat-05",
+      "dur": 9.96,
+      "anim": "",
+      "reason": "",
+      "objective": "",
+      "caption": "It is a balance. Too simple and the model has high bias; too complex and high variance. We want the sweet spot between them.",
+      "prompt": "",
+      "viz": "",
+      "hot": [],
+      "narration": "It is a balance. Too simple and the model has high bias; too complex and high variance. We want the sweet spot between them.",
+      "alt": "",
+      "altUsed": false,
+      "fadeIn": 0.3,
+      "fadeOut": 0.3,
+      "componentSource": "import {\n  AbsoluteFill,\n  Spectrum,\n  Statement,\n  tokens,\n  interpolate,\n  useCurrentFrame,\n  useVideoConfig,\n  EASE_PRESETS,\n} from \"@decode/animation-api\";\n\ntype Word = { word: string; startInSeconds: number; endInSeconds: number };\n\nconst norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, \"\");\nfunction wordAt(words: Word[] | undefined, token: string): number | null {\n  if (!words?.length) return null;\n  const hit = words.find((word) => norm(word.word) === norm(token));\n  return hit ? hit.startInSeconds : null;\n}\n\nconst EASE = {\n  extrapolateLeft: \"clamp\" as const,\n  extrapolateRight: \"clamp\" as const,\n  easing: EASE_PRESETS.easeInOut,\n};\n\nexport default function Scene({ words }: { words?: Word[] }) {\n  const frame = useCurrentFrame();\n  const { fps } = useVideoConfig();\n  const now = frame / fps;\n  const voiced = Boolean(words?.length);\n  const startAt = wordAt(words, \"balance\") ?? wordAt(words, \"simple\") ?? 0.2;\n  const progress = voiced\n    ? interpolate(now, [startAt, startAt + 2.5], [0, 1], EASE)\n    : 1;\n\n  return (\n    <AbsoluteFill style={{ background: tokens.color.surface }}>\n      <Statement\n        text=\"Find the sweet spot between bias and variance\"\n        words={words}\n        emphasize={[\"sweet\", \"bias\", \"variance\"]}\n        reveal=\"word\"\n        accent=\"green\"\n        placement=\"top\"\n      />\n      <Spectrum\n        leftLabel=\"High bias\"\n        rightLabel=\"High variance\"\n        value={0.5}\n        markerLabel=\"Sweet spot\"\n        color=\"green\"\n        progress={progress}\n      />\n    </AbsoluteFill>\n  );\n}\n",
+      "words": [
+        {
+          "word": "It",
+          "startInSeconds": 0.0,
+          "endInSeconds": 0.34
+        },
+        {
+          "word": "is",
+          "startInSeconds": 0.34,
+          "endInSeconds": 0.68
+        },
+        {
+          "word": "a",
+          "startInSeconds": 0.68,
+          "endInSeconds": 1.02
+        },
+        {
+          "word": "balance.",
+          "startInSeconds": 1.02,
+          "endInSeconds": 1.36
+        },
+        {
+          "word": "Too",
+          "startInSeconds": 1.36,
+          "endInSeconds": 1.7
+        },
+        {
+          "word": "simple",
+          "startInSeconds": 1.7,
+          "endInSeconds": 2.04
+        },
+        {
+          "word": "and",
+          "startInSeconds": 2.04,
+          "endInSeconds": 2.38
+        },
+        {
+          "word": "the",
+          "startInSeconds": 2.38,
+          "endInSeconds": 2.72
+        },
+        {
+          "word": "model",
+          "startInSeconds": 2.72,
+          "endInSeconds": 3.06
+        },
+        {
+          "word": "has",
+          "startInSeconds": 3.06,
+          "endInSeconds": 3.4
+        },
+        {
+          "word": "high",
+          "startInSeconds": 3.4,
+          "endInSeconds": 3.74
+        },
+        {
+          "word": "bias;",
+          "startInSeconds": 3.74,
+          "endInSeconds": 4.08
+        },
+        {
+          "word": "too",
+          "startInSeconds": 4.08,
+          "endInSeconds": 4.42
+        },
+        {
+          "word": "complex",
+          "startInSeconds": 4.42,
+          "endInSeconds": 4.76
+        },
+        {
+          "word": "and",
+          "startInSeconds": 4.76,
+          "endInSeconds": 5.1
+        },
+        {
+          "word": "high",
+          "startInSeconds": 5.1,
+          "endInSeconds": 5.44
+        },
+        {
+          "word": "variance.",
+          "startInSeconds": 5.44,
+          "endInSeconds": 5.78
+        },
+        {
+          "word": "We",
+          "startInSeconds": 5.78,
+          "endInSeconds": 6.12
+        },
+        {
+          "word": "want",
+          "startInSeconds": 6.12,
+          "endInSeconds": 6.46
+        },
+        {
+          "word": "the",
+          "startInSeconds": 6.46,
+          "endInSeconds": 6.8
+        },
+        {
+          "word": "sweet",
+          "startInSeconds": 6.8,
+          "endInSeconds": 7.14
+        },
+        {
+          "word": "spot",
+          "startInSeconds": 7.14,
+          "endInSeconds": 7.48
+        },
+        {
+          "word": "between",
+          "startInSeconds": 7.48,
+          "endInSeconds": 7.82
+        },
+        {
+          "word": "them.",
+          "startInSeconds": 7.82,
+          "endInSeconds": 8.16
+        }
+      ],
+      "component_source": "import {\n  AbsoluteFill,\n  Spectrum,\n  Statement,\n  tokens,\n  interpolate,\n  useCurrentFrame,\n  useVideoConfig,\n  EASE_PRESETS,\n} from \"@decode/animation-api\";\n\ntype Word = { word: string; startInSeconds: number; endInSeconds: number };\n\nconst norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, \"\");\nfunction wordAt(words: Word[] | undefined, token: string): number | null {\n  if (!words?.length) return null;\n  const hit = words.find((word) => norm(word.word) === norm(token));\n  return hit ? hit.startInSeconds : null;\n}\n\nconst EASE = {\n  extrapolateLeft: \"clamp\" as const,\n  extrapolateRight: \"clamp\" as const,\n  easing: EASE_PRESETS.easeInOut,\n};\n\nexport default function Scene({ words }: { words?: Word[] }) {\n  const frame = useCurrentFrame();\n  const { fps } = useVideoConfig();\n  const now = frame / fps;\n  const voiced = Boolean(words?.length);\n  const startAt = wordAt(words, \"balance\") ?? wordAt(words, \"simple\") ?? 0.2;\n  const progress = voiced\n    ? interpolate(now, [startAt, startAt + 2.5], [0, 1], EASE)\n    : 1;\n\n  return (\n    <AbsoluteFill style={{ background: tokens.color.surface }}>\n      <Statement\n        text=\"Find the sweet spot between bias and variance\"\n        words={words}\n        emphasize={[\"sweet\", \"bias\", \"variance\"]}\n        reveal=\"word\"\n        accent=\"green\"\n        placement=\"top\"\n      />\n      <Spectrum\n        leftLabel=\"High bias\"\n        rightLabel=\"High variance\"\n        value={0.5}\n        markerLabel=\"Sweet spot\"\n        color=\"green\"\n        progress={progress}\n      />\n    </AbsoluteFill>\n  );\n}\n"
+    }
+  ],
+  "visualPick": {}
+}

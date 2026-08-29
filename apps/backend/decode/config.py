@@ -43,6 +43,16 @@ class Settings(BaseSettings):
     # Any OpenAI-compatible endpoint (e.g. DeepSeek) — set DECODE_OPENAI_BASE_URL
     # and point openai_model at that provider's model. None = OpenAI's default.
     openai_base_url: str | None = None
+    # OpenRouter — one gateway (Chat Completions) for every non-OpenAI model
+    # (Gemini, Claude, DeepSeek, Kimi …). Each model is a plain id string in
+    # decode/agents/models.py; adding one is a one-line entry, not new code. The
+    # OpenAI Responses-API path above stays for gpt-5.6-luna generation; roles move
+    # onto OpenRouter one at a time. Vision is the first (a Gemini judge).
+    openrouter_api_key: str | None = None
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    # The vision judge's model (OpenRouter id). Flash is fast/cheap — right for a
+    # gate that runs per scene and per repair round; swap to a -pro for accuracy.
+    vision_model: str = "google/gemini-2.5-flash"
     # Evaluation is a separate model call with a separate quality/cost profile.
     # It may share credentials without coupling its model choice to generation.
     openai_evaluator_model: str = "gpt-5.6-luna"

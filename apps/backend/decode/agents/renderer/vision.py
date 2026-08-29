@@ -40,9 +40,47 @@ class VisionVerdict(BaseModel):
 _STILL_TIMEOUT_SECONDS = 120
 _JUDGE_TIMEOUT_SECONDS = 60
 
+# The judge rubric — shared by the OpenRouter (Chat) and OpenAI (Responses) paths.
+_JUDGE_SYSTEM = (
+    "You review one scene of an educational animated VIDEO. The three "
+    "frames are the EARLY, MIDDLE and LATE moments of the scene, in order, "
+    "exactly as a viewer sees them. "
+    "FIRST judge MOTION: this is a video, not a slide, so the main subject "
+    "must have visibly MOVED or CHANGED across the three frames — a "
+    "position that travelled, a value that changed, a shape that morphed, "
+    "more of a path drawn on. If the three frames look nearly identical — a "
+    "static composition that merely faded in and then held still — that is "
+    "an automatic FAIL, and the fix direction says what should be moving "
+    "and how. "
+    "THEN judge the frame itself: text readable at a glance; nothing "
+    "overlapping or cut off at the frame edge; the composition fills the "
+    "stage rather than huddling small in a corner; the visual shows the "
+    "idea the beat teaches, not decoration; and NO frame is empty or "
+    "near-empty (a bare stage or a single stray label is a fail). Minor "
+    "imperfection passes — fail only what a viewer would notice as wrong. "
+    "When failing, give ONE concrete fix direction an animator can act on, "
+    "in plain language."
+)
+
+
+def _synth_words(narration: str, duration_seconds: float) -> list[dict]:
+    """Even-split per-word timings across the scene duration. The scenes are
+    narration-timed — every reveal fires on a word's `startInSeconds` — so without
+    `words` a scene renders its SETTLED state at every frame and the motion judge
+    fails it falsely. This is the pre-audio proxy (the real pipeline uses aligned
+    timings); it just has to make the animation play across the frames."""
+    tokens = [w for w in narration.split() if w]
+    if not tokens:
+        return []
+    step = duration_seconds / len(tokens)
+    return [
+        {"word": w, "startInSeconds": round(i * step, 3), "endInSeconds": round((i + 1) * step, 3)}
+        for i, w in enumerate(tokens)
+    ]
+
 
 def _render_stills(
-    settings: Settings, scene: SceneModule, duration_seconds: float
+    settings: Settings, scene: SceneModule, narration: str, duration_seconds: float
 ) -> tuple[list[Path], list[str]]:
     """Render early/middle/late frames of one scene via the Node still script.
 
@@ -72,6 +110,7 @@ def _render_stills(
                         "dur": max(4, duration_seconds),
                         "on": True,
                         "componentSource": scene.component_source,
+                        "words": _synth_words(narration, max(4, duration_seconds)),
                         "controls": [],
                     }
                 ],
@@ -119,7 +158,10 @@ async def vision_verdict(
 ) -> VisionVerdict | None:
     """Judge one scene's rendered frames. None means "no opinion" — gate off,
     no key, or the tooling failed — and the scene proceeds on static gates."""
-    if settings.vision_gate == "off" or not settings.openai_api_key:
+    # Vision runs through OpenRouter (a Gemini judge) when its key is set, else the
+    # OpenAI Responses path. Off if the gate is off or neither key is present.
+    have_key = settings.openrouter_api_key or settings.openai_api_key
+    if settings.vision_gate == "off" or not have_key:
         return None
     if not scene.component_source:
         return None  # HyperFrames scenes render elsewhere; not judged here yet
@@ -127,7 +169,7 @@ async def vision_verdict(
     stills: list[Path] = []
     try:
         stills, scene_errors = await asyncio.to_thread(
-            _render_stills, settings, scene, duration_seconds
+            _render_stills, settings, scene, narration, duration_seconds
         )
 
         # A crash beats any pixel critique: the scene rendered the error panel,
@@ -141,62 +183,43 @@ async def vision_verdict(
                 + "\n".join(scene_errors),
             )
 
-        from openai import AsyncOpenAI
-
-        client = AsyncOpenAI(api_key=settings.openai_api_key, base_url=settings.openai_base_url)
-        images = [
-            {
-                "type": "input_image",
-                "image_url": "data:image/png;base64,"
-                + base64.b64encode(still.read_bytes()).decode(),
-            }
+        user_text = json.dumps(
+            {"beat_title": beat.title, "objective": beat.objective, "narration": narration[:600]},
+            ensure_ascii=True,
+        )
+        data_urls = [
+            "data:image/png;base64," + base64.b64encode(still.read_bytes()).decode()
             for still in stills
         ]
+
         async with asyncio.timeout(_JUDGE_TIMEOUT_SECONDS):
+            # Preferred: OpenRouter (Chat Completions), so the judge can be any model
+            # (default a Gemini vision model — see decode/agents/models.py).
+            if settings.openrouter_api_key:
+                from ..models import models, structured_chat
+
+                return await structured_chat(
+                    settings,
+                    models(settings)["vision"],
+                    system=_JUDGE_SYSTEM,
+                    text=user_text,
+                    image_data_urls=data_urls,
+                    schema=VisionVerdict,
+                )
+
+            # Fallback: OpenAI Responses API (input_image shape).
+            from openai import AsyncOpenAI
+
+            client = AsyncOpenAI(api_key=settings.openai_api_key, base_url=settings.openai_base_url)
+            images = [{"type": "input_image", "image_url": url} for url in data_urls]
+            content = [{"type": "input_text", "text": user_text}, *images]
             response = await client.responses.parse(
                 model=settings.openai_model,
-                instructions=(
-                    "You review one scene of an educational animated VIDEO. The three "
-                    "frames are the EARLY, MIDDLE and LATE moments of the scene, in order, "
-                    "exactly as a viewer sees them. "
-                    "FIRST judge MOTION: this is a video, not a slide, so the main subject "
-                    "must have visibly MOVED or CHANGED across the three frames — a "
-                    "position that travelled, a value that changed, a shape that morphed, "
-                    "more of a path drawn on. If the three frames look nearly identical — a "
-                    "static composition that merely faded in and then held still — that is "
-                    "an automatic FAIL, and the fix direction says what should be moving "
-                    "and how. "
-                    "THEN judge the frame itself: text readable at a glance; nothing "
-                    "overlapping or cut off at the frame edge; the composition fills the "
-                    "stage rather than huddling small in a corner; the visual shows the "
-                    "idea the beat teaches, not decoration; and NO frame is empty or "
-                    "near-empty (a bare stage or a single stray label is a fail). Minor "
-                    "imperfection passes — fail only what a viewer would notice as wrong. "
-                    "When failing, give ONE concrete fix direction an animator can act on, "
-                    "in plain language."
-                ),
-                input=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "input_text",
-                                "text": json.dumps(
-                                    {
-                                        "beat_title": beat.title,
-                                        "objective": beat.objective,
-                                        "narration": narration[:600],
-                                    },
-                                    ensure_ascii=True,
-                                ),
-                            },
-                            *images,
-                        ],
-                    }
-                ],
+                instructions=_JUDGE_SYSTEM,
+                input=[{"role": "user", "content": content}],
                 text_format=VisionVerdict,
             )
-        return response.output_parsed
+            return response.output_parsed
     except Exception:
         return None  # tooling trouble is never a build failure
     finally:

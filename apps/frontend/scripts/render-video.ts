@@ -31,6 +31,8 @@ async function main() {
   console.log(`Bundling ${entryPoint}...`);
   const bundled = await bundle({
     entryPoint,
+    // Serve public/ (narration audio lands here) so `<Audio src="/narration/…">` loads.
+    publicDir: path.join(root, "public"),
     webpackOverride: (config) => {
       // The Remotion bundler does not read the Next.js tsconfig, so it cannot
       // see the two path aliases the composition imports. Map them explicitly:
@@ -39,6 +41,7 @@ async function main() {
         "@": path.join(root, "src"),
         "@decode/animation-api": path.join(root, "src", "decode", "animation-api.tsx"),
         "@decode/motion-api": path.join(root, "src", "decode", "motion-api", "index.ts"),
+        "@decode/seeds": path.join(root, "..", "backend", "decode", "agents", "renderer", "seeds"),
       };
       return {
         ...config,

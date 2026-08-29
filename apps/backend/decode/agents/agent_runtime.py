@@ -37,6 +37,19 @@ from .skills import SkillSet
 # `as_delegate(...)` returns one of these; the coordinator never sees the sub's schema.
 Delegate = Callable[[str], Awaitable[str]]
 
+
+@dataclass(frozen=True)
+class LocalTool:
+    """A tool the agent handles itself (no observer round-trip). The runtime
+    advertises it and runs `handler(args)`; the handler returns the JSON the model
+    reads back. Used for domain tools the agent owns — e.g. the renderer's
+    pattern search/retrieve — so the runtime stays domain-agnostic."""
+
+    description: str
+    args: tuple[str, ...]
+    handler: Callable[[dict[str, Any]], Awaitable[str]]
+
+
 LOAD_SKILL = "load_skill"
 READ_REFERENCE = "read_reference"
 DELEGATE_PREFIX = "delegate_"
@@ -133,6 +146,7 @@ class AgentRuntime:
         library: SkillLibrary | None = None,
         observer: Observer | None = None,
         delegates: dict[str, Delegate] | None = None,
+        local_tools: dict[str, "LocalTool"] | None = None,
     ):
         self.settings = settings
         self.config = config
@@ -143,6 +157,10 @@ class AgentRuntime:
         self.library = library or SkillLibrary()
         self.observer = observer
         self.delegates = delegates or {}
+        # Agent-provided tools handled locally (no observer round-trip). The agent
+        # owns the domain — e.g. the renderer's pattern library — so the runtime
+        # just advertises and runs the handler, knowing nothing about patterns.
+        self.local_tools = local_tools or {}
         self.last_usage: ProviderUsage | None = None
         self._client: Any = None
 
@@ -200,6 +218,20 @@ class AgentRuntime:
             spec = TOOLS.get(name)
             if spec is not None and spec.read_only and spec.target != "planned":
                 tools.append(_observe_tool(name, spec.args))
+        for name, tool in self.local_tools.items():
+            tools.append(
+                {
+                    "type": "function",
+                    "name": name,
+                    "description": tool.description,
+                    "parameters": {
+                        "type": "object",
+                        "properties": {arg: {"type": "string"} for arg in tool.args},
+                        "required": list(tool.args),
+                        "additionalProperties": False,
+                    },
+                }
+            )
         for name in self.config.multiagent:
             tools.append(
                 {
@@ -245,6 +277,9 @@ class AgentRuntime:
                 return json.dumps({"error": str(exc)})
             touched.references.append(f"{skill}/{file}")
             return json.dumps({"skill": skill, "file": file, "content": content})
+        if name in self.local_tools:
+            touched.tools.append(name)
+            return await self.local_tools[name].handler(args)
         if name.startswith(DELEGATE_PREFIX):
             sub = name[len(DELEGATE_PREFIX) :]
             delegate = self.delegates.get(sub)

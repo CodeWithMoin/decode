@@ -31,6 +31,9 @@
       ],
       "@decode/motion-api": [
         "./src/decode/motion-api/index.ts"
+      ],
+      "@decode/seeds/*": [
+        "../backend/decode/agents/renderer/seeds/*"
       ]
     }
   },

@@ -31,12 +31,44 @@ from ...schemas import (
     Script,
     TeachingPlan,
 )
+import json
+
 from .. import tracing
 from ..agent_config import AgentConfig
-from ..agent_runtime import AgentRuntime
+from ..agent_runtime import AgentRuntime, LocalTool
 from ..contracts import ProviderUsage
+from . import patterns
 from .prompt import CHOREOGRAPHY_SYSTEM, REPAIR_PROMPT, SKILLS, build_instructions
 from .validation import RUNTIME_VERSION, repair_message, validate_scenes
+
+
+async def _search_patterns(args: dict) -> str:
+    return json.dumps({"patterns": patterns.search(str(args.get("query", "")))})
+
+
+async def _retrieve_pattern(args: dict) -> str:
+    name = str(args.get("name", ""))
+    source = patterns.get(name)
+    if source is None:
+        return json.dumps({"error": f"no pattern named {name!r}", "available": patterns.available()})
+    return json.dumps({"name": name, "source": source})
+
+
+# The renderer owns the pattern library; the runtime just runs these handlers.
+PATTERN_TOOLS = {
+    "search_patterns": LocalTool(
+        "Search the animation pattern library by keyword. Returns matching patterns as "
+        "[{name, description}] — use it to find the pattern whose shape fits the beat.",
+        ("query",),
+        _search_patterns,
+    ),
+    "retrieve_pattern": LocalTool(
+        "Retrieve one pattern's full TSX source to edit, by name. Returns {name, source}, "
+        "or {error, available} if the name is unknown — then pick a name from `available`.",
+        ("name",),
+        _retrieve_pattern,
+    ),
+}
 
 
 class SceneDraft(BaseModel):
@@ -86,6 +118,7 @@ class ModelVisualizer:
             config.model_copy(
                 update={"model": config.model.model_copy(update={"id": settings.openai_model})}
             ),
+            local_tools=PATTERN_TOOLS,
         )
         self.model = settings.openai_model
         self.last_usage: ProviderUsage | None = None

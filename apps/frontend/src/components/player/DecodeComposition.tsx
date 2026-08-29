@@ -32,74 +32,11 @@ export type DecodeCompositionProps = {
  *  fine technical grid, film grain, and a vignette. Deterministic: derived only
  *  from the palette, fixed noise seed, no animation, settled at every frame. */
 function StageBackdrop({ palette }: { palette?: import("@/lib/types").PlanPalette | null }) {
-  const accent = palette?.accent ?? "#F2A47B";
-  const support = palette?.support ?? "#8B93A7";
-  const border = palette?.border ?? "#3A3A3A";
-  const surface = palette?.surface ?? "#161616";
-  // Fixed-seed fractal noise → film grain. A data URI keeps the render
-  // self-contained (no fetch, byte-identical on every machine).
-  const grain =
-    "data:image/svg+xml;utf8," +
-    encodeURIComponent(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240">` +
-        `<filter id="g"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" stitchTiles="stitch"/>` +
-        `<feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.05 0"/></filter>` +
-        `<rect width="240" height="240" filter="url(#g)"/></svg>`,
-    );
-  return (
-    <AbsoluteFill style={{ backgroundColor: "#0B0B0B" }}>
-      {/* The ground: a slow diagonal ramp out of the palette's surface hue, so
-          the stage is that world's darkness rather than a generic black. */}
-      <AbsoluteFill
-        style={{
-          background: `linear-gradient(160deg, ${surface}66 0%, #0B0B0B 42%, #0B0B0B 62%, ${surface}4D 100%)`,
-        }}
-      />
-      {/* The mesh: overlapping color fields in the project's own hues. Present
-          enough to be seen, still a full step below content contrast. */}
-      <AbsoluteFill
-        style={{
-          background: [
-            `radial-gradient(1100px 750px at 14% 4%, ${accent}2E, transparent 68%)`,
-            `radial-gradient(900px 650px at 96% 30%, ${support}1F, transparent 70%)`,
-            `radial-gradient(1300px 850px at 78% 100%, ${accent}1A, transparent 72%)`,
-            `radial-gradient(800px 600px at 4% 78%, ${support}24, transparent 70%)`,
-            // Center lift keeps the picture zone a step above the edges.
-            `radial-gradient(1500px 950px at 50% 46%, #FFFFFF07, transparent 74%)`,
-          ].join(", "),
-        }}
-      />
-      {/* The craft layer: a fine technical grid in the palette's border hue,
-          faded out toward the edges so it reads as a drafting surface. */}
-      <AbsoluteFill
-        style={{
-          backgroundImage: [
-            `linear-gradient(${border}14 1px, transparent 1px)`,
-            `linear-gradient(90deg, ${border}14 1px, transparent 1px)`,
-          ].join(", "),
-          backgroundSize: "96px 96px, 96px 96px",
-          backgroundPosition: "center center",
-          maskImage: "radial-gradient(120% 100% at 50% 46%, #000 30%, transparent 78%)",
-          WebkitMaskImage: "radial-gradient(120% 100% at 50% 46%, #000 30%, transparent 78%)",
-        }}
-      />
-      {/* Film grain: kills banding in the gradients, gives the black some tooth. */}
-      <AbsoluteFill
-        style={{
-          backgroundImage: `url("${grain}")`,
-          backgroundRepeat: "repeat",
-          mixBlendMode: "overlay",
-          opacity: 0.5,
-        }}
-      />
-      {/* Vignette: keeps eyes in the safe area, hides the frame's hard edge. */}
-      <AbsoluteFill
-        style={{
-          background: "radial-gradient(140% 110% at 50% 50%, transparent 58%, #00000080 100%)",
-        }}
-      />
-    </AbsoluteFill>
-  );
+  // Flat solid ground — the taste direction is one surface colour (white), no
+  // gradient mesh, technical grid, film grain or vignette. Scenes paint their
+  // own surface too, so crossfades stay on the same clean ground.
+  const surface = palette?.surface ?? "#ffffff";
+  return <AbsoluteFill style={{ backgroundColor: surface }} />;
 }
 
 export function getDecodeDurationInFrames(scenes: Scene[]) {
@@ -187,19 +124,23 @@ function DecodeScene({
         easing: Easing.in(Easing.poly(4)),
       })
     : 0;
-  const seamOpacity = Math.min(1, seamIn * 0.65 + 0.35) * (1 - seamOut * 0.85);
-  const seamX = (1 - seamIn) * 230 - seamOut * 230;
-  const seamBlur = Math.max((1 - seamIn) * 8, seamOut * 8);
+  // Clean crossfade at the seam: outgoing fades 1->0 while incoming fades 0->1,
+  // so the two overlapping scenes sum to a steady frame. No slide, no blur.
+  const seamOpacity = seamIn * (1 - seamOut);
   const opacity = Math.min(fadeInOpacity, fadeOutOpacity) * seamOpacity;
 
   // A connected scene brings its own animation as code. Everything below is the
   // prototype's chip stand-in for a visual that does not exist yet, so a scene
   // that has the real thing skips it.
+  // NO scene-level push-in: scaling from centre creeps every off-centre element,
+  // and the seam resets it to 1.0 while the outgoing scene sits at 1.016 — the
+  // crossfade then blends the same title at two positions and it reads as a bounce.
+  // Motion lives in the narration-timed content reveals, which never move the frame.
   const hostStyle: React.CSSProperties = {
-    translate: `${style.x + seamX}px ${style.y}px`,
+    translate: `${style.x}px ${style.y}px`,
     scale: style.scale / 100,
     opacity: opacity * (style.opacity / 100),
-    filter: style.blur + seamBlur > 0 ? `blur(${style.blur + seamBlur}px)` : undefined,
+    filter: style.blur > 0 ? `blur(${style.blur}px)` : undefined,
   };
 
   // A HyperFrames scene is the render substrate replacing Remotion: play its

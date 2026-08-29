@@ -1,5 +1,6 @@
 import type { CSSProperties, HTMLAttributes, ReactNode, RefObject, SVGProps } from "react";
 import { Children, Fragment, useLayoutEffect, useRef } from "react";
+import { regionAnchor, type PlaceRegion } from "./taste";
 import {
   AddressBook,
   ArrowRight,
@@ -105,6 +106,11 @@ export const interpolateColors = ((...args: Parameters<typeof remotionInterpolat
  * typography and deterministic-geometry helpers. Composition registration,
  * players and render infrastructure remain host concerns and are not exported.
  */
+
+// The taste layer — tokens + pre-styled components the model composes instead
+// of hand-styling raw divs. Edit `decode/taste.tsx` to drive the look.
+export { tokens, Node, Arrow, Plot, Chart, Matrix, Table, DataTable, Statement, Stat, Network, Tree, Graph, Cells, Term, Code, Equation, NumberLine, Axes2D, Timeline, Spectrum, Travel, Pointer, Morph, Flow, Venn, Meter, Place, BlockDiagram, MatrixOp, SequenceLinks, Callout, Density, SplitPanel, splitPanelCenters, Derivation, LossLandscape, Unroll, MarkerHighlight, Terminal, ScribbleCircle, CheckList } from "./taste";
+export type { Tokens, ConceptColor, PlaceRegion } from "./taste";
 
 export {
   AbsoluteFill,
@@ -328,6 +334,8 @@ export function Label({
   family = "Inter, system-ui, sans-serif",
   letterSpacing,
   opacity,
+  region,
+  at,
   style,
 }: {
   text: string;
@@ -338,8 +346,18 @@ export function Label({
   family?: string;
   letterSpacing?: CSSProperties["letterSpacing"];
   opacity?: number;
+  // Placement, same vocabulary as <Place>. Given either, the text is absolutely
+  // centred on that anchor (an axis title, a caption under a chart, a corner note).
+  // WITHOUT either, Label sits in normal flow at the top-left — the scene header;
+  // multiple unplaced Labels stack there, so place anything that is not the header.
+  region?: PlaceRegion;
+  at?: { x: number; y: number };
   style?: CSSProperties;
 }) {
+  const anchor = region !== undefined || at !== undefined ? regionAnchor(region ?? "center", at) : null;
+  const placeStyle: CSSProperties = anchor
+    ? { position: "absolute", left: anchor.x, top: anchor.y, transform: "translate(-50%, -50%)", textAlign: "center" }
+    : {};
   // 20px is the readability floor (SCENE-DESIGN-RULES §4) — shrinking below it
   // silently defeated the validation gate, which only sees the literal size
   // prop. Text that cannot fit one line at the floor wraps to two lines
@@ -381,6 +399,7 @@ export function Label({
         opacity,
         whiteSpace: maxWidth && !wrapped ? "nowrap" : undefined,
         ...(wrapped ? { maxWidth, lineHeight: 1.35, textAlign: "center" as const } : {}),
+        ...placeStyle,
         ...style,
       }}
     >
@@ -781,6 +800,25 @@ export function clamp(value: number, minimum: number, maximum: number): number {
 
 export function mix(from: number, to: number, progress: number): number {
   return q(from + (to - from) * progress);
+}
+
+// Piecewise build progress for a STAGED reveal: pass the narration times that name
+// each step, in order (each from wordAt(); null if a word wasn't found). Returns a
+// 0..1 progress that reaches (i+1)/n right as step i is spoken — so a BlockDiagram,
+// CheckList, list, etc. assembles PIECE BY PIECE in sync with the words instead of
+// sweeping once. Each step eases in over `lead`s before its word; the last holds for
+// `tail`s. Falls back to a plain linear ramp from the first known cue if any is
+// missing. This is how a scene stays alive: things land as they are named.
+export function stagger(now: number, cues: (number | null)[], lead = 0.5, tail = 1.2): number {
+  const n = cues.length;
+  const t0 = cues.find((c): c is number => c != null);
+  if (n === 0 || t0 == null || cues.some((c) => c == null))
+    return clamp((now - (t0 ?? 0)) / 4, 0, 1); // linear fallback
+  const t = cues as number[];
+  const ins = [t[0] - lead, ...t, t[n - 1] + tail];
+  const outs = [0, ...t.map((_, i) => (i + 1) / n), 1];
+  for (let i = 1; i < ins.length; i++) if (ins[i] <= ins[i - 1]) ins[i] = ins[i - 1] + 0.01;
+  return interpolate(now, ins, outs, { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
 }
 
 export function insetRect(rect: Rect, insetX: number, insetY = insetX): Rect {
@@ -1504,12 +1542,28 @@ function describeBox(el: HTMLElement): string {
   return text ? text.slice(0, 40) : (el.dataset.decodeBox ?? "element");
 }
 
+/**
+ * The named easing menu — pick by feel, not by bezier numbers (the AE
+ * interpolation chart, in code). `linear` moves evenly; `easeIn` starts slow,
+ * `easeOut` ends slow, `easeInOut` (Easy Ease) does both; `soft` is a gentler
+ * easeOut for entrances; `anticipate` dips back before moving; `bounce` and
+ * `elastic` overshoot and settle; `hold` snaps at the end (a step). For
+ * anything beyond these, the full Remotion `Easing` (sin, circle, exp, bezier,
+ * back, steps…) is exported — these are just the common feels named once.
+ */
 export const EASE_PRESETS = {
   linear: Easing.linear,
+  easeIn: Easing.bezier(0.42, 0, 1, 1),
   easeOut: Easing.bezier(0.22, 1, 0.36, 1),
   easeInOut: Easing.bezier(0.65, 0, 0.35, 1),
   soft: Easing.bezier(0.16, 1, 0.3, 1),
+  anticipate: Easing.back(1.6),
+  bounce: Easing.bounce,
+  elastic: Easing.elastic(1),
+  hold: Easing.step1,
 } as const;
+
+export type EasePreset = keyof typeof EASE_PRESETS;
 
 /** Named feels for `useSpring({ config })`, the way EASE_PRESETS names curves. */
 export const SPRING_PRESETS = {
