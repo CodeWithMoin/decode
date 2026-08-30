@@ -22,6 +22,7 @@ import shutil
 import subprocess
 import uuid
 from pathlib import Path
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -264,10 +265,13 @@ async def vision_verdict(
             client = AsyncOpenAI(api_key=settings.openai_api_key, base_url=settings.openai_base_url)
             images = [{"type": "input_image", "image_url": url} for url in data_urls]
             content = [{"type": "input_text", "text": user_text}, *images]
+            # list[Any]: the Responses SDK types `input` as a union of TypedDicts a
+            # plain dict can't match cleanly — same shape agent_runtime feeds it.
+            messages: list[Any] = [{"role": "user", "content": content}]
             response = await client.responses.parse(
                 model=settings.openai_model,
                 instructions=system,
-                input=[{"role": "user", "content": content}],
+                input=messages,
                 text_format=VisionVerdict,
             )
             return response.output_parsed

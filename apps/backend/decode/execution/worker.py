@@ -1,4 +1,5 @@
 from time import perf_counter
+from typing import Any, cast
 
 from arq import cron
 from arq.connections import RedisSettings
@@ -350,7 +351,9 @@ async def _startup(_ctx: dict) -> None:
 
 class WorkerSettings:
     functions = [execute_run, execute_task]
-    cron_jobs = [cron(reconcile_stale_graph_tasks, second=0)]
+    # cast: the task is also callable manually (a None-default ctx for tests), so
+    # its type is wider than arq's cron stub wants; the runtime shape is correct.
+    cron_jobs = [cron(cast(Any, reconcile_stale_graph_tasks), second=0)]
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
     max_jobs = 10
     # Wide enough for generation + the vision gate's still render and one
