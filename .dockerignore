@@ -1,0 +1,22 @@
+# Keep the build context small and free of host-built artifacts, so the image's
+# fresh `npm ci` / `uv sync` win and native modules aren't copied from a mac host.
+**/node_modules
+**/.next
+**/.next-check
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/.remotion
+.git
+.claude/worktrees
+.data
+**/.data
+# scratch render artifacts
+**/*.mp4
+**/*.png
+**/*.jpg
+apps/backend/scripts/*_out
+apps/frontend/out
