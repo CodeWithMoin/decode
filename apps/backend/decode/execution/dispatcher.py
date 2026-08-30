@@ -38,11 +38,13 @@ async def dispatch_once(redis: ArqRedis) -> int:
                 await redis.enqueue_job("execute_run", run_id, _job_id=f"run:{run_id}")
             elif event.topic == "task.execute":
                 task_id, attempt = event.payload["task_id"], event.payload["attempt"]
+                delivery = int(event.payload.get("delivery", 1))
                 await redis.enqueue_job(
                     "execute_task",
                     task_id,
                     attempt,
-                    _job_id=f"task:{task_id}:attempt:{attempt}",
+                    delivery,
+                    _job_id=f"task:{task_id}:attempt:{attempt}:delivery:{delivery}",
                 )
             else:
                 raise ValueError(f"unknown outbox topic {event.topic!r}")

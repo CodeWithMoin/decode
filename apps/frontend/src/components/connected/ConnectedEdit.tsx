@@ -166,7 +166,7 @@ function eventMessage(event: ProjectEvent): string | null {
   if (event.type === "run.progress") return null;
   if (event.type === "production.graph.started") {
     const count = Number(data.scene_count ?? 0);
-    return `Building ${count} scene${count === 1 ? "" : "s"} in parallel`;
+    return `Directing the visual flow, then building ${count} scene${count === 1 ? "" : "s"} in parallel`;
   }
   if (event.type === "production.scene.candidate.ready") {
     // Named in onEvent with the scene's title; this is only the fallback.
@@ -182,6 +182,12 @@ function eventMessage(event: ProjectEvent): string | null {
     return reason || null;
   }
   if (event.type === "production.task.retrying") {
+    if (data.kind === "design_visual_direction") {
+      return "The visual flow failed its check — retrying it before scene work begins";
+    }
+    if (data.kind === "assemble_scene_visuals") {
+      return "The cut failed its assembly check — retrying without rebuilding the scenes";
+    }
     return "One scene failed its check — retrying just that scene";
   }
   if (event.type === "production.scene.degraded") {

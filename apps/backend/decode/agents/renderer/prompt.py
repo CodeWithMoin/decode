@@ -46,6 +46,12 @@ visual idea and composition. Return the complete corrected scene draft."""
 
 CHOREOGRAPHY_GUIDANCE = """## Build each beat by composing Decode's components
 
+When a beat includes `storyboard`, `film_rhythm`, and handoffs, they are the
+authoritative pre-render direction. Implement the named semantic subjects and
+operations in their declared order. The incoming and outgoing handoffs constrain
+the scene's opening and closing states. You choose the pattern, components,
+geometry, and interpolation, but you do not rewrite the storyboard or narration.
+
 ### 1. HARD CONTRACT — read first (this is where generation fails)
 - Use ONLY the components listed in section 3, imported from `@decode/animation-api`, with EXACTLY
   the props shown. NEVER invent a component (there is no `Connector`, `Panel`, `Diagram`, `Box`) or

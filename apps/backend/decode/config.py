@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     intake: str = "fake"
     architect: str = "fake"
     author: str = "fake"
+    # "auto" follows the Visualizer provider so an existing real-renderer
+    # deployment cannot silently gain fixture direction after an upgrade.
+    visual_director: str = "auto"
     visualizer: str = "fake"
     # The visualizer's output substrate: "off" emits raw Remotion f(frame)
     # modules (the shipped path, byte-identical); "auto" emits a relational cast

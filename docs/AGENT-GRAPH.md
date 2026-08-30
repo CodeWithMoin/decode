@@ -288,17 +288,22 @@ Checked against the code and confirmed, so the migration builds on them:
   identifier are the contract, not the role, so renaming them would be a data/config
   migration for no gain. Internal code symbols (`OpenAIVisualizer`, the `Visualizer`
   protocol, the folder) may be renamed later as a cosmetic pass, or left.
-   **Storyboard Artist** ("what should appear") is a *future* split — today the
-   Motion Designer also carries it, seeded by the plan's `visual_opportunity`.
+   Visual direction is now a separate pre-render task under the Motion Designer:
+   it establishes the project bible, film rhythm, per-beat storyboard, semantic
+   choreography and scene handoffs before renderer tasks choose components.
 
 ## 11. Compatibility slice shipped
 
 The first durable graph slice runs inside the current artifact model rather than
 waiting for the snapshot migration in §8:
 
-- `generate_scene_visuals` creates one durable `design_scene` task per plan beat.
-  Those tasks are immediately ready and ARQ may execute up to the worker's
-  configured concurrency limit in parallel.
+- `generate_scene_visuals` first creates one durable `design_visual_direction`
+  task. Scene tasks remain pending until its typed output validates against the
+  exact approved Plan and Script. Its success stores direction and releases all
+  dependent scenes atomically.
+- The graph then runs one durable `design_scene` task per plan beat. Each receives
+  only its focused storyboard, rhythm entry and adjacent handoffs; ARQ may execute
+  them up to the worker's configured concurrency limit in parallel.
 - A successful `design_scene` task is a durable candidate, not an applied scene.
   Edit reads candidates from `GET /jobs/{job_id}/scene-candidates`, previews the
   real Remotion source, and accepts the exact source the creator reviewed through
@@ -320,6 +325,14 @@ waiting for the snapshot migration in §8:
   `production.graph.started`, `production.task.*`, and
   `production.scene.candidate.{ready,accepted}`. `GET /jobs/{job_id}` includes the
   current task projections and their acceptance timestamps.
+- A periodic lease reconciler requeues graph tasks abandoned by a dead worker.
+  Direction usage is recorded when direction succeeds, rather than waiting for
+  final assembly, so downstream cancellation does not erase that spend.
+
+Rolling deploys must drain old workers before graph creation is enabled on the new
+release. `design_visual_direction` is a new internal task kind; an older worker does
+not know how to dispatch it. The deployment remains drain-before-replace until task
+queues become explicitly versioned.
 
 This is deliberately not the §8 state migration. Existing lineage, approvals,
 studio projections, and downstream voice generation continue to consume the same

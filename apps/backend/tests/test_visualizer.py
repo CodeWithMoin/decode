@@ -215,6 +215,45 @@ async def test_the_fixture_writes_scenes_that_pass_their_own_gate():
     assert visuals.scenes[0].composition_html is None
 
 
+async def test_model_renderer_receives_only_focused_pre_render_direction(monkeypatch):
+    import decode.agents.renderer as renderer_module
+    from decode.agents.contracts import FocusedVisualDirection
+    from decode.agents.fixtures import FakeAuthor, FakeVisualDirector
+    from decode.agents.renderer import ModelVisualizer
+
+    script = await FakeAuthor().generate(INTENT, PLAN)
+    direction = await FakeVisualDirector().generate(INTENT, PLAN, script)
+    focus = FocusedVisualDirection(
+        bible=direction.bible,
+        rhythm=direction.rhythm.beats[0],
+        storyboard=direction.storyboards[0],
+        incoming_handoff=None,
+        outgoing_handoff=None,
+    )
+    captured = {}
+
+    def capture_instructions(**kwargs):
+        captured.update(kwargs)
+        return "captured"
+
+    async def fake_author(instructions, plan, audience, palette=None):
+        assert instructions == "captured"
+        return [scene()], "Rendered the focused storyboard.", {"ran": False}
+
+    designer = ModelVisualizer(Settings(openai_api_key="test-key", visualizer="openai"))
+    monkeypatch.setattr(renderer_module, "build_instructions", capture_instructions)
+    monkeypatch.setattr(designer, "_author", fake_author)
+    await designer.generate(INTENT, PLAN, script, focused_direction=focus)
+
+    assert captured["visual_direction"]["visual_bible"] == direction.bible.model_dump(
+        mode="json"
+    )
+    assert captured["beats"][0]["storyboard"]["beat_id"] == "beat-01"
+    assert captured["beats"][0]["film_rhythm"]["beat_id"] == "beat-01"
+    assert captured["beats"][0]["incoming_handoff"] is None
+    assert captured["beats"][0]["outgoing_handoff"] is None
+
+
 def test_renderer_config_keeps_the_persisted_scene_visuals_name():
     from decode.agents.agent_config import AgentConfig
     from decode.agents.agent_runtime import SkillLibrary

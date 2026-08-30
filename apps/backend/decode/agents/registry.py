@@ -12,13 +12,22 @@ role a department wears is declared in its SKILL.md instead.
 from __future__ import annotations
 
 from ..config import Settings
-from .contracts import Architect, Author, Evaluator, Intake, Narrator, Visualizer
+from .contracts import (
+    Architect,
+    Author,
+    Evaluator,
+    Intake,
+    Narrator,
+    VisualDirector,
+    Visualizer,
+)
 from .fixtures import (
     FakeArchitect,
     FakeAuthor,
     FakeEvaluator,
     FakeIntake,
     FakeNarrator,
+    FakeVisualDirector,
     FakeVisualizer,
 )
 
@@ -55,6 +64,19 @@ def author(settings: Settings) -> Author:
 
         return build_author(settings)
     raise ValueError(f"unknown author provider: {settings.author!r}")
+
+
+def visual_director(settings: Settings) -> VisualDirector:
+    provider = (
+        "openai" if settings.visualizer == "openai" else "fake"
+    ) if settings.visual_director == "auto" else settings.visual_director
+    if provider == "fake":
+        return FakeVisualDirector()
+    if provider == "openai":
+        from .visual_director import build as build_visual_director
+
+        return build_visual_director(settings)
+    raise ValueError(f"unknown visual director provider: {provider!r}")
 
 
 def visualizer(settings: Settings) -> Visualizer:

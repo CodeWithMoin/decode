@@ -16,7 +16,8 @@ from time import perf_counter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..agents.registry import visualizer
+from ..agents.contracts import FocusedVisualDirection
+from ..agents.registry import visual_director, visualizer
 from ..agents.renderer.validation import validate_scenes
 from ..agents.renderer.vision import vision_verdict
 from ..config import get_settings
@@ -38,11 +39,13 @@ from ..models import (
     UsageRecord,
 )
 from ..pricing import resolve_cost
-from ..schemas import SceneModule, SceneVisuals
+from ..schemas import SceneModule, SceneVisuals, VisualDirection
+from ..visual_direction import validate_visual_direction
 from .context import VisualizerContext, context_assembler
 from .pipeline import continue_chain, stage_for, stage_provider
 from .throttle import model_call_gate
 
+VISUAL_DIRECTION_TASK = "design_visual_direction"
 SCENE_TASK = "design_scene"
 ASSEMBLY_TASK = "assemble_scene_visuals"
 GRAPH_JOB_KINDS = frozenset({"generate_scene_visuals"})
@@ -62,6 +65,15 @@ SCENE_GENERATION_TIMEOUT_SECONDS = 240
 # letting a stubborn scene spin. The static gates already passed, so a scene
 # that never satisfies the vision judge still ships and the creator re-directs.
 VISION_MAX_ROUNDS = 3
+
+
+class MeteredTaskError(RuntimeError):
+    """A failed provider call whose reported spend must survive the retry path."""
+
+    def __init__(self, message: str, usage: dict, department: str):
+        super().__init__(message)
+        self.usage = usage
+        self.department = department
 
 
 def is_graph_job(kind: str) -> bool:
@@ -90,23 +102,103 @@ async def _visualizer_context(
     return context, inputs
 
 
+def _focus_visual_direction(
+    direction: VisualDirection, beat_id: str
+) -> FocusedVisualDirection:
+    storyboard = next(
+        (item for item in direction.storyboards if item.beat_id == beat_id), None
+    )
+    rhythm = next((item for item in direction.rhythm.beats if item.beat_id == beat_id), None)
+    if storyboard is None or rhythm is None:
+        raise ValueError(f"visual direction has no focused entry for {beat_id!r}")
+    return FocusedVisualDirection(
+        bible=direction.bible,
+        rhythm=rhythm,
+        storyboard=storyboard,
+        incoming_handoff=next(
+            (item for item in direction.handoffs if item.to_beat_id == beat_id), None
+        ),
+        outgoing_handoff=next(
+            (item for item in direction.handoffs if item.from_beat_id == beat_id), None
+        ),
+    )
+
+
+async def _visual_direction_for_run(
+    session: AsyncSession, run_id: str
+) -> VisualDirection | None:
+    task = await session.scalar(
+        select(ProductionTask).where(
+            ProductionTask.run_id == run_id,
+            ProductionTask.kind == VISUAL_DIRECTION_TASK,
+        )
+    )
+    # Existing in-flight graphs created before this task shipped remain runnable.
+    if task is None:
+        return None
+    if task.status != TaskStatus.SUCCEEDED or task.output is None:
+        raise ValueError("scene work started before visual direction succeeded")
+    return VisualDirection.model_validate(task.output["visual_direction"])
+
+
 def _task_outbox(task: ProductionTask) -> OutboxEvent:
+    delivery = int(task.input.get("delivery", 1))
     return OutboxEvent(
         topic="task.execute",
         aggregate_id=task.id,
-        payload={"task_id": task.id, "attempt": task.attempt},
+        payload={"task_id": task.id, "attempt": task.attempt, "delivery": delivery},
         priority=task.priority,
     )
+
+
+async def _lock_run_context(session: AsyncSession, run_id: str) -> tuple[Run, Job] | None:
+    """Lock graph state in the one global order: job -> run."""
+
+    identity = await session.get(Run, run_id)
+    if identity is None:
+        return None
+    job = await session.scalar(select(Job).where(Job.id == identity.job_id).with_for_update())
+    run = await session.scalar(
+        select(Run)
+        .where(Run.id == run_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if job is None or run is None:
+        return None
+    return run, job
+
+
+async def _lock_task_context(
+    session: AsyncSession, task_id: str
+) -> tuple[ProductionTask, Run, Job] | None:
+    """Lock graph state in the one global order: job -> run -> task."""
+
+    identity = await session.get(ProductionTask, task_id)
+    if identity is None:
+        return None
+    locked = await _lock_run_context(session, identity.run_id)
+    if locked is None:
+        return None
+    run, job = locked
+    task = await session.scalar(
+        select(ProductionTask)
+        .where(ProductionTask.id == task_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if task is None:
+        return None
+    return task, run, job
 
 
 async def start_scene_graph(run_id: str) -> dict:
     """Create scene nodes once and queue every initially-ready node atomically."""
     async with SessionLocal() as session:
-        run = await session.scalar(select(Run).where(Run.id == run_id).with_for_update())
-        if run is None:
+        locked = await _lock_run_context(session, run_id)
+        if locked is None:
             return {"status": "missing"}
-        job = await session.scalar(select(Job).where(Job.id == run.job_id).with_for_update())
-        assert job is not None
+        run, job = locked
         if job.active_run_id != run.id:
             return {"status": "stale_run"}
         if run.status == ExecutionStatus.CANCELLED:
@@ -123,7 +215,7 @@ async def start_scene_graph(run_id: str) -> dict:
             # (Redis flush, dropped publish) or a RUNNING task whose worker died
             # would otherwise sit unclaimed forever while the project shows
             # "processing". Re-outboxing is idempotent — the job id is
-            # task:{id}:attempt:{n} — so re-queuing live work is harmless.
+            # task:{id}:attempt:{n}:delivery:{d} — so re-queuing live work is harmless.
             requeued = 0
             stale_before = utcnow() - timedelta(seconds=STALE_TASK_LEASE_SECONDS)
             for task in existing:
@@ -132,6 +224,10 @@ async def start_scene_graph(run_id: str) -> dict:
                 ):
                     task.status = TaskStatus.QUEUED
                     task.started_at = None
+                    task.input = {
+                        **task.input,
+                        "delivery": int(task.input.get("delivery", 1)) + 1,
+                    }
                 if task.status == TaskStatus.QUEUED:
                     session.add(_task_outbox(task))
                     requeued += 1
@@ -140,14 +236,24 @@ async def start_scene_graph(run_id: str) -> dict:
             return {"status": "graph_running", "task_ids": [task.id for task in existing]}
 
         context, _ = await _visualizer_context(session, job, run)
+        direction_task = ProductionTask(
+            run_id=run.id,
+            kind=VISUAL_DIRECTION_TASK,
+            stable_key="visual_direction:project",
+            status=TaskStatus.QUEUED,
+            priority=2000,
+            attempt=1,
+            max_attempts=2,
+            input={},
+        )
         scene_tasks = [
             ProductionTask(
                 run_id=run.id,
                 kind=SCENE_TASK,
                 stable_key=f"scene:{beat.id}",
-                status=TaskStatus.QUEUED,
+                status=TaskStatus.PENDING,
                 priority=1000 - index,
-                attempt=1,
+                attempt=0,
                 max_attempts=2,
                 input={"beat_id": beat.id},
             )
@@ -164,33 +270,37 @@ async def start_scene_graph(run_id: str) -> dict:
             max_attempts=2,
             input={},
         )
-        session.add_all([*scene_tasks, assembly])
+        session.add_all([direction_task, *scene_tasks, assembly])
         await session.flush()
         session.add_all(
             [
+                ProductionTaskDependency(
+                    task_id=scene_task.id, prerequisite_task_id=direction_task.id
+                )
+                for scene_task in scene_tasks
+            ]
+            + [
                 ProductionTaskDependency(
                     task_id=assembly.id, prerequisite_task_id=scene_task.id
                 )
                 for scene_task in scene_tasks
             ]
         )
-        for task in scene_tasks:
-            session.add(_task_outbox(task))
-            await emit(
-                session,
-                job.project_id,
-                "production.task.queued",
-                job_id=job.id,
-                run_id=run.id,
-                data={
-                    "task_id": task.id,
-                    "kind": task.kind,
-                    "beat_id": task.input["beat_id"],
-                    "priority": task.priority,
-                    "attempt": task.attempt,
-                    "message": f"Motion Designer queued for {task.input['beat_id']}",
-                },
-            )
+        session.add(_task_outbox(direction_task))
+        await emit(
+            session,
+            job.project_id,
+            "production.task.queued",
+            job_id=job.id,
+            run_id=run.id,
+            data={
+                "task_id": direction_task.id,
+                "kind": direction_task.kind,
+                "priority": direction_task.priority,
+                "attempt": direction_task.attempt,
+                "message": "Motion Designer queued to direct the visual flow",
+            },
+        )
         await emit(
             session,
             job.project_id,
@@ -199,32 +309,36 @@ async def start_scene_graph(run_id: str) -> dict:
             run_id=run.id,
             data={
                 "scene_count": len(scene_tasks),
-                "task_count": len(scene_tasks) + 1,
-                "message": f"Designing {len(scene_tasks)} scenes in parallel",
+                "task_count": len(scene_tasks) + 2,
+                "message": (
+                    "Directing the visual flow, then building "
+                    f"{len(scene_tasks)} scenes in parallel"
+                ),
             },
         )
         await session.commit()
         return {
             "status": "scheduled",
             "task_ids": [task.id for task in scene_tasks],
+            "direction_task_id": direction_task.id,
             "assembly_task_id": assembly.id,
         }
 
 
-async def _claim_task(task_id: str, expected_attempt: int) -> tuple[str, str] | dict:
+async def _claim_task(
+    task_id: str, expected_attempt: int, expected_delivery: int
+) -> tuple[str, str] | dict:
     async with SessionLocal() as session:
-        task = await session.scalar(
-            select(ProductionTask).where(ProductionTask.id == task_id).with_for_update()
-        )
-        if task is None:
+        locked = await _lock_task_context(session, task_id)
+        if locked is None:
             return {"status": "missing"}
-        run = await session.scalar(select(Run).where(Run.id == task.run_id).with_for_update())
-        assert run is not None
-        job = await session.scalar(select(Job).where(Job.id == run.job_id).with_for_update())
-        assert job is not None
+        task, run, job = locked
         if job.active_run_id != run.id:
             return {"status": "stale_run"}
-        if task.attempt != expected_attempt:
+        if (
+            task.attempt != expected_attempt
+            or int(task.input.get("delivery", 1)) != expected_delivery
+        ):
             return {"status": "stale_task"}
         if task.status == TaskStatus.SUCCEEDED:
             return {"status": "already_succeeded"}
@@ -257,7 +371,9 @@ async def _claim_task(task_id: str, expected_attempt: int) -> tuple[str, str] | 
                 "beat_id": task.input.get("beat_id"),
                 "attempt": task.attempt,
                 "message": (
-                    f"Designing {task.input['beat_id']}"
+                    "Directing the production's visual flow"
+                    if task.kind == VISUAL_DIRECTION_TASK
+                    else f"Designing {task.input['beat_id']}"
                     if task.kind == SCENE_TASK
                     else "Assembling the production"
                 ),
@@ -265,6 +381,170 @@ async def _claim_task(task_id: str, expected_attempt: int) -> tuple[str, str] | 
         )
         await session.commit()
         return task.kind, run.id
+
+
+async def _run_visual_direction_task(task_id: str, run_id: str) -> dict:
+    async with SessionLocal() as session:
+        task = await session.get(ProductionTask, task_id)
+        run = await session.get(Run, run_id)
+        assert task is not None and run is not None
+        job = await session.get(Job, run.job_id)
+        assert job is not None
+        context, _ = await _visualizer_context(session, job, run)
+
+    director = visual_director(get_settings())
+    started = perf_counter()
+    try:
+        async with asyncio.timeout(SCENE_GENERATION_TIMEOUT_SECONDS), model_call_gate():
+            direction = await director.generate(context.intent, context.plan, context.script)
+    except Exception as exc:
+        usage = director.last_usage
+        if usage is not None:
+            raise MeteredTaskError(
+                str(exc),
+                {
+                    "model": usage.model,
+                    "input_tokens": usage.input_tokens,
+                    "output_tokens": usage.output_tokens,
+                    "cost_usd": usage.cost_usd,
+                    "duration_ms": int((perf_counter() - started) * 1000),
+                },
+                director.identifier,
+            ) from exc
+        raise
+    generation_ms = int((perf_counter() - started) * 1000)
+    violations = validate_visual_direction(direction, context.plan, context.script)
+    if violations:
+        codes = ", ".join(item["code"] for item in violations)
+        raise ValueError(f"visual direction failed source validation: {codes}")
+    usage = director.last_usage
+    return {
+        "visual_direction": direction.model_dump(mode="json"),
+        "department": director.identifier,
+        "usage": {
+            "model": usage.model if usage else None,
+            "input_tokens": usage.input_tokens if usage else None,
+            "output_tokens": usage.output_tokens if usage else None,
+            "cost_usd": usage.cost_usd if usage else None,
+            "duration_ms": generation_ms,
+        },
+    }
+
+
+def _record_visual_direction_usage(
+    session: AsyncSession, job: Job, run: Run, output: dict
+) -> None:
+    usage = output.get("usage", {})
+    settings = get_settings()
+    direction_provider = (
+        settings.visualizer if settings.visual_director == "auto" else settings.visual_director
+    )
+    session.add(
+        UsageRecord(
+            job_id=job.id,
+            run_id=run.id,
+            artifact_version_id=None,
+            provider=direction_provider,
+            operation="visual_direction_generation",
+            model=usage.get("model") or output.get("department"),
+            input_tokens=usage.get("input_tokens"),
+            output_tokens=usage.get("output_tokens"),
+            duration_ms=usage.get("duration_ms"),
+            estimated_cost_usd=resolve_cost(
+                usage.get("cost_usd"),
+                usage.get("model"),
+                usage.get("input_tokens"),
+                usage.get("output_tokens"),
+            ),
+        )
+    )
+
+
+async def _complete_visual_direction_task(
+    task_id: str, expected_attempt: int, expected_delivery: int, output: dict
+) -> dict:
+    async with SessionLocal() as session:
+        locked = await _lock_task_context(session, task_id)
+        assert locked is not None
+        task, run, job = locked
+        if (
+            job.active_run_id != run.id
+            or task.attempt != expected_attempt
+            or int(task.input.get("delivery", 1)) != expected_delivery
+        ):
+            return {"status": "stale_task"}
+        if task.status == TaskStatus.CANCELLED or run.status == ExecutionStatus.CANCELLED:
+            # The provider already completed and charged for this result. Record
+            # spend even though cancellation correctly discards the direction.
+            _record_visual_direction_usage(session, job, run, output)
+            await session.commit()
+            return {"status": "cancelled"}
+        if task.status != TaskStatus.RUNNING:
+            return {"status": task.status}
+
+        direction = VisualDirection.model_validate(output["visual_direction"])
+        context, _ = await _visualizer_context(session, job, run)
+        violations = validate_visual_direction(direction, context.plan, context.script)
+        if violations:
+            codes = ", ".join(item["code"] for item in violations)
+            raise ValueError(f"visual direction failed completion validation: {codes}")
+
+        task.output = output
+        task.status = TaskStatus.SUCCEEDED
+        task.finished_at = utcnow()
+        _record_visual_direction_usage(session, job, run, output)
+        dependent_ids = list(
+            (
+                await session.scalars(
+                    select(ProductionTaskDependency.task_id).where(
+                        ProductionTaskDependency.prerequisite_task_id == task.id
+                    )
+                )
+            ).all()
+        )
+        dependents = list(
+            (
+                await session.scalars(
+                    select(ProductionTask).where(ProductionTask.id.in_(dependent_ids))
+                )
+            ).all()
+        )
+        for scene_task in dependents:
+            if scene_task.status != TaskStatus.PENDING:
+                continue
+            scene_task.status = TaskStatus.QUEUED
+            scene_task.attempt = 1
+            session.add(_task_outbox(scene_task))
+            await emit(
+                session,
+                job.project_id,
+                "production.task.queued",
+                job_id=job.id,
+                run_id=run.id,
+                data={
+                    "task_id": scene_task.id,
+                    "kind": scene_task.kind,
+                    "beat_id": scene_task.input["beat_id"],
+                    "priority": scene_task.priority,
+                    "attempt": scene_task.attempt,
+                    "message": f"Motion Designer queued for {scene_task.input['beat_id']}",
+                },
+            )
+        await emit(
+            session,
+            job.project_id,
+            "production.task.succeeded",
+            job_id=job.id,
+            run_id=run.id,
+            data={
+                "task_id": task.id,
+                "kind": task.kind,
+                "attempt": task.attempt,
+                "message": "Visual flow directed; scene work can begin",
+            },
+        )
+        await session.commit()
+        return {"status": "succeeded", "task_id": task.id}
 
 
 async def _run_scene_task(task_id: str, run_id: str) -> dict:
@@ -286,6 +566,10 @@ async def _run_scene_task(task_id: str, run_id: str) -> dict:
         focused_script = context.script.model_copy(update={"beats": [narration]})
         intent = context.intent
         repair = task.input.get("repair")
+        visual_direction = await _visual_direction_for_run(session, run.id)
+        focused_direction = (
+            _focus_visual_direction(visual_direction, beat_id) if visual_direction else None
+        )
 
     # Never hold a database transaction open across a provider call. Cancellation
     # can update the task while generation is in flight; the completion check then
@@ -300,16 +584,27 @@ async def _run_scene_task(task_id: str, run_id: str) -> dict:
             # that source against the recorded violations rather than rolling
             # fresh — only the failure reason should change.
             prior = SceneVisuals.model_validate(repair["visuals"]).scenes
-            direction = (
+            repair_direction = (
                 "Fix exactly these deterministic validation violations and change "
                 "nothing else about the scene:\n"
                 + "\n".join(f"- {item['code']}: {item['message']}" for item in repair["violations"])
             )
             visuals = await designer.regenerate_one(
-                intent, focused_plan, focused_script, prior, beat_id, direction
+                intent,
+                focused_plan,
+                focused_script,
+                prior,
+                beat_id,
+                repair_direction,
+                focused_direction=focused_direction,
             )
         else:
-            visuals = await designer.generate(intent, focused_plan, focused_script)
+            visuals = await designer.generate(
+                intent,
+                focused_plan,
+                focused_script,
+                focused_direction=focused_direction,
+            )
     generation_ms = int((perf_counter() - started) * 1000)
     if len(visuals.scenes) != 1 or visuals.scenes[0].beat_id != beat_id:
         raise ValueError(f"scene task {beat_id!r} must return exactly its requested scene")
@@ -339,6 +634,7 @@ async def _run_scene_task(task_id: str, run_id: str) -> dict:
                 beat_id,
                 "A reviewer looked at the rendered frames. Fix exactly this and "
                 f"change nothing else:\n{verdict.fix_direction}",
+                focused_direction=focused_direction,
             )
         if not (len(repaired.scenes) == 1 and repaired.scenes[0].beat_id == beat_id):
             break
@@ -404,18 +700,17 @@ async def _schedule_assembly(session: AsyncSession, run: Run, job: Job) -> None:
 
 
 async def _complete_scene_task(
-    task_id: str, expected_attempt: int, output: dict
+    task_id: str, expected_attempt: int, expected_delivery: int, output: dict
 ) -> dict:
     async with SessionLocal() as session:
-        task = await session.scalar(
-            select(ProductionTask).where(ProductionTask.id == task_id).with_for_update()
-        )
-        assert task is not None
-        run = await session.scalar(select(Run).where(Run.id == task.run_id).with_for_update())
-        assert run is not None
-        job = await session.scalar(select(Job).where(Job.id == run.job_id).with_for_update())
-        assert job is not None
-        if job.active_run_id != run.id or task.attempt != expected_attempt:
+        locked = await _lock_task_context(session, task_id)
+        assert locked is not None
+        task, run, job = locked
+        if (
+            job.active_run_id != run.id
+            or task.attempt != expected_attempt
+            or int(task.input.get("delivery", 1)) != expected_delivery
+        ):
             return {"status": "stale_task"}
         if task.status == TaskStatus.CANCELLED or run.status == ExecutionStatus.CANCELLED:
             return {"status": "cancelled"}
@@ -562,20 +857,34 @@ def scene_candidate_projection(task: ProductionTask) -> dict:
     }
 
 
-async def _run_assembly_task(task_id: str, run_id: str, expected_attempt: int) -> dict:
+async def _run_assembly_task(
+    task_id: str, run_id: str, expected_attempt: int, expected_delivery: int
+) -> dict:
     async with SessionLocal() as session:
-        task = await session.scalar(
-            select(ProductionTask).where(ProductionTask.id == task_id).with_for_update()
-        )
-        run = await session.scalar(select(Run).where(Run.id == run_id).with_for_update())
-        assert task is not None and run is not None
-        job = await session.scalar(select(Job).where(Job.id == run.job_id).with_for_update())
-        assert job is not None
-        if job.active_run_id != run.id or task.attempt != expected_attempt:
+        locked = await _lock_task_context(session, task_id)
+        assert locked is not None
+        task, run, job = locked
+        if run.id != run_id:
+            return {"status": "stale_task"}
+        if (
+            job.active_run_id != run.id
+            or task.attempt != expected_attempt
+            or int(task.input.get("delivery", 1)) != expected_delivery
+        ):
             return {"status": "stale_task"}
         if task.status == TaskStatus.CANCELLED or run.status == ExecutionStatus.CANCELLED:
             return {"status": "cancelled"}
         context, inputs = await _visualizer_context(session, job, run)
+        direction_task = await session.scalar(
+            select(ProductionTask).where(
+                ProductionTask.run_id == run.id,
+                ProductionTask.kind == VISUAL_DIRECTION_TASK,
+            )
+        )
+        if direction_task is not None and (
+            direction_task.status != TaskStatus.SUCCEEDED or direction_task.output is None
+        ):
+            raise ValueError("scene assembly started before visual direction succeeded")
         scene_tasks = list(
             (
                 await session.scalars(
@@ -598,21 +907,36 @@ async def _run_assembly_task(task_id: str, run_id: str, expected_attempt: int) -
         if set(by_beat) != {beat.id for beat in context.plan.beats}:
             raise ValueError("scene assembly started before every scene candidate was accepted")
         payloads = [by_beat[beat.id].output or {} for beat in context.plan.beats]
+        direction_fixture = bool(
+            direction_task
+            and str((direction_task.output or {}).get("department", "")).startswith("fixture-")
+        )
+        renderer_fixture = any(
+            bool(payload["visuals"].get("visual_findings", {}).get("fixture"))
+            for payload in payloads
+        )
         visuals = SceneVisuals(
             rationale=(
-                f"I designed {len(payloads)} scenes independently and assembled them in the "
-                "approved teaching order."
+                (
+                    f"I directed one visual flow, built {len(payloads)} focused scenes, and "
+                    "assembled them in the approved teaching order."
+                )
+                if direction_task is not None
+                else (
+                    f"I assembled {len(payloads)} legacy scene tasks in the approved "
+                    "teaching order without project-level visual direction."
+                )
             ),
             scenes=[
                 SceneVisuals.model_validate(payload["visuals"]).scenes[0] for payload in payloads
             ],
             visual_findings={
                 "parallel": True,
-                "fixture": all(
-                    bool(payload["visuals"].get("visual_findings", {}).get("fixture"))
-                    for payload in payloads
-                ),
+                "fixture": direction_fixture or renderer_fixture,
+                "visual_direction_fixture": direction_fixture,
+                "renderer_fixture": renderer_fixture,
                 "scene_tasks": [by_beat[beat.id].id for beat in context.plan.beats],
+                "visual_direction_task_id": direction_task.id if direction_task else None,
             },
         )
         violations = validate_scenes(visuals.scenes, context.plan)
@@ -754,7 +1078,8 @@ def _degraded_scene_output(beat_id: str, title: str) -> dict:
         "    <AbsoluteFill style={{ display: 'flex', alignItems: 'center',"
         " justifyContent: 'center' }}>\n"
         "      <Stack gap={28} align=\"center\">\n"
-        f"        <Label text={json.dumps(title)} size={{72}} maxWidth={{1500}} color=\"#F5F5F5\" />\n"
+        f"        <Label text={json.dumps(title)} size={{72}} maxWidth={{1500}} "
+        'color="#F5F5F5" />\n'
         "        <Label text=\"This scene needs another pass — direct it in the chat to"
         " rebuild it.\" size={24} maxWidth={1300} color=\"#B8B8B8\" />\n"
         "      </Stack>\n"
@@ -777,19 +1102,21 @@ def _degraded_scene_output(beat_id: str, title: str) -> dict:
     }
 
 
-async def _fail_task(task_id: str, expected_attempt: int) -> dict:
+async def _fail_task(
+    task_id: str,
+    expected_attempt: int,
+    expected_delivery: int,
+    failed_usage: dict | None = None,
+    failed_department: str | None = None,
+) -> dict:
     async with SessionLocal() as session:
-        task = await session.scalar(
-            select(ProductionTask).where(ProductionTask.id == task_id).with_for_update()
-        )
-        assert task is not None
-        run = await session.scalar(select(Run).where(Run.id == task.run_id).with_for_update())
-        assert run is not None
-        job = await session.scalar(select(Job).where(Job.id == run.job_id).with_for_update())
-        assert job is not None
+        locked = await _lock_task_context(session, task_id)
+        assert locked is not None
+        task, run, job = locked
         if (
             job.active_run_id != run.id
             or task.attempt != expected_attempt
+            or int(task.input.get("delivery", 1)) != expected_delivery
             or task.status == TaskStatus.CANCELLED
             or run.status == ExecutionStatus.CANCELLED
         ):
@@ -798,13 +1125,22 @@ async def _fail_task(task_id: str, expected_attempt: int) -> dict:
         failure = {
             "code": f"{task.kind}_failed",
             "message": (
-                f"Scene design failed for {task.input.get('beat_id')}."
+                "Visual direction failed."
+                if task.kind == VISUAL_DIRECTION_TASK
+                else f"Scene design failed for {task.input.get('beat_id')}."
                 if task.kind == SCENE_TASK
                 else "Scene assembly failed."
             ),
             "retryable": retryable,
         }
         task.failure = failure
+        if task.kind == VISUAL_DIRECTION_TASK and failed_usage is not None:
+            _record_visual_direction_usage(
+                session,
+                job,
+                run,
+                {"usage": failed_usage, "department": failed_department},
+            )
         if retryable:
             task.attempt += 1
             task.status = TaskStatus.QUEUED
@@ -822,7 +1158,11 @@ async def _fail_task(task_id: str, expected_attempt: int) -> dict:
                     "kind": task.kind,
                     "beat_id": task.input.get("beat_id"),
                     "attempt": task.attempt,
-                    "message": f"Retrying {task.input.get('beat_id', 'scene assembly')}",
+                    "message": (
+                        "Retrying visual direction before scene work begins"
+                        if task.kind == VISUAL_DIRECTION_TASK
+                        else f"Retrying {task.input.get('beat_id', 'scene assembly')}"
+                    ),
                 },
             )
             await session.commit()
@@ -906,27 +1246,98 @@ async def _fail_task(task_id: str, expected_attempt: int) -> dict:
         return {"status": "failed", "failure": failure}
 
 
-async def execute_task(_ctx: dict | None, task_id: str, expected_attempt: int) -> dict:
+async def execute_task(
+    _ctx: dict | None,
+    task_id: str,
+    expected_attempt: int,
+    expected_delivery: int = 1,
+) -> dict:
     """Execute one graph node; an attempt token makes old deliveries harmless."""
-    claimed = await _claim_task(task_id, expected_attempt)
+    claimed = await _claim_task(task_id, expected_attempt, expected_delivery)
     if isinstance(claimed, dict):
         return claimed
     kind, run_id = claimed
     try:
+        if kind == VISUAL_DIRECTION_TASK:
+            output = await _run_visual_direction_task(task_id, run_id)
+            return await _complete_visual_direction_task(
+                task_id, expected_attempt, expected_delivery, output
+            )
         if kind == SCENE_TASK:
             output = await _run_scene_task(task_id, run_id)
-            return await _complete_scene_task(task_id, expected_attempt, output)
+            return await _complete_scene_task(
+                task_id, expected_attempt, expected_delivery, output
+            )
         if kind == ASSEMBLY_TASK:
-            return await _run_assembly_task(task_id, run_id, expected_attempt)
+            return await _run_assembly_task(
+                task_id, run_id, expected_attempt, expected_delivery
+            )
         raise ValueError(f"unknown production task kind {kind!r}")
-    except Exception:
+    except Exception as exc:
         # The retry/degrade paths swallow the exception — without this line a
         # build of nine placeholders leaves no trace of WHY (it happened).
         logger.exception("task %s attempt %s failed", task_id, expected_attempt)
-        result = await _fail_task(task_id, expected_attempt)
+        result = await _fail_task(
+            task_id,
+            expected_attempt,
+            expected_delivery,
+            exc.usage if isinstance(exc, MeteredTaskError) else None,
+            exc.department if isinstance(exc, MeteredTaskError) else None,
+        )
         if result["status"] == "failed":
             raise
         return result
+
+
+async def reconcile_stale_graph_tasks(_ctx: dict | None = None) -> dict:
+    """Requeue graph work abandoned by a dead worker.
+
+    Task outbox rows are one-shot. Without this periodic lease scan, a worker
+    dying after claim can leave every dependent scene pending forever.
+    """
+
+    stale_before = utcnow() - timedelta(seconds=STALE_TASK_LEASE_SECONDS)
+    requeued = 0
+    async with SessionLocal() as session:
+        candidate_ids = list(
+            (
+                await session.scalars(
+                    select(ProductionTask.id).where(
+                        ProductionTask.status == TaskStatus.RUNNING,
+                        ProductionTask.started_at < stale_before,
+                    )
+                )
+            ).all()
+        )
+        for task_id in candidate_ids:
+            locked = await _lock_task_context(session, task_id)
+            if locked is None:
+                continue
+            task, run, job = locked
+            task_stale_before = (
+                stale_before
+                if task.started_at is None or task.started_at.tzinfo is not None
+                else stale_before.replace(tzinfo=None)
+            )
+            if (
+                job.active_run_id != run.id
+                or run.status != ExecutionStatus.RUNNING
+                or task.status != TaskStatus.RUNNING
+                or task.started_at is None
+                or task.started_at >= task_stale_before
+            ):
+                continue
+            task.status = TaskStatus.QUEUED
+            task.started_at = None
+            task.input = {
+                **task.input,
+                "delivery": int(task.input.get("delivery", 1)) + 1,
+            }
+            session.add(_task_outbox(task))
+            requeued += 1
+        if requeued:
+            await session.commit()
+    return {"status": "reconciled", "requeued": requeued}
 
 
 async def cancel_run_graph(session: AsyncSession, job: Job, run: Run) -> None:

@@ -1,5 +1,6 @@
 from time import perf_counter
 
+from arq import cron
 from arq.connections import RedisSettings
 from sqlalchemy import select
 
@@ -21,7 +22,7 @@ from ..models import (
 from ..pricing import resolve_cost
 from . import streaming
 from .context import context_assembler
-from .graph import execute_task, is_graph_job, start_scene_graph
+from .graph import execute_task, is_graph_job, reconcile_stale_graph_tasks, start_scene_graph
 from .pipeline import continue_chain, run_department, run_evaluation, stage_for, stage_provider
 from .throttle import model_call_gate
 
@@ -349,6 +350,7 @@ async def _startup(_ctx: dict) -> None:
 
 class WorkerSettings:
     functions = [execute_run, execute_task]
+    cron_jobs = [cron(reconcile_stale_graph_tasks, second=0)]
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
     max_jobs = 10
     # Wide enough for generation + the vision gate's still render and one

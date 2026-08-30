@@ -102,7 +102,7 @@ def align_words_to_tokens(
     if anchors[-1][0] != len(tokens) - 1:
         anchors.append((len(tokens) - 1, duration))
     filled = [0.0] * len(tokens)
-    for (i0, t0), (i1, t1) in zip(anchors, anchors[1:]):
+    for (i0, t0), (i1, t1) in zip(anchors, anchors[1:], strict=False):
         filled[i0] = t0
         for idx in range(i0 + 1, i1 + 1):
             frac = (idx - i0) / (i1 - i0) if i1 > i0 else 1.0
@@ -131,21 +131,30 @@ class NarrationTiming(BaseModel):
     duration: float = Field(gt=0)
     words: list[Word] = Field(default_factory=list)
 
-    def find_phrase(self, phrase: str) -> tuple[float, float] | None:
+    def find_phrase(self, phrase: str, occurrence: int = 1) -> tuple[float, float] | None:
         """Locate a run of consecutive words, returning (start, end) or None.
 
         Case- and punctuation-insensitive on word text, so "attention weight"
-        matches `... attention weight.` The first match wins — narration rarely
-        repeats a keyed phrase, and if it does the earliest occurrence is the one
-        a creator means by naming it.
+        matches `... attention weight.` `occurrence` is one-based so a storyboard
+        can disambiguate repeated phrases without falling back to a word index.
         """
-        target = [_norm(w) for w in phrase.split() if w.strip()]
-        if not target:
+        target = [normalized for token in phrase.split() if (normalized := _norm(token))]
+        if not target or occurrence < 1:
             return None
-        norms = [_norm(w.text) for w in self.words]
+        indexed_norms = [
+            (index, normalized)
+            for index, word in enumerate(self.words)
+            if (normalized := _norm(word.text))
+        ]
+        norms = [normalized for _, normalized in indexed_norms]
+        seen = 0
         for i in range(len(norms) - len(target) + 1):
             if norms[i : i + len(target)] == target:
-                return (self.words[i].start, self.words[i + len(target) - 1].end)
+                seen += 1
+                if seen == occurrence:
+                    start_index = indexed_norms[i][0]
+                    end_index = indexed_norms[i + len(target) - 1][0]
+                    return (self.words[start_index].start, self.words[end_index].end)
         return None
 
 
@@ -183,12 +192,6 @@ class ResolvedTimeline(BaseModel):
 
     times: dict[str, float] = Field(default_factory=dict)
     unresolved: list[UnresolvedAnchor] = Field(default_factory=list)
-
-
-def _norm(word: str) -> str:
-    return "".join(ch for ch in word.lower() if ch.isalnum())
-
-
 def resolve_anchor(anchor: Anchor, timing: NarrationTiming) -> float | None:
     """Resolve one anchor against the current narration, or None if it can't.
 

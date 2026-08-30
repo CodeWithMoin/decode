@@ -11,6 +11,7 @@ from decode.domain import canonical_hash
 from decode.execution.graph import (
     ASSEMBLY_TASK,
     SCENE_TASK,
+    VISUAL_DIRECTION_TASK,
     accept_scene_candidate,
     execute_task,
 )
@@ -78,6 +79,16 @@ async def execute_visual_graph(run_id: str) -> dict:
     """Drive the same independently queued graph nodes ARQ runs in production."""
     started = await execute_run(None, run_id)
     assert started["status"] == "scheduled"
+    async with SessionLocal() as session:
+        direction = await session.scalar(
+            select(ProductionTask).where(
+                ProductionTask.run_id == run_id,
+                ProductionTask.kind == VISUAL_DIRECTION_TASK,
+            )
+        )
+        assert direction is not None
+        direction_id, direction_attempt = direction.id, direction.attempt
+    assert (await execute_task(None, direction_id, direction_attempt))["status"] == "succeeded"
     async with SessionLocal() as session:
         scenes = list(
             (

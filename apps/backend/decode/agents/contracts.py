@@ -17,12 +17,17 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from ..schemas import (
+    FilmRhythmBeat,
     ProductionBrief,
     ProductionIntent,
+    ProjectVisualBible,
+    SceneHandoff,
     SceneModule,
+    SceneStoryboard,
     SceneVisuals,
     Script,
     TeachingPlan,
+    VisualDirection,
     Voice,
 )
 
@@ -109,6 +114,28 @@ class Author(Protocol):
     async def generate(self, intent: ProductionIntent, plan: TeachingPlan) -> Script: ...
 
 
+@dataclass(frozen=True)
+class FocusedVisualDirection:
+    """Only the direction one scene renderer is allowed to see."""
+
+    bible: ProjectVisualBible
+    rhythm: FilmRhythmBeat
+    storyboard: SceneStoryboard
+    incoming_handoff: SceneHandoff | None
+    outgoing_handoff: SceneHandoff | None
+
+
+class VisualDirector(Protocol):
+    """Turns approved teaching and narration into pre-render visual direction."""
+
+    identifier: str
+    last_usage: ProviderUsage | None
+
+    async def generate(
+        self, intent: ProductionIntent, plan: TeachingPlan, script: Script
+    ) -> VisualDirection: ...
+
+
 class Visualizer(Protocol):
     """Turns an approved Script into the animation for each beat.
 
@@ -120,7 +147,12 @@ class Visualizer(Protocol):
     identifier: str
 
     async def generate(
-        self, intent: ProductionIntent, plan: TeachingPlan, script: Script
+        self,
+        intent: ProductionIntent,
+        plan: TeachingPlan,
+        script: Script,
+        *,
+        focused_direction: FocusedVisualDirection | None = None,
     ) -> SceneVisuals: ...
 
     async def regenerate_one(
@@ -131,6 +163,8 @@ class Visualizer(Protocol):
         prior_scenes: list[SceneModule],
         beat_id: str,
         direction: str,
+        *,
+        focused_direction: FocusedVisualDirection | None = None,
     ) -> SceneVisuals: ...
 
 

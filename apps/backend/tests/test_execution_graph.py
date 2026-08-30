@@ -1,13 +1,21 @@
 import asyncio
+from datetime import timedelta
 
+import pytest
 from sqlalchemy import func, select
 
-from decode.agents.fixtures import FakeVisualizer
-from decode.db import SessionLocal
+from decode.agents.contracts import ProviderUsage
+from decode.agents.fixtures import FakeVisualDirector, FakeVisualizer
+from decode.db import SessionLocal, utcnow
 from decode.domain import publish_version
 from decode.execution import graph
 from decode.execution.dispatcher import dispatch_once
-from decode.execution.graph import ASSEMBLY_TASK, SCENE_TASK, execute_task
+from decode.execution.graph import (
+    ASSEMBLY_TASK,
+    SCENE_TASK,
+    VISUAL_DIRECTION_TASK,
+    execute_task,
+)
 from decode.execution.pipeline import create_job, start_run
 from decode.execution.worker import execute_run
 from decode.models import (
@@ -131,13 +139,22 @@ async def _tasks(run_id: str, kind: str) -> list[ProductionTask]:
         )
 
 
+async def _execute_direction(run_id: str) -> ProductionTask:
+    task = (await _tasks(run_id, VISUAL_DIRECTION_TASK))[0]
+    assert (await execute_task(None, task.id, task.attempt))["status"] == "succeeded"
+    return (await _tasks(run_id, VISUAL_DIRECTION_TASK))[0]
+
+
 async def test_scene_graph_fans_out_then_publishes_once_after_fan_in(client):
     project_id, job_id, run_id = await _create_visual_run()
     started = await execute_run(None, run_id)
     assert started["status"] == "scheduled"
 
     scenes = await _tasks(run_id, SCENE_TASK)
+    direction = (await _tasks(run_id, VISUAL_DIRECTION_TASK))[0]
     assembly = (await _tasks(run_id, ASSEMBLY_TASK))[0]
+    assert direction.status == "queued"
+    assert all(task.status == "pending" and task.attempt == 0 for task in scenes)
     assert [task.input["beat_id"] for task in scenes] == ["beat-1", "beat-2", "beat-3"]
     assert len({task.priority for task in scenes}) == 3
     assert assembly.status == "pending"
@@ -150,7 +167,18 @@ async def test_scene_graph_fans_out_then_publishes_once_after_fan_in(client):
             )
             == 3
         )
+        assert (
+            await session.scalar(
+                select(func.count(ProductionTaskDependency.id)).where(
+                    ProductionTaskDependency.prerequisite_task_id == direction.id
+                )
+            )
+            == 3
+        )
 
+    await _execute_direction(run_id)
+    scenes = await _tasks(run_id, SCENE_TASK)
+    assert all(task.status == "queued" and task.attempt == 1 for task in scenes)
     assert (await execute_task(None, scenes[0].id, 1))["status"] == "candidate_ready"
     assert (await _tasks(run_id, ASSEMBLY_TASK))[0].status == "pending"
     results = await asyncio.gather(
@@ -198,7 +226,7 @@ async def test_scene_graph_fans_out_then_publishes_once_after_fan_in(client):
             await session.scalar(
                 select(func.count(UsageRecord.id)).where(UsageRecord.run_id == run_id)
             )
-            == 3
+            == 4
         )
         succeeded = list(
             (
@@ -210,10 +238,10 @@ async def test_scene_graph_fans_out_then_publishes_once_after_fan_in(client):
                 )
             ).all()
         )
-        assert len(succeeded) == 4
+        assert len(succeeded) == 5
 
     detail = (await client.get(f"/api/v1/projects/{project_id}/jobs/{job_id}")).json()
-    assert len(detail["tasks"]) == 4
+    assert len(detail["tasks"]) == 5
     assert all(task["status"] == "succeeded" for task in detail["tasks"])
     assert all(
         task["accepted_at"] is not None
@@ -227,16 +255,19 @@ async def test_failed_scene_retries_without_repeating_successful_siblings(monkey
         def __init__(self):
             self.failures = 0
 
-        async def generate(self, intent, plan, script):
+        async def generate(self, intent, plan, script, *, focused_direction=None):
             if plan.beats[0].id == "beat-2" and self.failures == 0:
                 self.failures += 1
                 raise RuntimeError("transient provider failure")
-            return await super().generate(intent, plan, script)
+            return await super().generate(
+                intent, plan, script, focused_direction=focused_direction
+            )
 
     designer = FlakyVisualizer()
     monkeypatch.setattr(graph, "visualizer", lambda _settings: designer)
     _, _, run_id = await _create_visual_run(2)
     await execute_run(None, run_id)
+    await _execute_direction(run_id)
     first, second = await _tasks(run_id, SCENE_TASK)
 
     assert (await execute_task(None, first.id, 1))["status"] == "candidate_ready"
@@ -253,9 +284,176 @@ async def test_failed_scene_retries_without_repeating_successful_siblings(monkey
     assert all(task.status == "succeeded" for task in refreshed)
 
 
+async def test_each_scene_receives_only_its_focused_direction(monkeypatch):
+    class RecordingVisualizer(FakeVisualizer):
+        def __init__(self):
+            self.focuses = []
+
+        async def generate(self, intent, plan, script, *, focused_direction=None):
+            self.focuses.append(focused_direction)
+            return await super().generate(
+                intent, plan, script, focused_direction=focused_direction
+            )
+
+    designer = RecordingVisualizer()
+    monkeypatch.setattr(graph, "visualizer", lambda _settings: designer)
+    _, _, run_id = await _create_visual_run(3)
+    await execute_run(None, run_id)
+    await _execute_direction(run_id)
+    scenes = await _tasks(run_id, SCENE_TASK)
+    for scene in scenes:
+        assert (await execute_task(None, scene.id, scene.attempt))["status"] == "candidate_ready"
+
+    assert [focus.storyboard.beat_id for focus in designer.focuses] == [
+        "beat-1",
+        "beat-2",
+        "beat-3",
+    ]
+    assert designer.focuses[0].incoming_handoff is None
+    assert designer.focuses[0].outgoing_handoff.to_beat_id == "beat-2"
+    assert designer.focuses[1].incoming_handoff.from_beat_id == "beat-1"
+    assert designer.focuses[1].outgoing_handoff.to_beat_id == "beat-3"
+    assert designer.focuses[2].incoming_handoff.from_beat_id == "beat-2"
+    assert designer.focuses[2].outgoing_handoff is None
+
+
+async def test_visual_direction_retries_before_releasing_scenes(monkeypatch):
+    class FlakyVisualDirector(FakeVisualDirector):
+        def __init__(self):
+            self.calls = 0
+
+        async def generate(self, intent, plan, script):
+            self.calls += 1
+            if self.calls == 1:
+                raise RuntimeError("transient direction failure")
+            return await super().generate(intent, plan, script)
+
+    director = FlakyVisualDirector()
+    monkeypatch.setattr(graph, "visual_director", lambda _settings: director)
+    _, _, run_id = await _create_visual_run(2)
+    await execute_run(None, run_id)
+    direction = (await _tasks(run_id, VISUAL_DIRECTION_TASK))[0]
+
+    assert await execute_task(None, direction.id, 1) == {"status": "retrying", "attempt": 2}
+    assert all(task.status == "pending" for task in await _tasks(run_id, SCENE_TASK))
+    assert (await execute_task(None, direction.id, 1))["status"] == "stale_task"
+    assert (await execute_task(None, direction.id, 2))["status"] == "succeeded"
+    assert all(task.status == "queued" for task in await _tasks(run_id, SCENE_TASK))
+    async with SessionLocal() as session:
+        usages = list(
+            (
+                await session.scalars(
+                    select(UsageRecord).where(UsageRecord.run_id == run_id)
+                )
+            ).all()
+        )
+    assert [usage.operation for usage in usages] == ["visual_direction_generation"]
+
+
+async def test_visual_direction_exhaustion_fails_without_degraded_scenes(monkeypatch):
+    class BrokenVisualDirector(FakeVisualDirector):
+        async def generate(self, intent, plan, script):
+            raise RuntimeError("direction unavailable")
+
+    monkeypatch.setattr(graph, "visual_director", lambda _settings: BrokenVisualDirector())
+    _, job_id, run_id = await _create_visual_run(2)
+    await execute_run(None, run_id)
+    direction = (await _tasks(run_id, VISUAL_DIRECTION_TASK))[0]
+
+    assert (await execute_task(None, direction.id, 1))["status"] == "retrying"
+    with pytest.raises(RuntimeError, match="direction unavailable"):
+        await execute_task(None, direction.id, 2)
+
+    async with SessionLocal() as session:
+        job = await session.get(Job, job_id)
+        tasks = list(
+            (
+                await session.scalars(
+                    select(ProductionTask).where(ProductionTask.run_id == run_id)
+                )
+            ).all()
+        )
+    assert job is not None and job.status == "failed"
+    assert next(task for task in tasks if task.kind == VISUAL_DIRECTION_TASK).status == "failed"
+    assert all(task.status == "cancelled" for task in tasks if task.kind != VISUAL_DIRECTION_TASK)
+    assert all(task.output is None for task in tasks if task.kind == SCENE_TASK)
+
+
+async def test_paid_failed_direction_attempt_is_metered(monkeypatch):
+    class PaidBrokenVisualDirector(FakeVisualDirector):
+        async def generate(self, intent, plan, script):
+            self.last_usage = ProviderUsage("paid-model", 120, 30, 1, 0.012)
+            raise RuntimeError("invalid paid draft")
+
+    monkeypatch.setattr(
+        graph, "visual_director", lambda _settings: PaidBrokenVisualDirector()
+    )
+    _, _, run_id = await _create_visual_run(1)
+    await execute_run(None, run_id)
+    direction = (await _tasks(run_id, VISUAL_DIRECTION_TASK))[0]
+
+    assert (await execute_task(None, direction.id, 1))["status"] == "retrying"
+    async with SessionLocal() as session:
+        usages = list(
+            (
+                await session.scalars(
+                    select(UsageRecord).where(UsageRecord.run_id == run_id)
+                )
+            ).all()
+        )
+    assert len(usages) == 1
+    assert usages[0].model == "paid-model"
+    assert usages[0].input_tokens == 120
+    assert float(usages[0].estimated_cost_usd or 0) == pytest.approx(0.012)
+
+
+async def test_stale_direction_lease_is_periodically_requeued() -> None:
+    _, _, run_id = await _create_visual_run(1)
+    await execute_run(None, run_id)
+    direction = (await _tasks(run_id, VISUAL_DIRECTION_TASK))[0]
+    claimed = await graph._claim_task(direction.id, direction.attempt, 1)
+    assert claimed == (VISUAL_DIRECTION_TASK, run_id)
+    async with SessionLocal() as session:
+        task = await session.get(ProductionTask, direction.id)
+        assert task is not None
+        task.started_at = utcnow() - timedelta(seconds=graph.STALE_TASK_LEASE_SECONDS + 1)
+        initial_outboxes = list((await session.scalars(select(OutboxEvent))).all())
+        for event in initial_outboxes:
+            event.published_at = utcnow()
+        await session.commit()
+
+    assert await graph.reconcile_stale_graph_tasks() == {
+        "status": "reconciled",
+        "requeued": 1,
+    }
+    refreshed = (await _tasks(run_id, VISUAL_DIRECTION_TASK))[0]
+    assert refreshed.status == "queued"
+    assert refreshed.started_at is None
+    assert refreshed.input["delivery"] == 2
+    assert (await execute_task(None, direction.id, direction.attempt, 1))["status"] == "stale_task"
+    assert all(task.status == "pending" for task in await _tasks(run_id, SCENE_TASK))
+
+    class RecordingRedis:
+        def __init__(self):
+            self.calls = []
+
+        async def enqueue_job(self, *args, **kwargs):
+            self.calls.append((args, kwargs))
+
+    redis = RecordingRedis()
+    assert await dispatch_once(redis) == 1
+    assert redis.calls == [
+        (
+            ("execute_task", direction.id, direction.attempt, 2),
+            {"_job_id": f"task:{direction.id}:attempt:{direction.attempt}:delivery:2"},
+        )
+    ]
+
+
 async def test_candidate_acceptance_revalidates_the_exact_previewed_source(client):
     project_id, job_id, run_id = await _create_visual_run(1)
     await execute_run(None, run_id)
+    await _execute_direction(run_id)
     scene = (await _tasks(run_id, SCENE_TASK))[0]
     await execute_task(None, scene.id, scene.attempt)
     candidate = (
@@ -280,8 +478,8 @@ async def test_candidate_acceptance_revalidates_the_exact_previewed_source(clien
     assert (await _tasks(run_id, ASSEMBLY_TASK))[0].status == "queued"
 
 
-async def test_cancellation_discards_a_scene_result_that_finishes_late(client, monkeypatch):
-    class BlockingVisualizer(FakeVisualizer):
+async def test_cancellation_discards_late_direction_but_records_its_usage(client, monkeypatch):
+    class BlockingVisualDirector(FakeVisualDirector):
         def __init__(self):
             self.started = asyncio.Event()
             self.release = asyncio.Event()
@@ -291,10 +489,53 @@ async def test_cancellation_discards_a_scene_result_that_finishes_late(client, m
             await self.release.wait()
             return await super().generate(intent, plan, script)
 
+    director = BlockingVisualDirector()
+    monkeypatch.setattr(graph, "visual_director", lambda _settings: director)
+    project_id, job_id, run_id = await _create_visual_run(1)
+    await execute_run(None, run_id)
+    direction = (await _tasks(run_id, VISUAL_DIRECTION_TASK))[0]
+    in_flight = asyncio.create_task(execute_task(None, direction.id, direction.attempt))
+    await director.started.wait()
+
+    cancelled = await client.post(
+        f"/api/v1/projects/{project_id}/jobs/{job_id}/cancellations",
+        json={"expected_active_run_id": run_id},
+        headers={"Idempotency-Key": "cancel-direction"},
+    )
+    assert cancelled.status_code == 200
+    director.release.set()
+    assert (await in_flight)["status"] == "cancelled"
+
+    async with SessionLocal() as session:
+        usages = list(
+            (
+                await session.scalars(
+                    select(UsageRecord).where(UsageRecord.run_id == run_id)
+                )
+            ).all()
+        )
+    assert [usage.operation for usage in usages] == ["visual_direction_generation"]
+    assert all(task.status == "cancelled" for task in await _tasks(run_id, SCENE_TASK))
+
+
+async def test_cancellation_discards_a_scene_result_that_finishes_late(client, monkeypatch):
+    class BlockingVisualizer(FakeVisualizer):
+        def __init__(self):
+            self.started = asyncio.Event()
+            self.release = asyncio.Event()
+
+        async def generate(self, intent, plan, script, *, focused_direction=None):
+            self.started.set()
+            await self.release.wait()
+            return await super().generate(
+                intent, plan, script, focused_direction=focused_direction
+            )
+
     designer = BlockingVisualizer()
     monkeypatch.setattr(graph, "visualizer", lambda _settings: designer)
     project_id, job_id, run_id = await _create_visual_run(1)
     await execute_run(None, run_id)
+    await _execute_direction(run_id)
     scene = (await _tasks(run_id, SCENE_TASK))[0]
     in_flight = asyncio.create_task(execute_task(None, scene.id, 1))
     await designer.started.wait()
@@ -319,9 +560,23 @@ async def test_cancellation_discards_a_scene_result_that_finishes_late(client, m
                 )
             ).all()
         )
+        usages = list(
+            (
+                await session.scalars(
+                    select(UsageRecord).where(UsageRecord.run_id == run_id)
+                )
+            ).all()
+        )
         assert run is not None and run.status == "cancelled"
         assert job is not None and job.status == "cancelled"
-        assert {task.status for task in tasks} == {"cancelled"}
+        direction = next(task for task in tasks if task.kind == VISUAL_DIRECTION_TASK)
+        assert direction.status == "succeeded"
+        assert all(
+            task.status == "cancelled"
+            for task in tasks
+            if task.kind != VISUAL_DIRECTION_TASK
+        )
+        assert [usage.operation for usage in usages] == ["visual_direction_generation"]
 
     replay = await client.post(
         f"/api/v1/projects/{project_id}/jobs/{job_id}/cancellations",
@@ -354,7 +609,7 @@ async def test_a_replaced_run_makes_every_old_task_delivery_stale():
     async with SessionLocal() as session:
         old_task = await session.get(ProductionTask, old_task.id)
         job = await session.get(Job, job_id)
-        assert old_task is not None and old_task.status == "queued"
+        assert old_task is not None and old_task.status == "pending"
         assert job is not None and job.active_run_id == replacement.id
 
 
@@ -387,6 +642,9 @@ async def test_dispatcher_sends_higher_priority_tasks_first():
     redis = RecordingRedis()
     assert await dispatch_once(redis) == 2
     assert redis.calls == [
-        (("execute_task", "task-high", 2), {"_job_id": "task:task-high:attempt:2"}),
+        (
+            ("execute_task", "task-high", 2, 1),
+            {"_job_id": "task:task-high:attempt:2:delivery:1"},
+        ),
         (("execute_run", "run-low"), {"_job_id": "run:run-low"}),
     ]

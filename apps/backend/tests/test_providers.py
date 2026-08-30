@@ -1,7 +1,8 @@
 import pytest
 
 from decode.agents import SourceInput
-from decode.agents.registry import evaluator, intake
+from decode.agents.fixtures import FakeVisualDirector
+from decode.agents.registry import evaluator, intake, visual_director
 from decode.config import Settings
 from decode.providers.storage import LocalObjectStore
 
@@ -56,3 +57,20 @@ def test_unknown_provider_raises_rather_than_falling_back(tmp_path):
         intake(Settings(intake="anthropic", local_object_root=tmp_path))
     with pytest.raises(ValueError):
         evaluator(Settings(evaluator="anthropic"))
+    with pytest.raises(ValueError):
+        visual_director(Settings(visual_director="anthropic"))
+
+
+def test_visual_director_auto_follows_the_renderer_provider() -> None:
+    assert isinstance(
+        visual_director(Settings(visual_director="auto", visualizer="fake")),
+        FakeVisualDirector,
+    )
+    with pytest.raises(ValueError, match="DECODE_OPENAI_API_KEY"):
+        visual_director(
+            Settings(
+                visual_director="auto",
+                visualizer="openai",
+                openai_api_key=None,
+            )
+        )

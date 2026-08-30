@@ -15,20 +15,30 @@ from ..schemas import (
     Beat,
     BeatNarration,
     BriefSupport,
+    ChoreographyOperation,
+    FilmRhythm,
+    FilmRhythmBeat,
+    NarrationPhraseAnchor,
     PlanSection,
     ProductionBrief,
     ProductionIntent,
+    ProjectVisualBible,
     SceneControl,
+    SceneHandoff,
     SceneModule,
+    SceneStoryboard,
     SceneVisuals,
     Script,
+    StoryboardSourceBinding,
+    StoryboardSubject,
     TeachingPlan,
+    VisualDirection,
     Voice,
     VoiceNarration,
 )
 from ..timing import even_split_words
 from .author.validation import target_words
-from .contracts import ProviderUsage, SourceInput
+from .contracts import FocusedVisualDirection, ProviderUsage, SourceInput
 from .evaluator import deterministic_checks, deterministic_plan_checks
 from .renderer.validation import RUNTIME_VERSION
 
@@ -219,6 +229,97 @@ def _filler(words: int, title: str) -> str:
     return " ".join(out)
 
 
+class FakeVisualDirector:
+    identifier = "fixture-visual-director-v1"
+    last_usage: ProviderUsage | None = None
+
+    async def generate(
+        self, intent: ProductionIntent, plan: TeachingPlan, script: Script
+    ) -> VisualDirection:
+        narrations = {beat.beat_id: beat.narration for beat in script.beats}
+        storyboards: list[SceneStoryboard] = []
+        rhythm: list[FilmRhythmBeat] = []
+        for index, beat in enumerate(plan.beats):
+            narration = narrations[beat.id]
+            spoken = [token for token in narration.split() if any(ch.isalnum() for ch in token)]
+            phrase = " ".join(spoken[: min(3, len(spoken))])
+            subject_id = f"focus-{beat.id.removeprefix('beat-')}"
+            storyboards.append(
+                SceneStoryboard(
+                    beat_id=beat.id,
+                    visual_thesis=beat.objective,
+                    metaphor=beat.visual_opportunity or "One teaching object changes state.",
+                    opening_state="The teaching relationship is not yet resolved.",
+                    closing_state="The beat's central relationship is visible and settled.",
+                    focal_subject_id=subject_id,
+                    subjects=[
+                        StoryboardSubject(
+                            id=subject_id,
+                            role="focus",
+                            description=beat.title,
+                            source_binding=StoryboardSourceBinding(
+                                beat_id=beat.id,
+                                field="objective",
+                            ),
+                        )
+                    ],
+                    operations=[
+                        ChoreographyOperation(
+                            id=f"resolve-{beat.id.removeprefix('beat-')}",
+                            action="focus",
+                            anchor=NarrationPhraseAnchor(phrase=phrase),
+                            subject_ids=[subject_id],
+                            resulting_state="The beat's focal relationship has resolved.",
+                        )
+                    ],
+                )
+            )
+            rhythm.append(
+                FilmRhythmBeat(
+                    beat_id=beat.id,
+                    mode=(
+                        "hook"
+                        if index == 0 and len(plan.beats) > 1
+                        else "recap"
+                        if index == len(plan.beats) - 1 and len(plan.beats) > 1
+                        else "mechanism"
+                    ),
+                    energy="medium",
+                    density="medium",
+                    pace="steady",
+                    pause_after="full" if index == len(plan.beats) - 1 else "brief",
+                    purpose=beat.objective,
+                )
+            )
+
+        return VisualDirection(
+            rationale="I created deterministic sample direction in the approved beat order.",
+            bible=ProjectVisualBible(
+                visual_thesis="Each beat makes one relationship visible as it is spoken.",
+                typography="Use one clear claim and concise teaching labels.",
+                shape_language="Use stable flat forms with one identity per concept.",
+                composition_language="Keep one focal object and generous negative space.",
+                motion_language="Build on spoken phrases and settle each result.",
+                continuity_motif="Resolved focal objects establish the next beat.",
+                avoid=["idle motion", "unmotivated decoration"],
+            ),
+            rhythm=FilmRhythm(
+                arc="Build each relationship in order and let the final result settle.",
+                beats=rhythm,
+            ),
+            storyboards=storyboards,
+            handoffs=[
+                SceneHandoff(
+                    from_beat_id=current.id,
+                    to_beat_id=following.id,
+                    intent="reset",
+                    bridge="A deliberate reset separates the fixture scenes.",
+                )
+                for current, following in zip(plan.beats, plan.beats[1:], strict=False)
+            ],
+        )
+
+
 def _fixture_scene(beat_id: str, label: str) -> SceneModule:
     """One React f(frame) scene: a minimal, contract-valid `component_source` the
     browser preview compiles and the direction loop patches in place. Authoring is
@@ -243,7 +344,12 @@ class FakeVisualizer:
     identifier = "fixture-visualizer-v1"
 
     async def generate(
-        self, intent: ProductionIntent, plan: TeachingPlan, script: Script
+        self,
+        intent: ProductionIntent,
+        plan: TeachingPlan,
+        script: Script,
+        *,
+        focused_direction: FocusedVisualDirection | None = None,
     ) -> SceneVisuals:
         # Real HyperFrames compositions against the real timing markers, so the
         # fixture exercises validation rather than sailing past it.
@@ -269,6 +375,8 @@ class FakeVisualizer:
         prior_scenes: list[SceneModule],
         beat_id: str,
         direction: str,
+        *,
+        focused_direction: FocusedVisualDirection | None = None,
     ) -> SceneVisuals:
         beat = next((item for item in plan.beats if item.id == beat_id), None)
         if beat is None:
@@ -302,7 +410,8 @@ def _component_source(label: str) -> str:
     it, which is the whole point: restyle freely, but the facts are a projection of
     data, not a thing the model may reword."""
     return (
-        'import { AbsoluteFill, Label, useCurrentFrame, interpolate } from "@decode/animation-api";\n'
+        'import { AbsoluteFill, Label, useCurrentFrame, interpolate } '
+        'from "@decode/animation-api";\n'
         "\n"
         "const TRACE = { steps: [3, 1, 4, 1, 5] } as const;\n"
         "\n"

@@ -20,6 +20,8 @@ to discover its knobs.
 
 from __future__ import annotations
 
+import json
+
 from pydantic import BaseModel, Field
 
 from ...config import Settings
@@ -31,12 +33,10 @@ from ...schemas import (
     Script,
     TeachingPlan,
 )
-import json
-
 from .. import tracing
 from ..agent_config import AgentConfig
 from ..agent_runtime import AgentRuntime, LocalTool
-from ..contracts import ProviderUsage
+from ..contracts import FocusedVisualDirection, ProviderUsage
 from . import patterns
 from .prompt import CHOREOGRAPHY_SYSTEM, REPAIR_PROMPT, SKILLS, build_instructions
 from .validation import RUNTIME_VERSION, repair_message, validate_scenes
@@ -50,7 +50,9 @@ async def _retrieve_pattern(args: dict) -> str:
     name = str(args.get("name", ""))
     source = patterns.get(name)
     if source is None:
-        return json.dumps({"error": f"no pattern named {name!r}", "available": patterns.available()})
+        return json.dumps(
+            {"error": f"no pattern named {name!r}", "available": patterns.available()}
+        )
     return json.dumps({"name": name, "source": source})
 
 
@@ -124,7 +126,12 @@ class ModelVisualizer:
         self.last_usage: ProviderUsage | None = None
 
     async def generate(
-        self, intent: ProductionIntent, plan: TeachingPlan, script: Script
+        self,
+        intent: ProductionIntent,
+        plan: TeachingPlan,
+        script: Script,
+        *,
+        focused_direction: FocusedVisualDirection | None = None,
     ) -> SceneVisuals:
         narration = {item.beat_id: item.narration for item in script.beats}
         segments = {item.beat_id: item.segments for item in script.beats}
@@ -141,6 +148,11 @@ class ModelVisualizer:
                 "brand_colors": intent.brand.colors,
                 "brand_fonts": intent.brand.fonts,
                 "brand_guidelines": intent.brand.guidelines,
+                **(
+                    {"visual_bible": focused_direction.bible.model_dump(mode="json")}
+                    if focused_direction
+                    else {}
+                ),
             },
             beats=[
                 {
@@ -152,6 +164,24 @@ class ModelVisualizer:
                     "narration": narration.get(beat.id, ""),
                     "segments": segments.get(beat.id, []),
                     "duration_seconds": beat.target_duration_seconds,
+                    **(
+                        {
+                            "film_rhythm": focused_direction.rhythm.model_dump(mode="json"),
+                            "storyboard": focused_direction.storyboard.model_dump(mode="json"),
+                            "incoming_handoff": (
+                                focused_direction.incoming_handoff.model_dump(mode="json")
+                                if focused_direction.incoming_handoff
+                                else None
+                            ),
+                            "outgoing_handoff": (
+                                focused_direction.outgoing_handoff.model_dump(mode="json")
+                                if focused_direction.outgoing_handoff
+                                else None
+                            ),
+                        }
+                        if focused_direction and beat.id == focused_direction.storyboard.beat_id
+                        else {}
+                    ),
                     # Optional per-beat engine hint (e.g. "d3") when the plan knows
                     # the visual is a chart/curve/graph the library owns.
                     **(
@@ -226,6 +256,8 @@ class ModelVisualizer:
         prior_scenes: list[SceneModule],
         beat_id: str,
         direction: str,
+        *,
+        focused_direction: FocusedVisualDirection | None = None,
     ) -> SceneVisuals:
         """Rebuild the scene for one beat under a creator's direction.
 
@@ -255,6 +287,11 @@ class ModelVisualizer:
                 "brand_colors": intent.brand.colors,
                 "brand_fonts": intent.brand.fonts,
                 "brand_guidelines": intent.brand.guidelines,
+                **(
+                    {"visual_bible": focused_direction.bible.model_dump(mode="json")}
+                    if focused_direction
+                    else {}
+                ),
             },
             beats=[
                 {
@@ -266,6 +303,24 @@ class ModelVisualizer:
                     "narration": narration.get(beat.id, ""),
                     "segments": segments.get(beat.id, []),
                     "duration_seconds": beat.target_duration_seconds,
+                    **(
+                        {
+                            "film_rhythm": focused_direction.rhythm.model_dump(mode="json"),
+                            "storyboard": focused_direction.storyboard.model_dump(mode="json"),
+                            "incoming_handoff": (
+                                focused_direction.incoming_handoff.model_dump(mode="json")
+                                if focused_direction.incoming_handoff
+                                else None
+                            ),
+                            "outgoing_handoff": (
+                                focused_direction.outgoing_handoff.model_dump(mode="json")
+                                if focused_direction.outgoing_handoff
+                                else None
+                            ),
+                        }
+                        if focused_direction
+                        else {}
+                    ),
                 }
             ],
             choreography=self.choreography,

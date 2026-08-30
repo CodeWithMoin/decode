@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .timing import Anchor, NarrationTiming, Word
 
@@ -163,6 +163,258 @@ class Script(BaseModel):
     rationale: str = Field(min_length=1, max_length=1200)
     beats: list[BeatNarration] = Field(min_length=1)
     script_findings: dict = Field(default_factory=dict)
+
+
+class VisualDirectionModel(BaseModel):
+    """Closed base for model-authored visual direction.
+
+    These contracts become structured model output later. Rejecting unknown fields
+    now prevents a renderer-only detail such as a component name, coordinate, or
+    frame number from quietly becoming part of the durable direction language.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class NarrationPhraseAnchor(VisualDirectionModel):
+    """A storyboard moment bound to spoken words, never a second or frame."""
+
+    phrase: str = Field(min_length=1, max_length=240)
+    align: Literal["start", "mid", "end"] = "start"
+    occurrence: int = Field(default=1, ge=1, le=10)
+
+    @model_validator(mode="after")
+    def _phrase_has_words(self) -> "NarrationPhraseAnchor":
+        self.phrase = self.phrase.strip()
+        if not self.phrase or not any(character.isalnum() for character in self.phrase):
+            raise ValueError("a narration anchor needs spoken words")
+        return self
+
+    def resolve(self, timing: NarrationTiming) -> float | None:
+        span = timing.find_phrase(self.phrase, self.occurrence)
+        if span is None:
+            return None
+        start, end = span
+        if self.align == "end":
+            return round(end, 3)
+        if self.align == "mid":
+            return round((start + end) / 2, 3)
+        return round(start, 3)
+
+
+class StoryboardSourceBinding(VisualDirectionModel):
+    """A closed pointer to one approved Teaching Plan field."""
+
+    beat_id: str = Field(min_length=1, max_length=40, pattern=r"^beat-[a-z0-9-]+$")
+    field: Literal["objective", "key_point", "example", "visual_opportunity"]
+    key_point_index: int | None = Field(default=None, ge=0, le=4)
+
+    @model_validator(mode="after")
+    def _index_matches_field(self) -> "StoryboardSourceBinding":
+        if self.field == "key_point" and self.key_point_index is None:
+            raise ValueError("a key_point binding needs key_point_index")
+        if self.field != "key_point" and self.key_point_index is not None:
+            raise ValueError("key_point_index is valid only for a key_point binding")
+        return self
+
+
+class StoryboardSubject(VisualDirectionModel):
+    """One semantic object in a scene, before any component implements it."""
+
+    id: str = Field(min_length=1, max_length=60, pattern=r"^[a-z][a-z0-9-]*$")
+    role: Literal["focus", "support", "context", "carrier"]
+    description: str = Field(min_length=1, max_length=300)
+    source_binding: StoryboardSourceBinding | None = None
+
+
+ChoreographyAction = Literal[
+    "appear",
+    "stagger",
+    "draw",
+    "travel",
+    "trace",
+    "focus",
+    "transform",
+    "reorder",
+    "accumulate",
+    "collapse",
+    "compare",
+    "handoff",
+    "hold",
+]
+
+
+class ChoreographyOperation(VisualDirectionModel):
+    """A meaningful state change, anchored to the phrase that explains it.
+
+    It deliberately contains no component, coordinates, frames, easing, or open
+    parameter bag. The renderer chooses those implementation details later.
+    """
+
+    id: str = Field(min_length=1, max_length=60, pattern=r"^[a-z][a-z0-9-]*$")
+    action: ChoreographyAction
+    anchor: NarrationPhraseAnchor
+    end_anchor: NarrationPhraseAnchor | None = None
+    subject_ids: list[str] = Field(min_length=1, max_length=12)
+    resulting_state: str = Field(min_length=1, max_length=300)
+    persists: bool = True
+
+    @model_validator(mode="after")
+    def _valid_subject_count(self) -> "ChoreographyOperation":
+        if len(self.subject_ids) != len(set(self.subject_ids)):
+            raise ValueError("an operation cannot reference the same subject twice")
+        multi_subject = {"stagger", "transform", "reorder", "compare", "handoff"}
+        if self.action in multi_subject and len(self.subject_ids) < 2:
+            raise ValueError(f"{self.action} needs at least two subjects")
+        return self
+
+
+class ProjectVisualBible(VisualDirectionModel):
+    """One visual language for the production, independent of renderer APIs."""
+
+    visual_thesis: str = Field(min_length=1, max_length=500)
+    typography: str = Field(min_length=1, max_length=400)
+    shape_language: str = Field(min_length=1, max_length=400)
+    composition_language: str = Field(min_length=1, max_length=400)
+    motion_language: str = Field(min_length=1, max_length=400)
+    continuity_motif: str = Field(min_length=1, max_length=400)
+    avoid: list[str] = Field(default_factory=list, max_length=12)
+
+
+SceneMode = Literal[
+    "hook",
+    "typography",
+    "mechanism",
+    "example",
+    "data",
+    "comparison",
+    "code",
+    "recap",
+]
+RhythmLevel = Literal["low", "medium", "high"]
+
+
+class FilmRhythmBeat(VisualDirectionModel):
+    """Relative pacing for one beat; real duration still comes from narration."""
+
+    beat_id: str = Field(min_length=1, max_length=40, pattern=r"^beat-[a-z0-9-]+$")
+    mode: SceneMode
+    energy: RhythmLevel
+    density: RhythmLevel
+    pace: Literal["measured", "steady", "brisk"]
+    pause_after: Literal["none", "brief", "full"]
+    purpose: str = Field(min_length=1, max_length=300)
+
+
+class FilmRhythm(VisualDirectionModel):
+    """The film's ordered energy curve, not another stored runtime."""
+
+    arc: str = Field(min_length=1, max_length=600)
+    beats: list[FilmRhythmBeat] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _unique_beats(self) -> "FilmRhythm":
+        ids = [beat.beat_id for beat in self.beats]
+        if len(ids) != len(set(ids)):
+            raise ValueError("film rhythm beat ids must be unique")
+        return self
+
+
+class SceneStoryboard(VisualDirectionModel):
+    """What one beat shows and how understanding changes through it."""
+
+    beat_id: str = Field(min_length=1, max_length=40, pattern=r"^beat-[a-z0-9-]+$")
+    visual_thesis: str = Field(min_length=1, max_length=400)
+    metaphor: str = Field(min_length=1, max_length=400)
+    opening_state: str = Field(min_length=1, max_length=300)
+    closing_state: str = Field(min_length=1, max_length=300)
+    focal_subject_id: str = Field(min_length=1, max_length=60)
+    subjects: list[StoryboardSubject] = Field(min_length=1, max_length=24)
+    operations: list[ChoreographyOperation] = Field(min_length=1, max_length=40)
+
+    @model_validator(mode="after")
+    def _valid_references(self) -> "SceneStoryboard":
+        subject_ids = [subject.id for subject in self.subjects]
+        if len(subject_ids) != len(set(subject_ids)):
+            raise ValueError("storyboard subject ids must be unique")
+        operation_ids = [operation.id for operation in self.operations]
+        if len(operation_ids) != len(set(operation_ids)):
+            raise ValueError("storyboard operation ids must be unique")
+        known = set(subject_ids)
+        if self.focal_subject_id not in known:
+            raise ValueError("focal_subject_id must reference a storyboard subject")
+        missing = sorted(
+            {
+                subject_id
+                for operation in self.operations
+                for subject_id in operation.subject_ids
+                if subject_id not in known
+            }
+        )
+        if missing:
+            raise ValueError(f"operations reference unknown subjects: {', '.join(missing)}")
+        return self
+
+
+class SceneHandoff(VisualDirectionModel):
+    """How one resolved scene gives the viewer's eye to the next."""
+
+    from_beat_id: str = Field(min_length=1, max_length=40, pattern=r"^beat-[a-z0-9-]+$")
+    to_beat_id: str = Field(min_length=1, max_length=40, pattern=r"^beat-[a-z0-9-]+$")
+    intent: Literal["continue", "deepen", "arrive", "elevate", "reset"]
+    bridge: str = Field(min_length=1, max_length=300)
+    carrier: str | None = Field(default=None, min_length=1, max_length=160)
+    from_subject_id: str | None = Field(default=None, min_length=1, max_length=60)
+    to_subject_id: str | None = Field(default=None, min_length=1, max_length=60)
+
+    @model_validator(mode="after")
+    def _continuity_has_a_carrier(self) -> "SceneHandoff":
+        refs = (self.carrier, self.from_subject_id, self.to_subject_id)
+        if self.intent == "reset" and any(value is not None for value in refs):
+            raise ValueError("a reset handoff cannot carry scene subject references")
+        if self.intent != "reset" and any(value is None for value in refs):
+            raise ValueError("a continuous handoff needs a carrier and both subject references")
+        return self
+
+
+class VisualDirection(VisualDirectionModel):
+    """The complete pre-render direction for one production.
+
+    This is downstream of the approved Teaching Plan and Script. It owns no
+    narration copy and names no renderer implementation.
+    """
+
+    rationale: str = Field(min_length=1, max_length=1200)
+    bible: ProjectVisualBible
+    rhythm: FilmRhythm
+    storyboards: list[SceneStoryboard] = Field(min_length=1)
+    handoffs: list[SceneHandoff] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _one_ordered_direction(self) -> "VisualDirection":
+        storyboard_ids = [storyboard.beat_id for storyboard in self.storyboards]
+        if len(storyboard_ids) != len(set(storyboard_ids)):
+            raise ValueError("visual direction beat ids must be unique")
+        rhythm_ids = [beat.beat_id for beat in self.rhythm.beats]
+        if rhythm_ids != storyboard_ids:
+            raise ValueError("rhythm and storyboards must cover the same beats in the same order")
+
+        expected_pairs = list(zip(storyboard_ids, storyboard_ids[1:], strict=False))
+        actual_pairs = [(handoff.from_beat_id, handoff.to_beat_id) for handoff in self.handoffs]
+        if actual_pairs != expected_pairs:
+            raise ValueError("handoffs must cover every adjacent scene boundary in order")
+
+        by_beat = {storyboard.beat_id: storyboard for storyboard in self.storyboards}
+        for handoff in self.handoffs:
+            if handoff.intent == "reset":
+                continue
+            from_ids = {subject.id for subject in by_beat[handoff.from_beat_id].subjects}
+            to_ids = {subject.id for subject in by_beat[handoff.to_beat_id].subjects}
+            if handoff.from_subject_id not in from_ids:
+                raise ValueError("handoff from_subject_id must exist in its source scene")
+            if handoff.to_subject_id not in to_ids:
+                raise ValueError("handoff to_subject_id must exist in its destination scene")
+        return self
 
 
 class SceneControl(BaseModel):
