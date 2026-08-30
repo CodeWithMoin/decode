@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     evaluator: str = "fake"
     openai_api_key: str | None = None
     openai_model: str = "gpt-5.6-luna"
+    # Run ONLY the Motion Designer on a different model. When set (an OpenRouter id
+    # like "google/gemini-3.6-flash"), the visualizer's client is pointed at
+    # OpenRouter with `openrouter_api_key` while the rest of the author stack stays
+    # on OpenAI. None = the visualizer uses `openai_model` like everyone else.
+    visualizer_model: str | None = None
     # The side chat answers a human mid-thought; routing a message to one tool
     # does not need the scene-authoring model, it needs to be quick. Overridable
     # via DECODE_ORCHESTRATOR_MODEL.
@@ -55,7 +60,7 @@ class Settings(BaseSettings):
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     # The vision judge's model (OpenRouter id). Flash is fast/cheap — right for a
     # gate that runs per scene and per repair round; swap to a -pro for accuracy.
-    vision_model: str = "google/gemini-2.5-flash"
+    vision_model: str = "google/gemini-3.6-flash"
     # Evaluation is a separate model call with a separate quality/cost profile.
     # It may share credentials without coupling its model choice to generation.
     openai_evaluator_model: str = "gpt-5.6-luna"

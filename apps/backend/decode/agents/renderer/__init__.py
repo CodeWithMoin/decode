@@ -115,14 +115,26 @@ class ModelVisualizer:
         self.choreography = settings.choreography == "auto"
         if self.choreography:
             config = config.model_copy(update={"system": CHOREOGRAPHY_SYSTEM})
+        # Run ONLY the Motion Designer on a different model when asked. A
+        # visualizer_model set to an OpenRouter id points this runtime's client at
+        # OpenRouter (with the OR key), leaving the rest of the author stack on
+        # OpenAI. Without an OR key we keep the OpenAI client rather than break.
+        model_id = settings.visualizer_model or settings.openai_model
+        if settings.visualizer_model and settings.openrouter_api_key:
+            settings = settings.model_copy(
+                update={
+                    "openai_api_key": settings.openrouter_api_key,
+                    "openai_base_url": settings.openrouter_base_url,
+                }
+            )
         self.runtime = AgentRuntime(
             settings,
             config.model_copy(
-                update={"model": config.model.model_copy(update={"id": settings.openai_model})}
+                update={"model": config.model.model_copy(update={"id": model_id})}
             ),
             local_tools=PATTERN_TOOLS,
         )
-        self.model = settings.openai_model
+        self.model = model_id
         self.last_usage: ProviderUsage | None = None
 
     async def generate(
