@@ -186,7 +186,7 @@ class ModelVisualizer:
                     # the visual is a chart/curve/graph the library owns.
                     **(
                         {"recommended_engine": beat.recommended_engine}
-                        if getattr(beat, "recommended_engine", None)
+                        if beat.recommended_engine
                         else {}
                     ),
                 }

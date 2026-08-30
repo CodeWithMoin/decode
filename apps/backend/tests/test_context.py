@@ -1,12 +1,12 @@
 import pytest
 
+from decode.execution.conductor import FALLBACK_ORDER
 from decode.execution.context import (
     ArchitectContext,
     IntakeContext,
     RegenerateVisualContext,
     context_assembler,
 )
-from decode.execution.conductor import FALLBACK_ORDER
 from decode.execution.pipeline import stage_for
 from decode.models import ArtifactType, ArtifactVersion, JobInput
 from decode.schemas import (
@@ -193,6 +193,48 @@ def test_regenerate_context_requires_beat_and_direction_in_the_manifest():
     inputs, versions = _regen_inputs_and_versions()
     with pytest.raises(ValueError, match="beat_id and direction"):
         context_assembler.assemble(stage_for("regenerate_scene_visual"), inputs, versions, {})
+
+
+async def test_regenerate_redraws_under_the_scenes_focused_visual_direction(monkeypatch):
+    """The wedge: a directed redraw reaches the visual-direction layer. The
+    designer must receive this beat's FocusedVisualDirection, not just the
+    free-text note — otherwise the storyboard/rhythm/handoffs are dropped on
+    every creator-directed redraw."""
+    from decode.config import get_settings
+    from decode.execution import pipeline
+
+    seen: dict[str, object] = {}
+
+    class RecordingDesigner:
+        identifier = "recording-visualizer"
+        last_usage = None
+
+        async def regenerate_one(
+            self, intent, plan, script, prior, beat_id, direction, *, focused_direction=None
+        ):
+            seen["focused_direction"] = focused_direction
+            seen["direction"] = direction
+            return SceneVisuals(
+                rationale="r",
+                scenes=[SceneModule(beat_id=beat_id, controls=[], component_source="REDRAWN")],
+            )
+
+    monkeypatch.setattr(pipeline, "visualizer", lambda settings: RecordingDesigner())
+
+    inputs, versions = _regen_inputs_and_versions()
+    context = context_assembler.assemble(
+        stage_for("regenerate_scene_visual"),
+        inputs,
+        versions,
+        {"beat_id": "beat-02", "direction": "make the open punchier"},
+    )
+    _, produced = await pipeline.run_department(get_settings(), context)
+
+    assert seen["direction"] == "make the open punchier"  # free-text still steers
+    focused = seen["focused_direction"]
+    assert focused is not None, "regeneration must carry the scene's visual direction"
+    assert focused.storyboard.beat_id == "beat-02"  # focused to THIS beat, not the film
+    assert produced.scenes[0].component_source == "REDRAWN"
 
 
 def test_regenerate_stage_produces_scene_visuals_and_never_chains():

@@ -16,7 +16,6 @@ from time import perf_counter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..agents.contracts import FocusedVisualDirection
 from ..agents.registry import visual_director, visualizer
 from ..agents.renderer.validation import validate_scenes
 from ..agents.renderer.vision import vision_verdict
@@ -40,7 +39,7 @@ from ..models import (
 )
 from ..pricing import resolve_cost
 from ..schemas import SceneModule, SceneVisuals, VisualDirection
-from ..visual_direction import validate_visual_direction
+from ..visual_direction import focus_visual_direction, validate_visual_direction
 from .context import VisualizerContext, context_assembler
 from .pipeline import continue_chain, stage_for, stage_provider
 from .throttle import model_call_gate
@@ -100,28 +99,6 @@ async def _visualizer_context(
     if not isinstance(context, VisualizerContext):
         raise ValueError(f"{job.kind} did not assemble a visualizer context")
     return context, inputs
-
-
-def _focus_visual_direction(
-    direction: VisualDirection, beat_id: str
-) -> FocusedVisualDirection:
-    storyboard = next(
-        (item for item in direction.storyboards if item.beat_id == beat_id), None
-    )
-    rhythm = next((item for item in direction.rhythm.beats if item.beat_id == beat_id), None)
-    if storyboard is None or rhythm is None:
-        raise ValueError(f"visual direction has no focused entry for {beat_id!r}")
-    return FocusedVisualDirection(
-        bible=direction.bible,
-        rhythm=rhythm,
-        storyboard=storyboard,
-        incoming_handoff=next(
-            (item for item in direction.handoffs if item.to_beat_id == beat_id), None
-        ),
-        outgoing_handoff=next(
-            (item for item in direction.handoffs if item.from_beat_id == beat_id), None
-        ),
-    )
 
 
 async def _visual_direction_for_run(
@@ -568,7 +545,7 @@ async def _run_scene_task(task_id: str, run_id: str) -> dict:
         repair = task.input.get("repair")
         visual_direction = await _visual_direction_for_run(session, run.id)
         focused_direction = (
-            _focus_visual_direction(visual_direction, beat_id) if visual_direction else None
+            focus_visual_direction(visual_direction, beat_id) if visual_direction else None
         )
 
     # Never hold a database transaction open across a provider call. Cancellation

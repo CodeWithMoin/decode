@@ -34,7 +34,15 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..agents.contracts import Department
-from ..agents.registry import architect, author, evaluator, intake, visualizer, voice
+from ..agents.registry import (
+    architect,
+    author,
+    evaluator,
+    intake,
+    visual_director,
+    visualizer,
+    voice,
+)
 from ..agents.skills import Manifest
 from ..config import Settings, get_settings
 from ..db import utcnow
@@ -56,8 +64,9 @@ from ..models import (
 )
 from ..pricing import resolve_cost
 from ..problems import AppProblem
-from .conductor import choose_next
 from ..schemas import ProductionBrief, TeachingPlan
+from ..visual_direction import focus_visual_direction
+from .conductor import choose_next
 from .context import (
     ArchitectContext,
     AuthorContext,
@@ -197,6 +206,19 @@ async def run_department(
 
     if isinstance(context, RegenerateVisualContext):
         designer = visualizer(settings)
+        # Redraw one scene UNDER the film's visual direction — the bible, this
+        # beat's rhythm and storyboard, and its handoffs — not only the creator's
+        # free-text note. That is the same FocusedVisualDirection a fresh scene
+        # render receives, so a directed redraw stays inside the film's language.
+        # Visual direction isn't persisted yet, so recompute it for this cut and
+        # focus to the beat.
+        # ponytail: recompute per regen — a whole-film director call to redraw one
+        #   scene, and its handoffs can drift from the unchanged neighbours' original
+        #   ones. The fix is persisting VisualDirection (rollout step 8), then
+        #   load-not-recompute; acceptable while the loop is being dialled in.
+        film_director = visual_director(settings)
+        film_direction = await film_director.generate(context.intent, context.plan, context.script)
+        focused = focus_visual_direction(film_direction, context.beat_id)
         return designer, await designer.regenerate_one(
             context.intent,
             context.plan,
@@ -204,6 +226,7 @@ async def run_department(
             list(context.prior_scenes),
             context.beat_id,
             context.direction,
+            focused_direction=focused,
         )
 
     if isinstance(context, VoiceContext):

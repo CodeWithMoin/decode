@@ -98,6 +98,9 @@ class Beat(BaseModel):
     brief_support: BriefSupport
     example: str | None = Field(default=None, max_length=600)
     visual_opportunity: str | None = Field(default=None, max_length=600)
+    # Optional engine hint when the plan already knows the visual is a
+    # chart/curve/graph a library owns (e.g. "d3"); the renderer passes it through.
+    recommended_engine: str | None = Field(default=None, max_length=40)
 
 
 class PlanPalette(BaseModel):

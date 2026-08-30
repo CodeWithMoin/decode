@@ -2,12 +2,34 @@
 
 from __future__ import annotations
 
+from .agents.contracts import FocusedVisualDirection
 from .schemas import Script, TeachingPlan, VisualDirection
 from .timing import NarrationTiming, even_split_words
 
 
 def _violation(code: str, message: str) -> dict[str, str]:
     return {"code": code, "message": message}
+
+
+def focus_visual_direction(direction: VisualDirection, beat_id: str) -> FocusedVisualDirection:
+    """Narrow the whole-film direction to only what one scene's renderer may see:
+    that beat's storyboard and rhythm, plus the handoffs on either side. Shared by
+    the production graph and the per-scene regeneration path."""
+    storyboard = next((item for item in direction.storyboards if item.beat_id == beat_id), None)
+    rhythm = next((item for item in direction.rhythm.beats if item.beat_id == beat_id), None)
+    if storyboard is None or rhythm is None:
+        raise ValueError(f"visual direction has no focused entry for {beat_id!r}")
+    return FocusedVisualDirection(
+        bible=direction.bible,
+        rhythm=rhythm,
+        storyboard=storyboard,
+        incoming_handoff=next(
+            (item for item in direction.handoffs if item.to_beat_id == beat_id), None
+        ),
+        outgoing_handoff=next(
+            (item for item in direction.handoffs if item.from_beat_id == beat_id), None
+        ),
+    )
 
 
 def validate_visual_direction(
