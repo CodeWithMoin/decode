@@ -27,6 +27,7 @@ from pydantic import BaseModel
 
 from ...config import Settings
 from ...schemas import Beat, SceneModule
+from ..contracts import FocusedVisualDirection
 
 
 class VisionVerdict(BaseModel):
@@ -61,6 +62,57 @@ _JUDGE_SYSTEM = (
     "When failing, give ONE concrete fix direction an animator can act on, "
     "in plain language."
 )
+
+# Added when the scene has an approved storyboard: judge the render against the
+# INTENDED arc, not just generic motion. This is the enforcement half of the
+# Visual Direction layer — it stops a valid-but-undirected scene from passing.
+_DIRECTION_CLAUSE = (
+    " This scene has an INTENDED storyboard (given as `storyboard` and ordered "
+    "`intended_moments`). Also judge whether the render HONORED it: the early "
+    "frame should match the opening_state and the late frame the closing_state; "
+    "the intended_moments should visibly happen ACROSS the three frames in the "
+    "given ORDER (not all at once in the first frame — a front-loaded build that "
+    "then holds still is a FAIL); and there must be no DEAD zone where nothing "
+    "changes while narration continues. If the render ignores the intended arc — "
+    "wrong opening/closing state, moments missing or out of order, or a final "
+    "state left unresolved — FAIL and say which intended moment did not land."
+)
+
+
+def _judge_system(focused_direction: FocusedVisualDirection | None) -> str:
+    """The judge rubric: generic motion/layout, plus the intended-arc checks when
+    the scene carries an approved storyboard."""
+    return _JUDGE_SYSTEM + (_DIRECTION_CLAUSE if focused_direction else "")
+
+
+def _judge_input(
+    beat: Beat, narration: str, focused_direction: FocusedVisualDirection | None
+) -> dict:
+    """What the judge sees beside the frames: the beat's teaching intent, plus —
+    when available — the intended opening/closing state, the film's rhythm for
+    this beat, and the ordered narration-anchored moments the render must honor."""
+    payload: dict = {
+        "beat_title": beat.title,
+        "objective": beat.objective,
+        "narration": narration[:600],
+    }
+    if focused_direction:
+        sb = focused_direction.storyboard
+        payload["storyboard"] = {
+            "metaphor": sb.metaphor,
+            "opening_state": sb.opening_state,
+            "closing_state": sb.closing_state,
+        }
+        payload["rhythm"] = {
+            "energy": focused_direction.rhythm.energy,
+            "density": focused_direction.rhythm.density,
+            "pace": focused_direction.rhythm.pace,
+        }
+        payload["intended_moments"] = [
+            {"phrase": op.anchor.phrase, "resulting_state": op.resulting_state}
+            for op in sb.operations
+        ]
+    return payload
 
 
 def _synth_words(narration: str, duration_seconds: float) -> list[dict]:
@@ -155,6 +207,7 @@ async def vision_verdict(
     beat: Beat,
     narration: str,
     duration_seconds: float,
+    focused_direction: FocusedVisualDirection | None = None,
 ) -> VisionVerdict | None:
     """Judge one scene's rendered frames. None means "no opinion" — gate off,
     no key, or the tooling failed — and the scene proceeds on static gates."""
@@ -183,10 +236,8 @@ async def vision_verdict(
                 + "\n".join(scene_errors),
             )
 
-        user_text = json.dumps(
-            {"beat_title": beat.title, "objective": beat.objective, "narration": narration[:600]},
-            ensure_ascii=True,
-        )
+        system = _judge_system(focused_direction)
+        user_text = json.dumps(_judge_input(beat, narration, focused_direction), ensure_ascii=True)
         data_urls = [
             "data:image/png;base64," + base64.b64encode(still.read_bytes()).decode()
             for still in stills
@@ -201,7 +252,7 @@ async def vision_verdict(
                 return await structured_chat(
                     settings,
                     models(settings)["vision"],
-                    system=_JUDGE_SYSTEM,
+                    system=system,
                     text=user_text,
                     image_data_urls=data_urls,
                     schema=VisionVerdict,
@@ -215,7 +266,7 @@ async def vision_verdict(
             content = [{"type": "input_text", "text": user_text}, *images]
             response = await client.responses.parse(
                 model=settings.openai_model,
-                instructions=_JUDGE_SYSTEM,
+                instructions=system,
                 input=[{"role": "user", "content": content}],
                 text_format=VisionVerdict,
             )

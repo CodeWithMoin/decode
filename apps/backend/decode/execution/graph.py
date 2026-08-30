@@ -599,6 +599,7 @@ async def _run_scene_task(task_id: str, run_id: str) -> dict:
             beat,
             narration.narration,
             float(beat.target_duration_seconds or 10),
+            focused_direction=focused_direction,
         )
         if verdict is None or verdict.passes or not verdict.fix_direction.strip():
             break
