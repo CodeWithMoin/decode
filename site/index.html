@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Decode</title>
+<meta name="description" content="Give it a topic, get a narrated explainer video — with a deterministic layer that guarantees the LLM's output is actually renderable." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" />
+<style>
+  :root{
+    color-scheme: dark;
+    --bg:#080a12; --bg2:#0c101b; --surface:#111726; --surface2:#151c2e;
+    --border:rgba(255,255,255,.09); --border2:rgba(255,255,255,.14);
+    --ink:#eef2fb; --dim:#93a0bd; --faint:#5c6a86;
+    --accent:#54cffe; --accent2:#4a9eff;
+    --blue:#4a9eff; --orange:#f5a623; --green:#37b26a; --purple:#a879e6;
+    --display:'Bricolage Grotesque', 'Inter', system-ui, sans-serif;
+    --body:'Inter', system-ui, sans-serif;
+    --mono:'JetBrains Mono', ui-monospace, monospace;
+    --maxw:1080px;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:var(--body); line-height:1.6; letter-spacing:-.01em;
+    -webkit-font-smoothing:antialiased;
+    background-image:
+      radial-gradient(900px 500px at 78% -8%, rgba(84,207,254,.10), transparent 60%),
+      radial-gradient(700px 420px at 10% 4%, rgba(74,158,255,.08), transparent 55%);
+    background-repeat:no-repeat;
+  }
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px}
+  a{color:inherit}
+  ::selection{background:rgba(84,207,254,.28)}
+
+  /* nav */
+  header{position:sticky; top:0; z-index:10; backdrop-filter:blur(10px);
+    background:rgba(8,10,18,.72); border-bottom:1px solid var(--border)}
+  .nav{display:flex; align-items:center; justify-content:space-between; height:60px}
+  .brand{display:flex; align-items:center; gap:10px; font-family:var(--display); font-weight:800; font-size:19px}
+  .dot{width:11px; height:11px; border-radius:3px; background:var(--accent)}
+  .nav a.gh{font-family:var(--mono); font-size:13px; color:var(--dim); text-decoration:none; border:1px solid var(--border); padding:7px 13px; border-radius:8px; transition:.15s}
+  .nav a.gh:hover{color:var(--ink); border-color:var(--border2); background:var(--surface)}
+
+  /* hero */
+  .hero{padding:76px 0 26px}
+  .eyebrow{font-family:var(--mono); font-size:12.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); margin:0 0 18px}
+  h1{font-family:var(--display); font-weight:800; font-size:clamp(40px,6.4vw,72px); line-height:1.02; letter-spacing:-.03em; margin:0; text-wrap:balance; max-width:15ch}
+  h1 .g{color:var(--accent)}
+  .sub{font-size:clamp(17px,2.2vw,20px); color:var(--dim); max-width:60ch; margin:22px 0 30px}
+  .cta{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
+  .btn{font-family:var(--body); font-weight:600; font-size:15px; text-decoration:none; padding:11px 18px; border-radius:10px; transition:.15s}
+  .btn.primary{background:var(--accent); color:#04121e; box-shadow:0 6px 20px -8px rgba(0,0,0,.7)}
+  .btn.primary:hover{transform:translateY(-1px); background:#6bd6ff}
+  .btn.ghost{border:1px solid var(--border2); color:var(--ink)}
+  .btn.ghost:hover{background:var(--surface)}
+  .meta{font-family:var(--mono); font-size:12.5px; color:var(--faint); margin-left:4px}
+
+  /* video */
+  .stage{margin:40px 0 0; position:relative; border-radius:18px; overflow:hidden;
+    border:1px solid var(--border2); background:#fff;
+    box-shadow:0 40px 120px -30px rgba(0,0,0,.8)}
+  .stage video{display:block; width:100%; height:auto}
+  .caption{display:flex; align-items:center; gap:8px; justify-content:center; margin:14px 0 0; font-family:var(--mono); font-size:12.5px; color:var(--faint)}
+  .live{width:7px;height:7px;border-radius:50%;background:var(--green)}
+
+  /* sections */
+  section{padding:66px 0}
+  .kicker{font-family:var(--mono); font-size:12.5px; letter-spacing:.15em; text-transform:uppercase; color:var(--accent); margin:0 0 14px}
+  h2{font-family:var(--display); font-weight:700; font-size:clamp(27px,3.6vw,38px); letter-spacing:-.02em; line-height:1.1; margin:0 0 16px; text-wrap:balance; max-width:20ch}
+  .lead{color:var(--dim); font-size:17px; max-width:62ch; margin:0}
+  .lead b{color:var(--ink); font-weight:600}
+
+  /* guarantees */
+  .guards{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; margin-top:34px}
+  .guard{border:1px solid var(--border); background:linear-gradient(180deg,var(--surface),var(--bg2)); border-radius:14px; padding:22px}
+  .guard .t{font-family:var(--mono); font-size:12.5px; color:var(--accent); letter-spacing:.04em; margin:0 0 9px}
+  .guard .d{font-size:14.5px; color:var(--dim); margin:0}
+  .guard b{color:var(--ink); font-weight:600}
+
+  /* pipeline */
+  .pipe{display:flex; flex-wrap:wrap; gap:10px; align-items:stretch; margin-top:30px; font-family:var(--mono); font-size:13px}
+  .step{border:1px solid var(--border); background:var(--surface); border-radius:11px; padding:13px 15px; color:var(--ink)}
+  .step small{display:block; color:var(--faint); font-size:11px; margin-top:3px; letter-spacing:.02em}
+  .arw{align-self:center; color:var(--accent); font-size:16px}
+  .step.gate{border-color:rgba(84,207,254,.4); background:linear-gradient(180deg,rgba(84,207,254,.09),var(--surface))}
+
+  /* gallery */
+  .gal{display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin-top:34px}
+  .shot{border:1px solid var(--border); border-radius:14px; overflow:hidden; background:#fff}
+  .shot img{display:block; width:100%; height:auto}
+  .shot .lbl{background:var(--surface); color:var(--dim); font-family:var(--mono); font-size:12px; padding:10px 14px; border-top:1px solid var(--border)}
+  .shot .lbl-b{color:var(--ink)}
+
+  /* footer */
+  footer{border-top:1px solid var(--border); padding:44px 0 66px; margin-top:20px}
+  .foot{display:flex; flex-wrap:wrap; gap:20px; justify-content:space-between; align-items:flex-end}
+  .who{max-width:52ch}
+  .who .n{font-family:var(--display); font-weight:700; font-size:19px; margin:0 0 6px}
+  .who p{color:var(--dim); font-size:14.5px; margin:0}
+  .links{display:flex; gap:10px; flex-wrap:wrap; font-family:var(--mono); font-size:13px}
+  .links a{color:var(--dim); text-decoration:none; border:1px solid var(--border); padding:8px 14px; border-radius:9px; transition:.15s}
+  .links a:hover{color:var(--ink); border-color:var(--border2); background:var(--surface)}
+
+  @media (max-width:680px){
+    .gal{grid-template-columns:1fr}
+    .hero{padding:52px 0 20px}
+    section{padding:52px 0}
+  }
+  @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}.btn.primary:hover{transform:none}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap nav">
+    <div class="brand"><span class="dot"></span> Decode</div>
+    <a class="gh" href="https://github.com/CodeWithMoin/decode" target="_blank" rel="noopener">github ↗</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <p class="eyebrow">LLM → narrated explainer video</p>
+    <h1>Give it a topic. Get a <span class="g">video that actually renders.</span></h1>
+    <p class="sub">Decode writes the script, narrates it, and animates the scenes — timed to the voice, end to end from one prompt. The catch nobody mentions: a language model's output has to be made <em>provably</em> renderable. That's the part I built.</p>
+    <div class="cta">
+      <a class="btn primary" href="#demo">Watch the demo</a>
+      <a class="btn ghost" href="https://github.com/CodeWithMoin/decode" target="_blank" rel="noopener">Read the code</a>
+      <span class="meta">~90s · real pipeline output</span>
+    </div>
+
+    <div class="stage" id="demo">
+      <video src="media/demo.mp4" poster="media/poster.png" autoplay muted loop playsinline controls preload="metadata"></video>
+    </div>
+    <p class="caption"><span class="live"></span> self-attention → the transformer stack → gradient descent, one generated lesson</p>
+  </section>
+
+  <section>
+    <p class="kicker">The hard part</p>
+    <h2>The LLM is the easy half.</h2>
+    <p class="lead">The model never emits pixels or raw coordinates. It <b>composes</b> a scene from a fixed library of visual primitives, and a <b>deterministic execution layer</b> validates every scene <em>before</em> it renders. A scene that breaks a rule is caught and repaired — not shipped broken. Same input, same frames, every time.</p>
+    <div class="guards">
+      <div class="guard"><p class="t">collision</p><p class="d">No two elements <b>overlap</b> — geometry is checked, not hoped for.</p></div>
+      <div class="guard"><p class="t">boundary + safe-margin</p><p class="d">Nothing runs <b>off-frame</b> or crowds the edge.</p></div>
+      <div class="guard"><p class="t">text bounding boxes</p><p class="d">Labels are <b>measured</b>, never guessed, so they never clip.</p></div>
+      <div class="guard"><p class="t">word-level timing</p><p class="d">Every reveal fires on the <b>narration word</b> that names it.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">Pipeline</p>
+    <h2>Prompt in, MP4 out.</h2>
+    <p class="lead">The author model is pluggable — OpenAI, Gemini, any OpenRouter model. The component contract is generated from the TypeScript source, so the model is only ever handed props that exist.</p>
+    <div class="pipe">
+      <div class="step">topic<small>what to teach</small></div>
+      <div class="arw">→</div>
+      <div class="step">plan + script<small>narration = the clock</small></div>
+      <div class="arw">→</div>
+      <div class="step">compose scene<small>LLM picks primitives</small></div>
+      <div class="arw">→</div>
+      <div class="step gate">validate<small>collision · bounds · fit</small></div>
+      <div class="arw">→</div>
+      <div class="step gate">vision loop<small>render · critique · repair</small></div>
+      <div class="arw">→</div>
+      <div class="step">render<small>Remotion → mp4</small></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">Range</p>
+    <h2>One grammar, many figures.</h2>
+    <p class="lead">Every frame below is generated by the same pipeline — no two elements overlapping, nothing off-screen, on one palette, by construction.</p>
+    <div class="gal">
+      <figure class="shot" style="margin:0"><img src="media/transformer.png" alt="The transformer stack — block diagram with residual connections" /><div class="lbl"><span class="lbl-b">BlockDiagram</span> · architecture + residuals</div></figure>
+      <figure class="shot" style="margin:0"><img src="media/attention.png" alt="Self-attention — weighted arcs between tokens" /><div class="lbl"><span class="lbl-b">SequenceLinks</span> · weighted attention</div></figure>
+      <figure class="shot" style="margin:0"><img src="media/matrix.png" alt="Q times K transpose — matrix multiply with highlighted row and column" /><div class="lbl"><span class="lbl-b">MatrixOp</span> · Q·Kᵀ, row·column</div></figure>
+      <figure class="shot" style="margin:0"><img src="media/gradient.png" alt="Gradient descent walking to the minimum on a contour field" /><div class="lbl"><span class="lbl-b">LossLandscape</span> · descent path</div></figure>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <div class="who">
+      <p class="n">Built by Moinuddin Shaik</p>
+      <p>CS (AI/ML) · former Applied Scientist intern at Amazon. A research prototype exploring correctness-by-construction for LLM-generated video — the model proposes, a deterministic layer guarantees the output is valid.</p>
+    </div>
+    <div class="links">
+      <a href="https://github.com/CodeWithMoin/decode" target="_blank" rel="noopener">github/decode ↗</a>
+      <a href="https://github.com/CodeWithMoin" target="_blank" rel="noopener">github/CodeWithMoin ↗</a>
+      <a href="https://linkedin.com/in/codewithmoin" target="_blank" rel="noopener">linkedin ↗</a>
+    </div>
+  </div>
+</footer>
+</body>
+</html>
