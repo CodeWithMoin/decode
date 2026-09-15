@@ -13,16 +13,14 @@ import { useState, type FormEvent } from "react";
  * then everything settles. No scroll pinning, no ambient loops.
  */
 
-const NARRATION = "Attention lets every word ask every other word what it means.";
 
 export function WaitlistLanding() {
   return (
     <div className="min-h-screen bg-page text-ink antialiased">
       <header className="mx-auto flex w-full max-w-[1120px] items-center justify-between px-6 pt-7">
         <div className="flex items-center gap-2.5">
-          <span className="grid h-7 w-7 place-items-center rounded-[8px] bg-ink font-display text-[13px] font-semibold text-white">
-            D
-          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element -- the brand mark, a tiny static SVG */}
+          <img src="/icon.svg" alt="" width={28} height={28} className="h-7 w-7" />
           <span className="font-display text-[15px] font-semibold tracking-[-0.01em]">Decode</span>
         </div>
         <span className="font-mono text-[10px] tracking-[0.14em] text-t7 uppercase">
@@ -66,48 +64,24 @@ export function WaitlistLanding() {
         {/* The stage: the product's real material — one dark canvas, scenes
             transparent over it, narration as the clock. Shown, not claimed. */}
         <figure className="mt-[clamp(48px,8vh,84px)]">
-          <div className="overflow-hidden rounded-[28px] bg-[#0B0B0B] px-[clamp(24px,5vw,72px)] py-[clamp(36px,6vh,64px)] shadow-[0_32px_80px_-32px_rgb(20_20_20/0.45)]">
-            <div className="flex items-center justify-between font-mono text-[10px] tracking-[0.14em] text-[#7E7E7E] uppercase">
-              <span>Scene 04 · Attention</span>
+          <div className="overflow-hidden rounded-[28px] bg-[#0B0B0B] p-[clamp(8px,1vw,14px)] shadow-[0_32px_80px_-32px_rgb(20_20_20/0.45)]">
+            <div className="flex items-center justify-between px-3 pt-1 pb-3 font-mono text-[10px] tracking-[0.14em] text-[#7E7E7E] uppercase">
+              <span>A generated lesson · self-attention → transformer → gradient descent</span>
               <span>1920 × 1080</span>
             </div>
-            <div className="mt-[clamp(28px,5vh,48px)] grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] items-center gap-[clamp(20px,4vw,48px)]">
-              <div className="rounded-[18px] border-2 border-[#484848] bg-[#232323] px-6 py-7 text-center">
-                <div className="font-mono text-[10px] tracking-[0.12em] text-[#8A8A86] uppercase">
-                  the animal
-                </div>
-                <div className="mt-2 text-[clamp(18px,2vw,24px)] font-semibold text-[#F5F5F5]">
-                  “it”
-                </div>
-              </div>
-              <div className="flex items-center gap-2" aria-hidden>
-                <div className="h-[2px] flex-1 bg-[#F2A47B]" />
-                <span className="font-mono text-[10px] tracking-[0.12em] text-[#F2A47B] uppercase">
-                  attends to
-                </span>
-                <div className="h-[2px] flex-1 bg-[#F2A47B]" />
-                <div className="h-0 w-0 border-y-[5px] border-l-[8px] border-y-transparent border-l-[#F2A47B]" />
-              </div>
-              <div className="rounded-[18px] border-2 border-[#484848] bg-[#232323] px-6 py-7 text-center">
-                <div className="font-mono text-[10px] tracking-[0.12em] text-[#8A8A86] uppercase">
-                  the referent
-                </div>
-                <div className="mt-2 text-[clamp(18px,2vw,24px)] font-semibold text-[#F5F5F5]">
-                  “the street”
-                </div>
-              </div>
-            </div>
-            <p className="mt-[clamp(28px,5vh,48px)] text-center text-[clamp(14px,1.5vw,17px)] leading-[1.7]">
-              {NARRATION.split(" ").map((word, index) => (
-                <span
-                  key={index}
-                  className="landing-narration-word"
-                  style={{ animationDelay: `${900 + index * 170}ms` }}
-                >
-                  {word}{" "}
-                </span>
-              ))}
-            </p>
+            {/* Real pipeline output — one generated, narrated lesson. Shown, not claimed. */}
+            <video
+              className="block w-full rounded-[18px]"
+              src="/demo.mp4"
+              poster="/demo-poster.png"
+              autoPlay
+              muted
+              loop
+              playsInline
+              controls
+              preload="metadata"
+              aria-label="A Decode-generated lesson: self-attention, the transformer stack, and gradient descent"
+            />
           </div>
           <figcaption className="mt-3 text-center font-mono text-[10px] tracking-[0.12em] text-t8 uppercase">
             Narration is the clock. Every visual lands on the words that name it.
@@ -154,33 +128,49 @@ export function WaitlistLanding() {
         </div>
       </section>
 
-      {/* ------------------------------------------------ a lesson, not a summary */}
+      {/* ------------------------------------------------ a lesson, not a summary.
+          Evidence, not claims: these are real frames the pipeline generated,
+          each drawing the mechanism the narration is explaining at that moment. */}
       <section className="mx-auto w-full max-w-[1120px] px-6 pt-[clamp(72px,12vh,128px)]">
         <h2 className="font-serif tracking-[-0.015em]" style={{ fontSize: "clamp(34px,5vw,56px)" }}>
           A film that teaches.
           <span className="text-t9"> Not a chatbot that talks.</span>
         </h2>
-        <div className="mt-10 grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-x-12 gap-y-8 border-t border-line pt-8">
+        <p className="mt-6 max-w-[58ch] text-[clamp(15px,1.4vw,17px)] leading-[1.7] text-t5">
+          No stock footage with a voice on top. Every scene draws the idea itself —
+          the parts, how they connect, the step where it clicks — and lands on the
+          words that name it. These four frames came out of one generated lesson.
+        </p>
+        <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 border-t border-line pt-8 sm:grid-cols-2">
           {[
             {
-              name: "Planned like a lesson",
-              body: "Decode works out what you need to see first and what builds on it, the way a good teacher would. The video has a through-line, not paragraphs read aloud over slides.",
+              src: "/frames/transformer.png",
+              alt: "The transformer stack drawn as blocks: embedding, attention, add and norm, feed forward, with residual connections arcing past each",
+              caption: "The transformer stack, with the residual connections that skip around each block.",
             },
             {
-              name: "Drawn to show the mechanism",
-              body: "The scenes animate the idea itself: the parts, how they connect, the step where it finally makes sense. No stock footage with a voice on top.",
+              src: "/frames/attention.png",
+              alt: "Five token chips with arcs between them; a thicker arc from “it” back to “cat”",
+              caption: "Attention across a sentence — a thicker arc is a stronger weight.",
             },
             {
-              name: "Timed by the narration",
-              body: "The voice is the clock. Every visual lands on the words that name it, so the film never drifts out of sync with what it’s saying.",
+              src: "/frames/matrix.png",
+              alt: "A matrix multiply Q times K-transpose with one row of Q, one column of K and their output cell highlighted together",
+              caption: "Scores = Q × Kᵀ: one row dotted with one column makes one cell.",
             },
-          ].map((item) => (
-            <div key={item.name}>
-              <div className="font-display text-[17px] font-semibold tracking-[-0.01em]">
-                {item.name}
+            {
+              src: "/frames/gradient.png",
+              alt: "Contour rings of a loss landscape with a path of steps walking to the minimum at the centre",
+              caption: "Gradient descent walking downhill to the minimum, one step per spoken beat.",
+            },
+          ].map((frame) => (
+            <figure key={frame.src} className="m-0">
+              <div className="overflow-hidden rounded-[16px] border border-line-strong bg-white">
+                {/* eslint-disable-next-line @next/next/no-img-element -- static generated frames, fixed 16:9, no need for the image optimizer */}
+                <img src={frame.src} alt={frame.alt} width={1920} height={1080} loading="lazy" className="block h-auto w-full" />
               </div>
-              <p className="mt-3 text-[14px] leading-[1.7] text-t5">{item.body}</p>
-            </div>
+              <figcaption className="mt-3 text-[14px] leading-[1.6] text-t5">{frame.caption}</figcaption>
+            </figure>
           ))}
         </div>
       </section>

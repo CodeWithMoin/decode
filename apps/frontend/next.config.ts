@@ -14,6 +14,15 @@ const nextConfig: NextConfig = {
   // workspace root. Pin it to this app instead — inference would otherwise
   // trace files from outside the monorepo into the build.
   outputFileTracingRoot: fileURLToPath(new URL(".", import.meta.url)),
+
+  // Waitlist deployment: the studio needs the backend, which isn't deployed here,
+  // so send anyone who reaches a studio route back to the landing page.
+  async redirects() {
+    return [
+      { source: "/studio", destination: "/", permanent: false },
+      { source: "/studio/:path*", destination: "/", permanent: false },
+    ];
+  },
 };
 
 export default nextConfig;
